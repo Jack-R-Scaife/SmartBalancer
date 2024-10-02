@@ -1,5 +1,5 @@
 const numberOfServers = 419; // Total number of servers
-
+let pollInterval = 1000;
 // Function to create server squares dynamically
 function createServerSquares() {
     const container = document.getElementById('serversquares');
@@ -37,6 +37,7 @@ function fetchServerStatus() {
     axios.get('/api/server_status')
         .then(response => {
             const servers = response.data; // Expecting an array of servers with { ip, s }
+            let allIdleOrDown = true; // Track if all servers are idle or down
 
             servers.forEach((server, index) => {
                 // Map the server to the square by index (assuming the order is consistent)
@@ -49,16 +50,34 @@ function fetchServerStatus() {
                     // Apply the appropriate class based on the server's 's' field (now a number)
                     const statusClass = getStatusClass(server.s);
                     serverDiv.classList.add(statusClass);
+
+                    // Check if the server is not idle or down
+                    if (server.s !== 4 && server.s !== 5) {
+                        allIdleOrDown = false;
+                    }
                 }
             });
+
+            // Adjust the polling interval based on the server statuses
+            if (allIdleOrDown) {
+                pollInterval = 10000; // Slow down to 10 seconds if all are idle or down
+            } else {
+                pollInterval = 1000; // Keep it at 1 second if any active servers are present
+            }
         })
         .catch(error => {
             console.error("Error fetching server statuses:", error);
         });
 }
 
+// Recursive polling function that dynamically adjusts based on server statuses
+function startPolling() {
+    fetchServerStatus();
+    setTimeout(startPolling, pollInterval); // Adjust interval dynamically
+}
+
 // Create the squares when the page loads
 createServerSquares();
 
-// Fetch and update server statuses every 5 seconds
-setInterval(fetchServerStatus, 5000);
+// Start polling with dynamic intervals
+startPolling();

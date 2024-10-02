@@ -35,6 +35,10 @@ class LoadBalancer:
                 print(f"[DEBUG] Agent {agent_ip} already exists in known agents")
 
     def ping_agents(self):
+        """
+        Ping all known agents and update their status in the database.
+        Adjusts the interval based on the agent's status.
+        """
         with self.app.app_context():
             status_mapping = {
                 1: "healthy",
@@ -46,45 +50,71 @@ class LoadBalancer:
             }
             print(f"Currently monitoring agents: {self.known_agents}")
             
+            agent_intervals = {}  # To store ping intervals for each agent
+
             for agent_ip in self.known_agents:
+                # Default interval is 1 second unless otherwise specified
+                interval = agent_intervals.get(agent_ip, 1)
                 try:
                     response = requests.get(f"http://{agent_ip}:8000/health")
-                    print(f"Raw response from agent {agent_ip}: {response.text}")  # Debugging step
+                    print(f"Raw response from agent {agent_ip}: {response.text}")
 
                     if response.status_code == 200:
-                        agent_status_code = response.json().get('st', None)  # Get numeric status from agent
+                        agent_status_code = response.json().get('st', None)
 
                         if agent_status_code is not None:
-                            # Convert numeric status code to string status
-                            agent_status = status_mapping.get(agent_status_code, "down")  # Default to "down" if unrecognized
+                            # Map numeric status to string
+                            agent_status = status_mapping.get(agent_status_code, "down")
                             print(f"Agent {agent_ip} status: {agent_status}")
 
-                            # Update the server status in the database
+                            # Update status in the database
                             server = Server.query.filter_by(ip_address=agent_ip).first()
                             if server:
-                                server.status = agent_status  # Save the string status in DB
+                                server.status = agent_status
                                 db.session.commit()
+
+                            # Adjust interval based on the agent's status
+                            if agent_status in ['idle', 'down']:
+                                interval = 10  # Slow down checks for idle or down agents
+                            else:
+                                interval = 1  # Keep checks fast for active agents
+
+                            # Update the interval for next time
+                            agent_intervals[agent_ip] = interval
+
                         else:
                             print(f"No status returned from agent {agent_ip}")
+                            self.update_server_status(agent_ip, "offline")
+                            agent_intervals[agent_ip] = 10  # Default slower interval for offline agents
                     else:
                         print(f"Agent {agent_ip} is not responding.")
                         self.update_server_status(agent_ip, "offline")
+                        agent_intervals[agent_ip] = 10  # Slow interval for unresponsive agents
+
                 except Exception as e:
                     print(f"Error pinging agent {agent_ip}: {e}")
                     self.update_server_status(agent_ip, "offline")
+                    agent_intervals[agent_ip] = 10  # Slow interval for agents that caused an error
+
+            # Return the calculated intervals for further use in sleep
+            return agent_intervals
 
                     
-    def monitor_agents(self, interval=10):
+    def monitor_agents(self):
         """
-        Continuously monitor the agents by periodically pinging them at a given interval.
-        The interval parameter (in seconds) controls how often the agents are pinged.
+        Continuously monitor the agents by periodically pinging them.
+        Adjust the interval based on the agent's current status.
         """
+        agent_intervals = {}  # To store intervals per agent (IP-based)
+
         while True:
-            # Ping all the known agents
-            self.ping_agents()
-            # Sleep for the specified interval before checking again
-            time.sleep(interval)
-    
+            # Ping all the known agents and get their intervals
+            agent_intervals = self.ping_agents()
+
+            # Use the shortest interval for sleeping between pings
+            min_interval = min(agent_intervals.values(), default=1)
+            time.sleep(min_interval)
+
     def update_server_status(self,ip_address,status):
         # Find the server by IP address and update its status
         server = Server.query.filter_by(ip_address=ip_address).first()
