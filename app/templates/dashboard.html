@@ -1,0 +1,113 @@
+<!-- templates/dashboard.html -->
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
+<script src="{{ url_for('static', filename='JS/server_status.js') }}"></script>
+<div class="container mt-4">
+<style>
+  .server-square {
+    width: 30px;
+    height: 30px;
+    margin: 5px;
+    border-radius: 5px;
+}
+
+.healthy {
+    background-color: green;
+}
+
+.critical {
+    background-color: orange;
+}
+
+.overloaded {
+    background-color: yellow;
+}
+
+.maintenance {
+    background-color: blue;
+}
+
+.idle {
+    background-color: grey;
+}
+
+.down {
+    background-color: red;
+}
+</style>
+<div class="row mb-4">
+    <div class="col-md-4 d-flex ">
+      <div class="CurrentServerStatus">
+        <div class="px-2 d-flex justify-content-between align-items-center customdiv">
+          <div class="statusmsg">Current Status Of All Servers</div>
+          <p class="livetxt mb-0">Live</p>
+        </div>
+        <div id="serverStatusContainer" class="d-flex flex-wrap mt-2">
+          <!-- Server squares will be inserted here dynamically -->
+      </div>
+      </div>
+    </div>
+    <div class="col-md-2 d-flex ">
+      <div class="serverStatus">
+   
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="row no-gutters mb-2">
+        <div class="col-4 col-no-gutters d-flex">
+          <div class="metrics">
+            <!-- First 190x190 square -->
+          </div>
+        </div>
+        <div class="col-4 col-no-gutters d-flex">
+          <div class="metrics">
+            <!-- Second 190x190 square -->
+          </div>
+        </div>
+        <div class="col-4 col-no-gutters d-flex">
+          <div class="metrics">
+            <!-- Third 190x190 square -->
+          </div>
+        </div>
+      </div>
+
+      <div class="row no-gutters">
+        <div class="col-4 col-no-gutters d-flex">
+          <div class="metrics">
+            <!-- Fourth 190x190 square -->
+          </div>
+        </div>
+        <div class="col-4 col-no-gutters d-flex">
+          <div class="metrics">
+            <!-- Fifth 190x190 square -->
+          </div>
+        </div>
+        <div class="col-4 col-no-gutters d-flex">
+          <div class="metrics">
+            <!-- Sixth 190x190 square -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fourth and Fifth Rows: Long Rectangles -->
+  <div class="row">
+    <div class="col-12">
+      <div class="customChart">
+        <!-- First 1280x234 rectangle -->
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <div class="alertmonitor">
+        <!-- Second 1280x234 rectangle -->
+      </div>
+    </div>
+  </div>
+</div>
+
+  {% endblock %}

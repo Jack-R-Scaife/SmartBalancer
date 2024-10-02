@@ -1,0 +1,53 @@
+.customh2 {
+    font-size: 20px;
+  }
+.customSmall{
+  width: 232px;
+  display: inline-block;
+}
+:root {
+    --newBg: linear-gradient(#ffffff, #ffffff, #ffffff) right/80% 100%, 
+             linear-gradient(180deg, #FF7575 0%, #FF7575 100%) left/20% 100%, 
+             linear-gradient(180deg, #FF7575 0%, rgb(255, 254, 254) 100%) left/20% 100%;
+  }
+
+  .slider {
+    width: 100%;
+    max-width: 300px;
+    background-repeat: no-repeat;
+    background-blend-mode: hard-light, normal;
+    border-radius: 8px;
+    height: 7px;
+    outline: none;
+    transition: background 450ms ease-in;
+  }
+
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    background: black;
+    border: 1px solid white;
+    border-radius: 100%;
+    cursor: pointer;
+  }
+
+  .slider::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    background: black;
+    border: 1px solid white;
+    border-radius: 100%;
+    cursor: pointer;
+  }
+  .slider-labels {
+  width: 100%;
+  max-width: 300px; /* Match the max-width of the slider */
+  display: flex;
+  justify-content: space-between; /* Evenly distribute the labels */
+}
+.slider-labels span {
+  font-size: 14px;
+  text-align: center; /* Center the text within the labels */
+}

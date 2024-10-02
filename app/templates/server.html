@@ -1,0 +1,200 @@
+<!-- templates/server.html -->
+{% extends "base.html" %}
+
+{% block title %}Server Details{% endblock %}
+
+
+{% block content %}
+
+
+<link href="{{ url_for('static', filename='css/server.css') }}" rel="stylesheet">
+
+<div class="container-fluid mt-3">
+    <div class="d-flex align-items-center gap-1 mb-3">
+      <input type="text" class="form-control me-1 cstSearchbar" placeholder="Search...">
+      <button type="button" class="custombtn" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+        <span class="me-1 customIcon">Add New Device</span>
+        <i class="bi bi-plus-square"></i>
+      </button>
+    </div>
+
+      <!-- Table -->
+      <div class="table-responsive ">
+          <table class="table table-dark customtable">
+              <thead>
+                  <tr>
+                      <th>* <input class="checkboxes" type="checkbox"></th>
+                      <th>Group</th>
+                      <th>Status</th>
+                      <th>Name</th>
+                      <th>IP Address</th>
+                      <th>Cpu Usage</th>
+                      <th>Memory Usage</th>
+                      <th>Disk Usage</th>
+                      <th>Network Traffic</th>
+                      <th>Actions</th>
+                  </tr>
+              </thead>
+              <tbody>
+                    <tr>
+                        <td><input class="checkboxes" type="checkbox"></td>
+                        <td>API Calls</td>
+                        <td>Healthy</td>
+                        <td>Server 1</td>
+                        <td>192.168.1.1</td>
+                        <td>50%</td>
+                        <td>25%</td>
+                        <td>70%</td>
+                        <td>100mb/s</td>
+                        <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button>
+                            <button type="button" class="btn btn-sm customView buttonstyle"  data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">View Details</button> 
+                            <button type="button" class="btn btn-sm customConfig buttonstyle"data-bs-toggle="collapse" data-bs-target="#collapseSubLinks">Configure Device</button>
+                        </td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> <button type="button" class="btn btn-sm customView buttonstyle">View Details</button> <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button></td>
+                    </tr>
+                    <tr>
+                    <td><input class="checkboxes" type="checkbox"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                    <button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button> 
+                    <button type="button" class="btn btn-sm customView buttonstyle">View Details</button>
+                    <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button>
+                    </td>
+                    </tr>
+                  <!-- More rows can be added here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+  {% include 'includes/serverOffCanvas.html' %}
+  {% include 'includes/addDeviceModal.html' %}
+  <script src="{{ url_for('static', filename='JS/addDevice.js') }}"></script>
+
+{% endblock %}

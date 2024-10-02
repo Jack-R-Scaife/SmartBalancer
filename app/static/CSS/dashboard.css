@@ -1,0 +1,73 @@
+.CurrentServerStatus {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 17px);
+    grid-auto-rows: 15px;
+    gap: 2px;
+    background-color: #000000;
+    border: 2px solid #ccc;
+    width: 400px;
+    height: 400px;
+}
+
+.serverStatus {
+    background-color: #131313;
+    border: 2px solid #ccc;
+    width: 200px;
+    height: 400px;
+}
+
+.metrics  {
+    background-color:#131313;
+    border: 2px solid #ccc;
+    width: 190px; /* Set a width slightly less than 200px to allow space for the gaps */
+    height: 196px;
+}
+
+.row.no-gutters {
+    margin-right: 0;
+    margin-left: 0;
+}
+
+.col-no-gutters {
+    padding-right: 5px; /* Adjust padding to create space between squares */
+    padding-left: 5px;
+}
+
+.server-square {
+    width: 15px;
+    height: 15px;
+    border-radius: 2px;
+    margin: 10px !important;
+    margin-top: 25px !important;
+}
+
+/* Status colors */
+.status-healthy { background-color: #0C7617; }
+.status-down { background-color: #681313; }
+.status-overloaded { background-color: #807400; }
+.status-maintenance { background-color: #055858; }
+.status-idle { background-color: #555555; }
+.status-critical { background-color: #652C0D; }
+
+
+.customChart, .alertmonitor {
+    height: 150px;
+    background-color: #131313;
+    border: 2px solid #ccc;
+    margin-bottom: 5px;
+}
+.statusmsg {
+  max-width: 400px !important;
+  width: 350px !important;
+  color: White;
+  font-size: large;
+}
+.customdiv {
+  width:272px;
+  padding-top: 0.5rem !important;
+}
+.livetxt{
+color: red;
+font-size: small;
+margin-top: 5px;
+}
