@@ -1,0 +1,181 @@
+<!-- templates/serverOverview.html -->
+{% extends "base.html" %}
+
+{% block title %}Server Overview{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='CSS/proccess&threads.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
+
+<div class="container customContainer mt-2"> 
+
+  <!-- Heading Section -->
+  <div class="row mt-2">
+    <div class="col-12 text-center">
+      <h2>Network and Connection Management</h2>
+    </div>
+  </div>
+
+<div class="row mt-5 mb-5">
+
+    <div class="col-lg-3">
+        <div class="d-flex align-items-center">
+            <div class="customh2">Static:</div>
+            <div class="form-check ms-2">
+                <input class="form-check-input" type="checkbox" id="staticCheck">
+            </div>
+            <div class="customh2 ms-3">Dynamic:</div>
+            <div class="form-check ms-2">
+                <input class="form-check-input" type="checkbox" id="dynamicCheck">
+            </div>
+        </div>
+        <small class="customSmall">Enable or disable dynamic overclocking for extra performance.</small>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="customh2">IP Address:</div>
+        <small class="customSmall">Set the server IP address.</small>
+        <div>
+            <input class="form-control" type="text" id="ipAddress" placeholder="Enter IP Address">
+        </div>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="customh2">Subnet Mask:</div>
+        <small class="customSmall">Enter the subnet mask.</small>
+        <div>
+            <input class="form-control" type="text" id="subnetMask" placeholder="Enter Subnet Mask">
+        </div>
+    </div>
+
+        <div class="col-lg-3">
+            <div class="customh2">Gateway:</div>
+            <small class="customSmall">Enter the gateway IP.</small>
+            <div>
+                <input class="form-control" type="text" id="gateway" placeholder="Enter Gateway">
+            </div>
+        </div>
+</div>
+
+  <!-- Second Row of Inputs with Sliders -->
+    <div class="row mt-5 mb-5">
+       
+
+        <div class="col-lg-3">
+                <div class="customh2">Primary DNS:</div>
+                <small class="customSmall">Enter the primary DNS server IP.</small>
+                <div>
+                    <input class="form-control" type="text" id="primaryDns" placeholder="Enter Primary DNS">
+                </div>
+        </div>
+    
+        <!-- Base Frequency Slider -->
+        
+        <div class="col-lg-3">
+                <div class="customh2">Secondary DNS:</div>
+                <small class="customSmall">Enter the secondary DNS server IP.</small>
+                <div class="ms-2">
+                    <input class="form-control" type="text" id="secondaryDns" placeholder="Enter Secondary DNS">
+                </div>
+        </div>
+
+            <div class="col-lg-3">
+                <div class="customh2">Network Interface:</div>
+                <small class="customSmall">Select the network interface.</small>
+                <div class="ms-2">
+                    <select class="form-select" id="networkInterface">
+                        <option value="" disabled selected>Select Interface</option>
+                        <option value="eth0">eth0</option>
+                        <option value="eth1">eth1</option>
+                        <option value="wlan0">wlan0</option>
+                        <option value="wlan1">wlan1</option>
+                    </select>
+                </div>
+            </div>
+
+        <div class="col-lg-3">
+                <div class="customh2">MTU Size:</div>
+                <small class="customSmall">Set the Maximum Transmission Unit (MTU) size.</small>
+                <div class="ms-2">
+                    <input class="form-control" type="number" id="mtuSize" placeholder="Enter MTU Size">
+                </div>
+        </div>
+    </div>
+
+    <div class="row mt-5 mb-5">
+
+        <div class="col-lg-3">
+                <div class="customh2">Bonding Mode:</div>
+                <small class="customSmall">Select the network bonding mode.</small>
+                <div class="ms-2">
+                    <select class="form-select" id="bondingMode">
+                        <option value="" disabled selected>Select Bonding Mode</option>
+                        <option value="0">Mode 0 (balance-rr)</option>
+                        <option value="1">Mode 1 (active-backup)</option>
+                        <option value="2">Mode 2 (balance-xor)</option>
+                        <option value="3">Mode 3 (broadcast)</option>
+                        <option value="4">Mode 4 (802.3ad)</option>
+                        <option value="5">Mode 5 (balance-tlb)</option>
+                        <option value="6">Mode 6 (balance-alb)</option>
+                    </select>
+                </div>
+        </div>
+
+    <div class="col-lg-3">
+        <div class="customh2">
+            <label for="maxConnections" class="form-label">
+                Max Connections: <span class="rangeValue" id="maxConnectionsValue">1</span>
+            </label>
+        </div>
+        <small class="customSmall">Adjust the maximum number of connections.</small>
+        <input autocomplete="off" id="maxConnections" type="range" class="slider" min="1" max="300" value="1">
+        <div class="slider-labels">
+            <span>1</span>
+            <span>150</span>
+            <span>300</span>
+        </div>
+    </div>
+    
+    <div class="col-lg-3">
+        <div class="customh2">Connection Timeout:</div>
+        <small class="customSmall">Set the connection timeout in seconds.</small>
+        <div class="ms-2">
+            <input class="form-control" type="number" id="connectionTimeout" placeholder="Enter Timeout (seconds)">
+        </div>
+    </div>
+    
+        <div class="col-lg-3">
+            <div class="customh2">
+                <label for="networkThrottle" class="form-label">
+                    Network Throttling: <span class="rangeValue" id="networkthrottleValue">1</span>
+                </label>
+            </div>
+            <small class="customSmall">Adjust the network throttling percentage.</small>
+            <input autocomplete="off" id="networkThrottle" type="range" class="slider" min="1" max="100" value="1">
+            <div class="slider-labels">
+                <span>1%</span>
+                <span>50%</span>
+                <span>100%</span>
+            </div>
+        </div>
+
+  <!-- Chart Section -->
+    <div class="row mt-2">
+        <div class="col-12">
+            <h5>Server Performance</h5>
+            <canvas id="performanceChart" style="max-height: 200px; width: 100%; border:solid 1px red;"></canvas>
+        </div>
+    </div>
+
+  <!-- Buttons Section -->
+    <div class="row mt-2">
+        <div class="col-lg-12 d-flex justify-content-center">
+            <button class=" custom-apply me-3">Apply Changes</button>
+            <button class=" custom-reset">Reset to Default</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='JS/slider.js') }}"></script>
+
+{% endblock %}
