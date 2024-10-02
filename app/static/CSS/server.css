@@ -1,6 +1,8 @@
 
 .table-responsive {
 margin-top: 20px;
+height: 85vh;
+background-color: #212529;
 }
 .table th, .table td {
 vertical-align: middle;
@@ -35,7 +37,7 @@ border-width: 0 2px 2px 0;
 transform: rotate(45deg);
 }
 .customtable{
-height: 85vh;
+max-height: 85vh;
 }
 
 .custombtn {
