@@ -1,11 +1,19 @@
 # app/api/api.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from server.server_manager import ServerManager
 import requests
 from app.models import Server
+import json
 # Define the blueprint for API routes
 api_blueprint = Blueprint('api', __name__)
 
+status_mapping = {
+    "healthy": 1,
+    "overloaded": 2,
+    "critical": 3,
+    "down": 4,
+    "idle": 5
+}
 
 # Route to link a server
 @api_blueprint.route('/servers/link', methods=['POST'])
@@ -43,14 +51,15 @@ def link_server():
 # Route to get server status
 @api_blueprint.route('/server_status', methods=['GET'])
 def get_server_status():
-    # Query all the servers from the database
-    servers = Server.query.all()
+    servers = Server.query.all()  # Fetch all servers from the database
+    server_status_list = []
     
-    # Prepare a list of server statuses
-    server_statuses = [
-        {'ip_address': server.ip_address, 'status': server.status}
-        for server in servers
-    ]
-    
-    # Return the data as JSON
-    return jsonify(server_statuses), 200
+    for server in servers:
+        numeric_status = status_mapping.get(server.status, 4)  # Default to "down" if status is not recognized
+        server_status_list.append({
+            "ip": server.ip_address,
+            "s": numeric_status
+    })
+
+    response_data = json.dumps(server_status_list, separators=(',', ':'))  # Minify the response
+    return Response(response_data, content_type='application/json')

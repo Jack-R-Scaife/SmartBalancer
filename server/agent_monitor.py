@@ -35,23 +35,34 @@ class LoadBalancer:
                 print(f"[DEBUG] Agent {agent_ip} already exists in known agents")
 
     def ping_agents(self):
-        with self.app.app_context():  # Ensure we're in an application context
+        with self.app.app_context():
+            status_mapping = {
+                1: "healthy",
+                2: "overloaded",
+                3: "critical",
+                4: "down",
+                5: "idle",
+                6: "maintenance"
+            }
             print(f"Currently monitoring agents: {self.known_agents}")
+            
             for agent_ip in self.known_agents:
                 try:
                     response = requests.get(f"http://{agent_ip}:8000/health")
                     print(f"Raw response from agent {agent_ip}: {response.text}")  # Debugging step
 
                     if response.status_code == 200:
-                        agent_status = response.json().get('status', None)  # Get status
-                        if agent_status:
-                            agent_status = agent_status.lower()  # Normalize to lowercase
+                        agent_status_code = response.json().get('st', None)  # Get numeric status from agent
+
+                        if agent_status_code is not None:
+                            # Convert numeric status code to string status
+                            agent_status = status_mapping.get(agent_status_code, "down")  # Default to "down" if unrecognized
                             print(f"Agent {agent_ip} status: {agent_status}")
 
                             # Update the server status in the database
                             server = Server.query.filter_by(ip_address=agent_ip).first()
                             if server:
-                                server.status = agent_status
+                                server.status = agent_status  # Save the string status in DB
                                 db.session.commit()
                         else:
                             print(f"No status returned from agent {agent_ip}")
@@ -61,6 +72,7 @@ class LoadBalancer:
                 except Exception as e:
                     print(f"Error pinging agent {agent_ip}: {e}")
                     self.update_server_status(agent_ip, "offline")
+
                     
     def monitor_agents(self, interval=10):
         """

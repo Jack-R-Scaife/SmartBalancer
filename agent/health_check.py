@@ -52,15 +52,14 @@ class HealthCheck:
         """
         # If maintenance mode is on, the server is in maintenance
         if self.maintenance_mode:
-            return "maintenance"
+            return "6"
 
         # Check the ping to the load balancer
         ping_latency = self.check_ping(ip_address)
         print(f"Ping latency to {ip_address}: {ping_latency} ms")
-        print(f"Ping latency to {ip_address}: {ping_latency} ms")
         if ping_latency == -1:
-            return "down"  # Server is unreachable
-
+            return 4
+        
         # Check resource usage
         resources = self.resource_monitor.monitor()
         cpu_usage = resources['cpu_total']
@@ -69,13 +68,13 @@ class HealthCheck:
         
         # Thresholds for different statuses
         if cpu_usage > 90 or memory_usage > 90 or disk_usage > 90:
-            return "critical"
+            return 3  # Critical
         elif cpu_usage > 75 or memory_usage > 75 or disk_usage > 80:
-            return "overloaded"
+            return 2  # Overloaded
         elif cpu_usage < 10 and memory_usage < 10 and ping_latency < 50:
-            return "idle"
+            return 5  # Idle
         else:
-            return "healthy"
+            return 1
 
     def set_maintenance_mode(self, mode):
         """
