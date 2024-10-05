@@ -26,31 +26,31 @@
           <!-- Main nav links -->
           <ul class="navbar-nav mb-2">
             <li class="nav-item">
-              <a class="nav-link"  href="/">Home</a>
+              <a class="nav-link"  href="{{ url_for('main.index') }}">Home</a>
             </li>
             <!-- Other main nav items -->
             <li class="nav-item">
-              <a class="nav-link" href="/server">Server</a>
+              <a class="nav-link" href="{{ url_for('main.servers') }}">Server</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="/rules">Rules</a>
+              <a class="nav-link" href="{{ url_for('main.rules') }}">Rules</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="/logs">Logs</a>
             </li>
           </ul>
           <!-- Collapsible Sub Links -->
-          <div class="collapse" id="collapseSubLinks">
+          <div class="collapse {% if session.get('sub_links_open') %} show {% endif %}" id="collapseSubLinks">
             <hr class="custom-hr">
             <ul class="navbar-nav">
               <li class="nav-item extralinks">
-                <a class="nav-link" href="/overview">Overview</a>
+                <a class="nav-link" href="{{ url_for('main.overview') }}">Overview</a>
               </li>
               <li class="nav-item extralinks">
-                <a class="nav-link" href="/process&threads">Process & Thread</a>
+                <a class="nav-link" href="{{ url_for('main.process_threads') }}">Process & Thread</a>
               </li>
               <li class="nav-item extralinks">
-                <a class="nav-link" href="/serverNetwork">Connection & Network</a>
+                <a class="nav-link" href="{{ url_for('main.server_network') }}">Connection & Network</a>
               </li>
               <li class="nav-item extralinks">
                 <a class="nav-link" href="#">Memory & Storage</a>

@@ -21,7 +21,7 @@
 
 </style>
       <!-- Table -->
-      <div class="table-responsive">
+    <div class="table-responsive">
         <table class="table table-dark customtable">
             <thead>
                 <tr >
@@ -58,17 +58,35 @@
                     <td>
                         <button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button>
                         <button type="button" class="btn btn-sm customView buttonstyle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">View Details</button> 
-                        <button type="button" class="btn btn-sm customConfig buttonstyle">Configure Device</button>
+                        <button type="button" class="btn btn-sm customConfig buttonstyle" onclick="toggleSubLinks('{{ server.server_id }}')">Configure Device</button>
                     </td>
                 </tr>
-                
                 {% endfor %}
-                
             </tbody>
         </table>
     </div>
-    </div>
+</div>
+<script>
+    function toggleSubLinks(serverId) {
+        // Log server ID for debugging
+        console.log("Configuring device for server ID:", serverId);
 
+        // Send an Axios POST request to the backend to toggle sub-links
+        axios.post('/toggle_sublinks', {
+            server_id: serverId
+        })
+        .then(response => {
+            console.log(response.data.message);
+
+            // Expand the sub-links in the navbar immediately
+            const subLinks = document.getElementById('collapseSubLinks');
+            subLinks.classList.add('show');
+        })
+        .catch(error => {
+            console.error('There was an error!', error);
+        });
+    }
+</script>
   {% include 'includes/serverOffCanvas.html' %}
   {% include 'includes/addDeviceModal.html' %}
   <script src="{{ url_for('static', filename='JS/addDevice.js') }}"></script>

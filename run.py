@@ -3,7 +3,7 @@ from server.agent_monitor import LoadBalancer
 import threading
 
 app = create_app()
-
+app.secret_key = 'your_super_secret_key'
 def start_agent_monitoring():
     """
     Function to start agent monitoring in a separate thread.
