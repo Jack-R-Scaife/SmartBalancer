@@ -66,6 +66,11 @@ def rules():
     session['sub_links_open'] = False
     return render_template('rules.html')
 
+@main_blueprint.route('/memory_storage')
+def memory_storage():
+    session['sub_links_open'] = True
+    return render_template("serverMemory.html")
+
 @main_blueprint.route('/toggle_sublinks', methods=['POST'])
 def toggle_sublinks():
     # Update the session to keep sub-links open

@@ -1,0 +1,209 @@
+<!-- templates/serverOverview.html -->
+{% extends "base.html" %}
+
+{% block title %}Server Overview{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='CSS/proccess&threads.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
+
+<div class="container customContainer mt-2"> 
+
+  <!-- Heading Section -->
+  <div class="row mt-2">
+    <div class="col-12 text-center">
+      <h2>Memory and Storage Management</h2>
+    </div>
+  </div>
+<style>
+    .customSmall {
+        width: 100% !important;
+    }
+</style>
+<div class="row mt-5 mb-5">
+
+    <div class="col-lg-4">
+        <div class="customh2">
+            <label for="ramspeed" class="form-label">
+                Memory Frequency: <span class="rangeValue" id="ramspeedvalue">1</span>
+            </label>
+        </div>
+        <small class="customSmall">Adjust the network throttling percentage.</small>
+        <input autocomplete="off" id="ramspeed" type="range" class="slider" min="1" max="5000" value="2100">
+        <div class="slider-labels">
+            <span>1%</span>
+            <span>50%</span>
+            <span>100%</span>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="customh2">CAS Latency</div>
+        <small class="customSmall">Delay in clock cycles between the read command and the moment the data is available.</small>
+        <div class="ms-2">
+            <select class="form-select" id="Caslatency">
+                <option value="" disabled selected>Select Mode</option>
+                <option value="CL16">CL16</option>
+                <option value=""disabled selected></option>
+                <option value=""disabled selected></option>
+                <option value=""disabled selected></option>
+            </select>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="d-flex align-items-center">
+          <div class="customh2">Enable ECC:</div>
+          <div class="form-check ms-2">
+            <input class="form-check-input" type="checkbox" id="turboBoostCheck">
+          </div>
+        </div>
+        <small class="customSmall">Enable Error correction default is disabled</small>
+      </div>
+
+    
+</div>
+
+  <!-- Second Row of Inputs with Sliders -->
+    <div class="row mt-5 mb-5">
+
+        <div class="col-lg-4">
+            <div class="customh2">XMP Profile:</div>
+            <small class="customSmall">Ram speed profile:</small>
+            <div class="ms-2">
+                <select class="form-select" id="xmpProfile">
+                    <option value="" disabled selected>Profile 1</option>
+                    <option value="" disabled selected></option>
+                    <option value="" disabled selected></option>
+                    <option value="" disabled selected></option>
+                    <option value="" disabled selected></option>
+                </select>
+            </div>
+        </div>
+
+     
+        <div class="col-lg-4">
+            <div class="d-flex align-items-center">
+              <div class="customh2">Enable Memory Interleaving</div>
+              <div class="form-check ms-2">
+                <input class="form-check-input" type="checkbox" id="memoryinterleaving">
+              </div>
+            </div>
+            <small class="customSmall">Improves performance in systems with multiple memory channels</small>
+          </div>
+          
+            <div class="col-lg-4">
+                <div class="customh2">RAID</div>
+                <small class="customSmall"></small>
+                <div class="ms-2">
+                    <select class="form-select" id="Raidlevel">
+                        <option value="" disabled selected>RAIDS</option>
+                        <option value="" disabled selected></option>
+                        <option value="" disabled selected></option>
+                        <option value="" disabled selected></option>
+                        <option value="" disabled selected></option>
+                    </select>
+                </div>
+            </div>
+      
+    </div>
+
+    <div class="row mt-5 mb-5">
+            <div class="col-lg-4">
+                <div class="customh2">NVME:</div>
+                <small class="customSmall">.</small>
+                <div class="ms-2">
+                    <select class="form-select" id="nvme">
+                        <option value="" disabled selected>Select NVMe optimisation</option>
+                        <option value="eth0">Performance</option>
+                        <option value="eth1">Balance</option>
+                        <option value="wlan0">Quality</option>
+                    </select>
+                </div>
+            </div>
+
+                <div class="col-lg-4">
+                    <div class="customh2">DISK I/O</div>
+                    <small class="customSmall">.</small>
+                    <div class="ms-2">
+                        <select class="form-select" id="diskio">
+                            <option value="" disabled selected>Select Priority</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                            <option value="Lowest">Lowest</option>
+                        </select>
+                    </div>
+                </div>
+    
+                <div class="col-lg-4">
+                    <div class="customh2">
+                        <label for="sddoverprior" class="form-label">
+                            SSD Over-Provisioning <span class="rangeValue" id="sddoverpriorvalue">1</span>
+                        </label>
+                    </div>
+                    <small class="customSmall">.</small>
+                    <input autocomplete="off" id="sddoverprior" type="range" class="slider" min="1" max="100" value="1">
+                    <div class="slider-labels">
+                        <span>1%</span>
+                        <span>50%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-5 mb-5">
+                <div class="col-lg-4">
+                    <div class="d-flex align-items-center">
+                      <div class="customh2">Enable Trim Support</div>
+                      <div class="form-check ms-2">
+                        <input class="form-check-input" type="checkbox" id="trimsupportcheck">
+                      </div>
+                    </div>
+                    <small class="customSmall">.</small>
+                </div>
+
+                  <div class="col-lg-4">
+                    <div class="d-flex align-items-center">
+                      <div class="customh2">Enable Write Cache Buffer</div>
+                      <div class="form-check ms-2">
+                        <input class="form-check-input" type="checkbox" id="writecachecheck">
+                      </div>
+                    </div>
+                    <small class="customSmall">.</small>
+                  </div>
+
+                  <div class="col-lg-4">
+                    <div class="customh2">
+                        <label for="blocksize" class="form-label">
+                            Block Size Configuration: <span class="rangeValue" id="blocksizeValue">1</span>
+                        </label>
+                    </div>
+                    <small class="customSmall">.</small>
+                    <input autocomplete="off" id="blocksize" type="range" class="slider" min="1" max="100" value="1">
+                    <div class="slider-labels">
+                        <span>1%</span>
+                        <span>50%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+            </div>
+  <!-- Chart Section -->
+    <div class="row mt-2">
+        <div class="col-12">
+            <h5>Server Performance</h5>
+            <canvas id="performanceChart" style="max-height: 200px; width: 100%; border:solid 1px red;"></canvas>
+        </div>
+    </div>
+
+  <!-- Buttons Section -->
+    <div class="row mt-2">
+        <div class="col-lg-12 d-flex justify-content-center">
+            <button class=" custom-apply me-3">Apply Changes</button>
+            <button class=" custom-reset">Reset to Default</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='JS/slider.js') }}"></script>
+
+{% endblock %}
