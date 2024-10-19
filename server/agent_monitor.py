@@ -2,13 +2,27 @@ import requests
 import time
 from app import db, create_app
 from app.models import Server
+import threading
 
 class LoadBalancer:
+    _instance = None
+    _lock = threading.Lock()  # To ensure thread safety
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            with cls._lock:
+                if not cls._instance:
+                    cls._instance = super(LoadBalancer, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
     def __init__(self):
+        if not hasattr(self, "initialized"):  # Avoid reinitializing
         # Initialize the LoadBalancer with an empty list to store agent IP addresses
-        self.app = create_app()
-        self.known_agents = []  # List of known agent IP addresses
-        self.load_agents_from_db() # Load agents from the database on startup
+            self.app = create_app()
+            self.known_agents = []  # List of known agent IP addresses
+            self.load_agents_from_db() # Load agents from the database on startup
+            self.initialized = True
+
     def load_agents_from_db(self):
         """
         Load all agents' IP addresses from the database and add them to known_agents.
@@ -54,21 +68,21 @@ class LoadBalancer:
 
             while retry_count <= max_retries:
                 if not self.known_agents:
-                    print("No agents are currently being monitored")
-
+                    print("No agents are currently being monitored") 
                     retry_count +=1
 
                     if retry_count > max_retries:
-                         print("No agents found after multiple attempts. Waiting for 20 seconds before trying again.")
-                    time.sleep(20)
-                    retry_count = 0  # Reset retry count after waiting
+                        print("No agents found after multiple attempts. Waiting for 20 seconds before trying again.")
+                        time.sleep(20)
+                        retry_count = 0  # Reset retry count after waiting
+                    else:
+                        print(f"Retrying... Attempt {retry_count}/{max_retries}")
+                        time.sleep(2)  # Small delay before next retry attempt (can be adjusted)
                 else:
-                    print(f"Retrying... Attempt {retry_count}/{max_retries}")
-                
-                time.sleep(2)  # Small delay before next retry attempt (can be adjusted)
-                continue
+                    # If agents are found, break the retry loop
+                    print(f"Currently monitoring agents: {self.known_agents}")
+                    break
 
-            # If agents are found, reset the retry count
             retry_count = 0
             print(f"Currently monitoring agents: {self.known_agents}")
             
