@@ -48,6 +48,28 @@ class LoadBalancer:
                 5: "idle",
                 6: "maintenance"
             }
+
+            retry_count = 0
+            max_retries = 5
+
+            while retry_count <= max_retries:
+                if not self.known_agents:
+                    print("No agents are currently being monitored")
+
+                    retry_count +=1
+
+                    if retry_count > max_retries:
+                         print("No agents found after multiple attempts. Waiting for 20 seconds before trying again.")
+                    time.sleep(20)
+                    retry_count = 0  # Reset retry count after waiting
+                else:
+                    print(f"Retrying... Attempt {retry_count}/{max_retries}")
+                
+                time.sleep(2)  # Small delay before next retry attempt (can be adjusted)
+                continue
+
+            # If agents are found, reset the retry count
+            retry_count = 0
             print(f"Currently monitoring agents: {self.known_agents}")
             
             agent_intervals = {}  # To store ping intervals for each agent
@@ -56,7 +78,7 @@ class LoadBalancer:
                 # Default interval is 1 second unless otherwise specified
                 interval = agent_intervals.get(agent_ip, 1)
                 try:
-                    response = requests.get(f"http://{agent_ip}:8000/health")
+                    response = requests.get(f"http://{agent_ip}:8000/health", timeout=5)
                     print(f"Raw response from agent {agent_ip}: {response.text}")
 
                     if response.status_code == 200:
