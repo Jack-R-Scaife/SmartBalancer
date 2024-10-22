@@ -28,7 +28,6 @@ def servers():
         group_names = ', '.join(groups)
         
         # Get latest resource usage (Assuming you have a ResourceUsage model)
-        
         server_info = {
             'group': group_names ,
             'status': server.status,
@@ -70,6 +69,19 @@ def rules():
 def memory_storage():
     session['sub_links_open'] = True
     return render_template("serverMemory.html")
+
+
+@main_blueprint.route('/loadbalance')
+def loadbalance():
+    session['sub_links_open'] = True
+    return render_template("loadbalance.html")
+
+
+@main_blueprint.route('/server_power')
+def server_power():
+    session['sub_links_open'] = True
+    return render_template("serverPower.html")
+
 
 @main_blueprint.route('/toggle_sublinks', methods=['POST'])
 def toggle_sublinks():
