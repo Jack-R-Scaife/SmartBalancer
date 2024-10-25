@@ -4,7 +4,7 @@
 {% block title %}Server Overview{% endblock %}
 
 {% block content %}
-<link href="{{ url_for('static', filename='CSS/proccess&threads.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='CSS/serverStyle.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
 
 <div class="container customContainer mt-2"> 
@@ -15,253 +15,238 @@
       <h2>Load Balance Configuration</h2>
     </div>
   </div>
-<style>
+  <style>
     .customSmall {
         width: 100% !important;
     }
     .cstmmargin{
-      margin-right: 2rem;
+      margin-right: 1rem;
     }
-</style>
-<div class="row mt-5 mb-5">
-
-  <div class="col-lg-4">
-    <div class="customh2">Group:</div>
-    <small class="customSmall">Server group.</small>
-    <div class="ms-2">
-        <select class="form-select" id="servergroup">
-            <option value="" disabled selected>Select profile</option>
-            <option value=""disabled ></option>
-            <option value=""disabled ></option>
-            <option value=""disabled ></option>
-            <option value=""disabled ></option>
-        </select>
+  </style>
+  <div class="row mb-5">
+    <div class="col-lg-3">
+      <div class="customh2">Group:</div>
+      <small class="customSmall">Select the server group that will handle the traffic.</small>
+      <div class="">
+          <select class="customselect" id="servergroup">
+              <option value="" disabled selected>Select server group</option>
+              <option value="groupA">Group A - Main Servers</option>
+              <option value="groupB">Group B - Backup Servers</option>
+              <option value="groupC">Group C - Testing Servers</option>
+              <option value="groupD">Group D - Development Servers</option>
+          </select>
+      </div>
     </div>
-</div>
-
-    <div class="col-lg-4">
+    <div class="col-lg-3">
         <div class="customh2">Traffic Method:</div>
-        <small class="customSmall">Overall strategy for how traffic is distributed..</small>
-        <div class="ms-2">
-            <select class="form-select" id="trafficmethod">
-                <option value="" disabled selected>Select </option>
-                <option value="custom">Custom</option>
-                <option value=""disabled selected></option>
-                <option value=""disabled selected></option>
-                <option value=""disabled selected></option>
+        <small class="customSmall">Choose a strategy for distributing incoming traffic.</small>
+        <div class="">
+            <select class="customselect" id="trafficmethod">
+                <option value="" disabled selected>Select traffic method</option>
+                <option value="roundRobin">Round Robin</option>
+                <option value="weightedroundRobin">Weighted Round Robin</option>
+                <option value="leastConnections">Least Connections</option>
+                <option value="resourcebased">Resourced-based</option>
+                <option value="custom">Custom Method</option>
             </select>
         </div>
     </div>
-
-    <div class="col-lg-4">
-      <!-- Traffic options label -->
+    <div class="col-lg-3">
       <div class="mb-2">
         <div class="customh2">Traffic Options:</div>
-        <small class="customSmall">Specific methods that the traffic will use.</small>
+        <small class="customSmall">Select the specific methods that the traffic will use for optimal distribution.</small>
       </div>
-    
-      <!-- Checkbox group for traffic options -->
       <div class="d-flex flex-wrap">
-        <div class="form-check d-flex align-items-center me-3">
+        <div class="d-flex align-items-center me-3">
           <label class="form-check-label cstmmargin" for="staticCheck">Static</label>
           <input class="form-check-input" type="checkbox" id="staticCheck">
         </div>
         
-        <div class="form-check d-flex align-items-center me-3">
+        <div class="d-flex align-items-center me-3">
           <label class="form-check-label cstmmargin" for="dynamicCheck">Dynamic</label>
           <input class="form-check-input" type="checkbox" id="dynamicCheck">
         </div>
         
-        <div class="form-check d-flex align-items-center">
-          <label class="form-check-label cstmmargin" for="predictiveCheck">Predictive Enhancement (AI driven)</label>
-          <input class="form-check-input" type="checkbox" id="predictiveCheck">
-          <!-- AI-driven small text below the checkbox -->
-        </div>
-      </div>
-    </div>
-
-    
-</div>
-
-  <!-- Second Row of Inputs with Sliders -->
-    <div class="row mt-5 mb-5">
-
-      <div class="col-lg-4">
         <div class="d-flex align-items-center">
-          <div class="customh2">Enable Health Checks</div>
-          <div class="form-check ms-2">
-            <input class="form-check-input" type="checkbox" id="enablehealthchecks">
-          </div>
+          <label class="form-check-label cstmmargin" for="predictiveCheck">Predictive (AI Driven)</label>
+          <input class="form-check-input" type="checkbox" id="predictiveCheck">
         </div>
-        <small class="customSmall">Checks servers to ensure they are responding and can handle traffic</small>
       </div>
-
-     
-        
-      <div class="col-lg-4">
-        <div class="customh2">
-            <label for="maxhealthretries" class="form-label">
-                Max Health Check Retries: <span class="rangeValue" id="maxhealthretriesValue">1</span>
-            </label>
-        </div>
-        <small class="customSmall">.</small>
-        <input autocomplete="off" id="maxhealthretries" type="range" class="slider" min="1" max="15" value="1">
-        <div class="slider-labels">
-            <span>1</span>
-            <span>5</span>
-            <span>15</span>
-        </div>
     </div>
-    
-    <div class="col-lg-4">
+    <div class="col-lg-3">
+      <div class="d-flex align-items-center">
+        <div class="customh2">Enable SSL/TLS Offloading</div>
+        <div class="form-check ms-2">
+          <input class="form-check-input" type="checkbox" id="sslOffloading">
+        </div>
+      </div>
+      <small class="customSmall">Offload SSL/TLS processing to the load balancer to reduce load on backend servers and improve performance.</small>
+    </div>
+  </div>
+  <div class="row mb-5">
+    <div class="col-lg-3">
+      <div class="d-flex align-items-center">
+        <div class="customh2">Enable Health Checks</div>
+        <div class="form-check ms-2">
+          <input class="form-check-input" type="checkbox" id="enablehealthchecks">
+        </div>
+      </div>
+      <small class="customSmall">Periodically check server health to ensure they are capable of handling traffic.</small>
+    </div>
+    <div class="col-lg-3">
+      <div class="customh2">
+          <label for="maxhealthretries" class="form-label">
+              Max Health Check Retries: <span class="rangeValue" id="maxhealthretriesValue">1</span>
+          </label>
+      </div>
+      <small class="customSmall">Number of retries before marking a server as unhealthy.</small>
+      <input autocomplete="off" id="maxhealthretries" type="range" class="slider" min="1" max="15" value="1">
+      <div class="slider-labels">
+          <span>1</span>
+          <span>5</span>
+          <span>15</span>
+      </div>
+    </div>
+    <div class="col-lg-3">
       <div class="customh2">
           <label for="healthcheckintervals" class="form-label">
               Health Check Interval: <span class="rangeValue" id="healthcheckintervalsValue">60s</span>
           </label>
       </div>
-      <small class="customSmall">.</small>
-      <input autocomplete="off" id="healthcheckintervals" type="range" class="slider" min="60" max="180s" value="60">
+      <small class="customSmall">Frequency of health checks, measured in seconds.</small>
+      <input autocomplete="off" id="healthcheckintervals" type="range" class="slider" min="60" max="180" value="60">
       <div class="slider-labels">
           <span>60s</span>
           <span>120s</span>
           <span>180s</span>
       </div>
-  </div>
-  
-</div>
-<div class="row mt-5 mb-5">
-
-  <div class="col-lg-4">
-    <div class="customh2">
-        <label for="healthchecktimeout" class="form-label">
-            Health Check Timeout: <span class="rangeValue" id="healthchecktimeoutValue">6</span>
-        </label>
     </div>
-    <small class="customSmall">.</small>
-    <input autocomplete="off" id="healthchecktimeout" type="range" class="slider" min="1" max="15" value="1">
-    <div class="slider-labels">
-        <span>1s</span>
-        <span>5s</span>
-        <span>15s</span>
-    </div>
-</div>
-<div class="col-lg-4">
-  <div class="d-flex align-items-center">
-    <div class="customh2">Enable Persistence</div>
-    <div class="form-check ms-2">
-      <input class="form-check-input" type="checkbox" id="persistencecheck">
-    </div>
-  </div>
-  <small class="customSmall">Requests are consistently routed to the same server to maintain session data</small>
-</div>
- 
-<div class="col-lg-4">
-  <div class="customh2">Persistence Method:</div>
-  <small class="customSmall">How sessions are kept consistent.</small>
-  <div class="ms-2">
-      <select class="form-select" id="persistencemethod">
-          <option value="" disabled selected>Select </option>
-          <option value="Ipaddress">Ip Address</option>
-          <option value=""disabled selected></option>
-          <option value=""disabled selected></option>
-          <option value=""disabled selected></option>
-      </select>
-  </div>
-</div>
-    </div>
-
-    <div class="row mt-5 mb-5">
-
-      <div class="col-lg-4">
-        <div class="d-flex align-items-center">
-          <div class="customh2">Enable Access Logging</div>
-          <div class="form-check ms-2">
-            <input class="form-check-input" type="checkbox" id="accesslogging">
-          </div>
-        </div>
-        <small class="customSmall">Record details about each request and how it was handled.</small>
+    <div class="col-lg-3">
+      <div class="customh2">
+          <label for="healthchecktimeout" class="form-label">
+              Health Check Timeout: <span class="rangeValue" id="healthchecktimeoutValue">6s</span>
+          </label>
       </div>
-
-                <div class="col-lg-4">
-                    <div class="customh2">Log Format</div>
-                    <small class="customSmall">Format in which logs are recorded</small>
-                    <div class="ms-2">
-                        <select class="form-select" id="logformat">
-                            <option value="" disabled selected>Select Priority</option>
-                            <option value="Combined">Combined</option>
-                            <option value=""></option>
-                            <option value=""></option>
-                            <option value=""></option>
-                        </select>
-                    </div>
-                </div>
+      <small class="customSmall">Maximum time to wait for a server response during a health check.</small>
+      <input autocomplete="off" id="healthchecktimeout" type="range" class="slider" min="1" max="15" value="6">
+      <div class="slider-labels">
+          <span>1s</span>
+          <span>5s</span>
+          <span>15s</span>
+      </div>
+    </div>
+  </div>
+  <div class="row mb-5">
+    <div class="col-lg-3">
+      <div class="d-flex align-items-center">
+        <div class="customh2">Enable Persistence</div>
+        <div class="form-check ms-2">
+          <input class="form-check-input" type="checkbox" id="persistencecheck">
+        </div>
+      </div>
+      <small class="customSmall">Ensures that requests from the same user are routed to the same server to maintain session data.</small>
+    </div>
     
-                <div class="col-lg-4">
-                  <div class="d-flex align-items-center">
-                    <div class="customh2">Enable Real-Time Monitoring</div>
-                    <div class="form-check ms-2">
-                      <input class="form-check-input" type="checkbox" id="realtimeMonitoring">
-                    </div>
-                  </div>
-                  <small class="customSmall">Track traffic and server performance metrics live to quickly identify issues.</small>
-                </div>
-            </div>
-            <div class="row mt-5 mb-5">
-              <div class="col-lg-4">
-                <div class="customh2">
-                    <label for="idleconnection" class="form-label">
-                        Timeout Idle Connections: <span class="rangeValue" id="idleconnectionValue"></span>
-                    </label>
-                </div>
-                <small class="customSmall">How long to keep connections open when they are idle before closing them.</small>
-                <input autocomplete="off" id="idleconnection" type="range" class="slider" min="0s" max="60s" value="31s">
-                <div class="slider-labels">
-                    <span>0s</span>
-                    <span>30s</span>
-                    <span>60s</span>
-                </div>
-            </div>
+    <div class="col-lg-3">
+      <div class="customh2">Persistence Method:</div>
+      <small class="customSmall">Define the method for maintaining session persistence.</small>
+      <div class="">
+          <select class="customselect" id="persistencemethod">
+              <option value="" disabled selected>Select persistence method</option>
+              <option value="ipAddress">IP Address</option>
+              <option value="cookieBased">Cookie-Based</option>
+              <option value="sessionAffinity">Session Affinity</option>
+              <option value="userCredentials">User Credentials</option>
+          </select>
+      </div>
+    </div>
+    <div class="col-lg-3">
+      <div class="d-flex align-items-center">
+        <div class="customh2">Enable Access Logging</div>
+        <div class="form-check ms-2">
+          <input class="form-check-input" type="checkbox" id="accesslogging">
+        </div>
+      </div>
+      <small class="customSmall">Logs each request to help track and analyze server usage.</small>
+    </div>
+    <div class="col-lg-3">
+        <div class="customh2">Log Format</div>
+        <small class="customSmall">Select the format for recorded access logs.</small>
+        <div class="">
+            <select class="customselect" id="logformat">
+                <option value="" disabled selected>Select log format</option>
+                <option value="combined">Combined</option>
+                <option value="common">Common</option>
+                <option value="json">JSON</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-lg-3">
+      <div class="d-flex align-items-center">
+        <div class="customh2">Enable Real-Time Monitoring</div>
+        <div class="form-check ms-2">
+          <input class="form-check-input" type="checkbox" id="realtimeMonitoring">
+        </div>
+      </div>
+      <small class="customSmall">Monitor traffic and server performance metrics in real-time.</small>
+    </div>
+    <div class="col-lg-3">
+      <div class="customh2">
+          <label for="idleconnection" class="form-label">
+              Timeout Idle Connections: <span class="rangeValue" id="idleconnectionValue">31s</span>
+          </label>
+      </div>
+      <small class="customSmall">Specify how long idle connections are kept open before being terminated.</small>
+      <input autocomplete="off" id="idleconnection" type="range" class="slider" min="0" max="60" value="31">
+      <div class="slider-labels">
+          <span>0s</span>
+          <span>30s</span>
+          <span>60s</span>
+      </div>
+    </div>
 
-                  <div class="col-lg-4">
-                    <div class="d-flex align-items-center">
-                      <div class="customh2">Enable Retry on Failure</div>
-                      <div class="form-check ms-2">
-                        <input class="form-check-input" type="checkbox" id="writecachecheck">
-                      </div>
-                    </div>
-                    <small class="customSmall">Automatically attempt to resend a request to another server if the initial attempt fails</small>
-                  </div>
+    <div class="col-lg-3">
+      <div class="d-flex align-items-center">
+        <div class="customh2">Enable Retry on Failure</div>
+        <div class="form-check ms-2">
+          <input class="form-check-input" type="checkbox" id="writecachecheck">
+        </div>
+      </div>
+      <small class="customSmall">Retry failed requests to a different server to ensure availability.</small>
+    </div>
+    <div class="col-lg-3">
+      <div class="customh2">
+          <label for="loadbalancertimeout" class="form-label">
+              Load Balancer Timeout: <span class="rangeValue" id="loadbalancertimeoutValue">1s</span>
+          </label>
+      </div>
+      <small class="customSmall">Maximum time to wait for a server response before the load balancer times out.</small>
+      <input autocomplete="off" id="loadbalancertimeout" type="range" class="slider" min="1" max="60" value="1">
+      <div class="slider-labels">
+          <span>1s</span>
+          <span>30s</span>
+          <span>60s</span>
+      </div>
+    </div>
+  </div>
 
-                  <div class="col-lg-4">
-                    <div class="customh2">
-                        <label for="loadbalancertimeout" class="form-label">
-                            Load Balancer Timeout: <span class="rangeValue" id="loadbalancertimeoutValue">1</span>
-                        </label>
-                    </div>
-                    <small class="customSmall">Max amount of time the load balancer will wait for a response before timing out.</small>
-                    <input autocomplete="off" id="loadbalancertimeout" type="range" class="slider" min="1" max="60s" value="0s">
-                    <div class="slider-labels">
-                        <span>0s</span>
-                        <span>30s</span>
-                        <span>60s</span>
-                    </div>
-                </div>
-            </div>
   <!-- Chart Section -->
-    <div class="row mt-2">
-        <div class="col-12">
-            <h5>Server Performance</h5>
-            <canvas id="performanceChart" style="max-height: 200px; width: 100%; border:solid 1px red;"></canvas>
-        </div>
-    </div>
-
+  <div class="row mt-2">
+      <div class="col-12">
+          <h5>Server Performance</h5>
+          <canvas id="performanceChart" style="max-height: 200px; width: 100%; border:solid 1px red;"></canvas>
+      </div>
+  </div>
   <!-- Buttons Section -->
-    <div class="row mt-2">
-        <div class="col-lg-12 d-flex justify-content-center">
-            <button class=" custom-apply me-3">Apply Changes</button>
-            <button class=" custom-reset">Reset to Default</button>
-        </div>
-    </div>
+  <div class="row mt-2">
+      <div class="col-lg-12 d-flex justify-content-center">
+          <button class=" custom-apply me-3">Apply Changes</button>
+          <button class=" custom-reset">Reset to Default</button>
+      </div>
+  </div>
 </div>
 
 <script src="{{ url_for('static', filename='JS/slider.js') }}"></script>
