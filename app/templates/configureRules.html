@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block title %}Server Overview{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/rule.css') }}" rel="stylesheet">
+
+<style>
+  body {
+    background-color: #1e1e1e;
+    color: #c7c7c7;
+  }
+  .customContainer {
+    padding: 20px;
+    background-color: #2b2b2b;
+    border-radius: 8px;
+  }
+  .red-text {
+    color: #ff6b6b;
+  }
+  .indent {
+    margin-left: 20px;
+  }
+  table {
+    background-color: #444;
+    color: #c7c7c7;
+  }
+  th, td {
+    border: 1px solid #555;
+  }
+  th {
+    background-color: #555;
+  }
+  input[type="checkbox"], select {
+    background-color: #444;
+    color: #c7c7c7;
+    border: 1px solid #666;
+  }
+  button.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+  }
+  button.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+  }
+  button.btn-primary:hover, button.btn-danger:hover {
+    opacity: 0.8;
+  }
+  h2, h4 {
+    color: #ffffff;
+  }
+  label {
+    color: #c7c7c7;
+  }
+  select {
+    background-color: #333;
+    color: #ffffff;
+    border: 1px solid #555;
+    padding: 5px;
+  }
+  .dropdown label {
+    margin-right: 10px;
+  }
+  .tabs {
+    display: flex;
+    border-bottom: 2px solid #ffffff;
+    margin-bottom: 20px;
+  }
+  .tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #ffffff;
+    color: #000000;
+    border-radius: 8px 8px 0 0;
+    margin-right: 10px;
+  }
+  .tab.active {
+    background-color: #ffffff;
+    border-bottom: none;
+  }
+  .card-content {
+    display: none;
+  }
+  .card-content.active {
+    display: block;
+  }
+  .inline-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .checkbox-group > div {
+    flex-basis: calc(50% - 10px);
+  }
+  .customselect {
+  border: none;
+   border-bottom: 2px solid #fff; 
+  outline: none;
+  padding: 5px 0;
+  background-color: transparent;
+  box-shadow: none;
+  font-size: 16px;
+  color: #fff;
+  width: 100%;
+  max-width: 250px;
+  height: 36px;
+}
+
+.customselect option {
+  background-color: #ffffff;
+  color: black;
+}
+
+.customselect:focus {
+  border-bottom: 2px solid #fff; 
+  box-shadow: none;
+}
+.labelmetrics {
+margin-right: 25px;
+}
+</style>
+
+<div class="container customContainer mt-2">
+  <!-- Tabs for different sections -->
+  <div class="tabs">
+    <div class="tab active" data-tab="rules">Edit Group Tab 1</div>
+    <div class="tab" data-tab="methods">Load Balancing Methods Tab 2</div>
+    <div class="tab" data-tab="applied">Applied Rules Tab 3</div>
+    <div class="tab" data-tab="create">Create Rules Tab 4</div>
+  </div>
+
+  <!-- Section 1: Edit Rules for Group 1 -->
+  <div class="card-content active" id="rules">
+    <h2>Edit Rules for Group 1</h2>
+    <p>Modify the load balancing rules and priorities for group 1</p>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">
+              <input type="checkbox">
+            </th>
+            <th scope="col">Nickname</th>
+            <th scope="col">IP Address</th>
+            <th scope="col">Status</th>
+            <th scope="col">Static Weights</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" disabled></td>
+            <td>Server 1</td>
+            <td>192.168.0.1</td>
+            <td>Online</td>
+            <td>10</td>
+            <td>
+              <button class="btn btn-primary btn-sm">Edit</button>
+              <button class="btn btn-danger btn-sm">Delete</button>
+            </td>
+          </tr>
+          <!-- More rows can be added here as needed -->
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary mt-3">Add Server</button>
+  </div>
+
+  <!-- Section 2: Load Balancing Methods -->
+  <div class="card-content" id="methods">
+    <div class="row">
+      <!-- Column 1: Load Balancing Methods -->
+      <div class="col-md-4">
+        <h4>Load Balancing Method</h4>
+        <div>
+          <input type="checkbox" id="staticMethod">
+          <label for="staticMethod">Static Method</label>
+        </div>
+        <div>
+          <input type="checkbox" id="dynamicMethod">
+          <label for="dynamicMethod">Dynamic Method</label>
+        </div>
+        <div class="indent">
+          <input type="checkbox" id="cpuUsage">
+          <label class="labelmetrics" for="cpuUsage">CPU Usage</label>
+          <label for="cpuUsageWeight">Weight:</label>
+          <input type="number" id="cpuUsageWeight" min="0" max="100" step="10" class="weight-input">
+        </div>
+        <div class="indent">
+          <input type="checkbox" id="cpuTemp">
+          <label class="labelmetrics" for="cpuTemp">CPU Temperature</label>
+          <label  for="cpuTempWeight">Weight:</label>
+          <select id="cpuTempWeight" class="customselect" style="width: 100px;">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="indent">
+          <input type="checkbox" id="systemTemp">
+          <label for="systemTemp">System Temperature</label>
+          <label for="systemTempWeight">Weight:</label>
+          <select id="systemTempWeight" class="customselect" style="width: 100px;">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="indent">
+          <input type="checkbox" id="memoryUsage">
+          <label for="memoryUsage">Memory Usage</label>
+          <label for="memoryUsageWeight">Weight:</label>
+          <select id="memoryUsageWeight" class="customselect" style="width: 100px;">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="indent">
+          <input type="checkbox" id="networkRespTime">
+          <label for="networkRespTime">Network Response Time</label>
+          <label for="networkRespTimeWeight">Weight:</label>
+          <select id="networkRespTimeWeight" class="customselect" style="width: 100px;">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="indent">
+          <input type="checkbox" id="leastConnections">
+          <label for="leastConnections">Least Connections</label>
+          <label for="leastConnectionsWeight">Weight:</label>
+          <select id="leastConnectionsWeight" class="customselect" style="width: 100px;">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div>
+          <input type="checkbox" id="predictiveAI">
+          <label for="predictiveAI">Predictive AI Driven Enhancement</label>
+        </div>
+        <p class="red-text">Predictive enhances static and dynamic methods to make smarter decisions based on future traffic patterns.</p>
+      </div>
+
+      <!-- Column 2: Load Balancing Strategies (Additional Options) -->
+      <div class="col-md-4">
+        <h4>Load Balancing Strategies</h4>
+        <div class="checkbox-group">
+          <div>
+            <input type="checkbox" id="RoundRobin">
+            <label for="RoundRobin">Round Robin</label>
+          </div>
+          <div>
+            <input type="checkbox" id="WeightedRoundRobin">
+            <label for="WeightedRoundRobin">Weighted Round Robin</label>
+          </div>
+          <div>
+            <input type="checkbox" id="LeastConnections">
+            <label for="LeastConnections">Least Connections</label>
+          </div>
+          <div>
+            <input type="checkbox" id="LeastResponseTime">
+            <label for="LeastResponseTime">Least Response Time</label>
+          </div>
+          <div>
+            <input type="checkbox" id="ResourceBased">
+            <label for="ResourceBased">Resource-Based</label>
+          </div>
+          <div>
+            <input type="checkbox" id="Custom">
+            <label for="Custom">Custom</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Load Balancing Failover Priority -->
+      <div class="col-md-4">
+        <h4>Load Balancing Failover Priority</h4>
+        <div class="mb-3">
+          <label for="failoverPriority1">Priority 1:</label>
+          <select id="failoverPriority1" class="customselect">
+            <option>Round Robin</option>
+            <option>Least Connections</option>
+            <option>Weighted Round Robin</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="failoverPriority2">Priority 2:</label>
+          <select id="failoverPriority2" class="customselect">
+            <option>Round Robin</option>
+            <option>Least Connections</option>
+            <option>Weighted Round Robin</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: Create Rules -->
+  <div class="card-content" id="create">
+    <h4>Create Rules for Group</h4>
+    <p>Define new load balancing rules for the server group as per the requirements.</p>
+    <!-- Additional form inputs for creating rules can be added here -->
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.card-content').forEach(content => content.classList.remove('active'));
+
+      this.classList.add('active');
+      document.getElementById(this.getAttribute('data-tab')).classList.add('active');
+    });
+  });
+</script>
+
+{% endblock %}

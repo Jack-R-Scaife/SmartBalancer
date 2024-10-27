@@ -59,7 +59,7 @@ def process_threads():
 def server_network():
     return render_template('serverNetwork.html')
 
-# Web UI route for the server details page
+
 @main_blueprint.route('/rules')
 def rules():
     session['sub_links_open'] = False
@@ -81,6 +81,11 @@ def loadbalance():
 def server_power():
     session['sub_links_open'] = True
     return render_template("serverPower.html")
+
+@main_blueprint.route('/configRules')
+def configrules():
+    session['sub_links_open'] = False
+    return render_template('configureRules.html')
 
 
 @main_blueprint.route('/toggle_sublinks', methods=['POST'])

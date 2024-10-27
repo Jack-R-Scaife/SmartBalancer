@@ -1,59 +1,13 @@
-<!-- templates/serverOverview.html -->
 {% extends "base.html" %}
 
 {% block title %}Server Overview{% endblock %}
 
 {% block content %}
-<link href="{{ url_for('static', filename='CSS/proccess&threads.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/rule.css') }}" rel="stylesheet">
+
 <style>
-  .customContainer{
-    max-height: 100vh;
-    height: 100%;
-  }
-  .card {
-    max-width: 290px;
-    max-height: 320px;
-    margin: auto;
-    margin-top:15px;
-    margin-bottom: 15px;
-    background: #292929;
-    color: white;
-    font-weight: bold;
-    border: solid 1px;
-  }
-  .card-body {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-  .edit-btn {
-    width: 90%;
-    margin: 0 auto;
-  }
-  .last-updated {
-    font-size: 0.8rem;
-    opacity: 0.7;
-    text-align: center;
-    color: white !important;
-  }
-  .serveringroup{
-    width: 115px;
-  }
-  .cstmEdit{
-  background-color: #055858;
-  border:solid 1px #2BB7DC;
-  color:white;
-  max-width: 100%;
-  width: 100%;
-  height: 25px;
-  border-radius: 5px;
-  font-weight: 500;
-  font-size: 14px;
-}
-.cstmh6{
-  font-weight: bold;
-}
+  
 </style>
 <div class="container customContainer mt-2">
   <div class="row g-4">
@@ -97,7 +51,7 @@
           </div>
           <div class="row mt-auto">
             <div class="col-12 text-center">
-              <button type="button" class="cstmEdit ">Configure Device</button>
+              <a href="/configRules"> <button type="button" class="cstmEdit"> Configure Device</button> </a>
             </div>
           </div>
           <div class="row mt-2">
@@ -281,12 +235,5 @@
     </div>
   </div>
 </div>
-
-  
-  
-
-
-
-
 
 {% endblock %}

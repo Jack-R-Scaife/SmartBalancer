@@ -1,0 +1,87 @@
+<style>
+.customth {
+    border: none;
+    border-bottom: 2px solid black;
+
+}
+.customhead{
+    border: none !important;
+}
+.customcheckbox {
+    border: black 2px solid;
+    margin-right: 0.5rem;
+}
+
+</style>
+<div class="modal fade" id="addTemplateModal" tabindex="-1" aria-labelledby="addTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title w-100 text-center" id="addTemplateModalLabel">Add New Template</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <!-- Left Side: Template Name and Description -->
+            <div class="col-lg-6">
+              <div class="mb-3">
+                <label for="templateName" class="form-label">Template Name</label>
+                <input type="text" class="form-control" id="templateName" placeholder="Enter template name">
+              </div>
+              <div class="mb-3">
+                <label for="templateDescription" class="form-label">Description</label>
+                <textarea class="form-control" id="templateDescription" rows="3" placeholder="Provide a descriptive to easily identify the template."> </textarea>
+              </div>
+              
+            </div>
+            
+            <!-- Right Side: Assign Template to Groups -->
+            <div class="col-lg-6">
+              <div class="table-responsive">
+                <table class="table ">
+                  <thead>
+                    <tr class="text-center">
+                      <th class="customhead"colspan="3"> <h5>Assign Template to Groups </h5></th>
+                    </tr>
+                    <tr>
+                      <th class="customth" scope="col"> <input type="checkbox" class="customcheckbox" id="group2">*</th>  
+                      <th  class="customth" scope="col">Group Name</th>
+                      <th class="customth" scope="col">No. of Servers</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="text-center">
+                        <input type="checkbox" class="customcheckbox" id="group1">
+                      </td>
+                      <td><label for="group1"> Group A</label></td>
+                      <td>5</td>
+                    </tr>
+                    <tr>
+                      <td class="text-center">
+                        <input type="checkbox" class="customcheckbox" id="group2">
+                      </td>
+                      <td><label for="group2"> Group B</label></td>
+                      <td>8</td>
+                    </tr>
+                    <tr>
+                      <td class="text-center">
+                        <input type="checkbox" class="customcheckbox" id="group3">
+                      </td>
+                      <td><label for="group3"> Group C</label></td>
+                      <td>3</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary">Save Template</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  

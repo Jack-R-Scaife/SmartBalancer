@@ -26,6 +26,9 @@
                         <a class="dropdown-item cstmA" href="#">Custom</a>
                         <button class="btn btn-sm btn-danger ms-2 remove-btn">X</button>
                     </li>
+                    <li class="d-flex justify-content-between align-items-center">
+                      <button class="btn add-template" data-bs-toggle="modal" data-bs-target="#addTemplateModal"> New Template </button>
+                    </li>
                 </ul>
             </span>
             <button class="btn custom-template">Save as Template</button>
@@ -174,5 +177,9 @@
         </div>
     </div>
 </div>
+
+
+
+{% include 'includes/addnewTemplateModal.html' %}
 
 {% endblock %}
