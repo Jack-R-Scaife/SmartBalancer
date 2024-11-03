@@ -6,120 +6,369 @@
 <div class="container mt-4">
 <style>
  .server-square {
-            width: 15px;
-            height: 15px;
-            border-radius: 2px;
-            margin: 10px !important;
-            margin-top: 25px !important;
-            background-color: rgb(43, 42, 42); /* Default color */
+  width: 15px;
+  height: 15px;
+  border-radius: 2px;
+  margin: 10px !important;
+  margin-top: 25px !important;
+  background-color: rgb(43, 42, 42); /* Default color */
 
-        }
- 
+}
+.monitorrectangles {
+  width: 90%;
+  height: 30px; /* Increased height */
+  margin-bottom: 10px; /* Increased spacing between rows */
+  border-radius: 5px; /* Rounded corners to look more like buttons */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 15px; /* Padding to make text look better inside the box */
+  font-weight: bolder; /* Make the text bold */
+  color: white; 
+  margin: 11px;
+ margin-top: 25px;
+}
+
 .healthy {
-    background-color: green;
+  background-color: #0C7617;
+  border: solid 2px #67FF77;
 }
 
-.critical {
-    background-color: orange;
-}
+
 
 .overloaded {
-    background-color: yellow;
+  background-color: #817400;
+  border: solid 2px #FFF27E;
+
 }
 
 .maintenance {
-    background-color: blue;
+  background-color: #055858;
+  border: solid 2px #50FFFF;
+
 }
 
 .idle {
-    background-color: grey;
+  background-color: #555555;
+  border: solid 2px #FFF5F5;
+
 }
 
 .down {
-    background-color: red;
+  background-color: #681313;
+  border: solid 2px #FF7676;
+
 }
-.offline {
-    background-color: rgb(46, 46, 46);
-}
+
+
 #serverStatusContainer {
-    width: 100%;
-    min-height: 200px;
-    display: flex;
-    flex-wrap: wrap;
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
 }
 
-</style>
+.monitor-text {
+  flex: 1;
+}
 
+.monitor-number {
+  flex: 0;
+}
+.serverStatus{
+  width: 100%;
+}
+h5 {
+  color: white  !important;
+
+}
+</style>
+<div class="row mb-4">
+  <!-- Search bar -->
+  <div class="col-12">
+      <input type="text" class="search-bar" placeholder="Search...">
+  </div>
+</div>
 <div class="row mb-4">
     <div class="col-md-4 d-flex ">
       <div class="CurrentServerStatus" id="serversquares">
         <div class="px-2 d-flex justify-content-between align-items-center customdiv">
-          <div class="statusmsg">Current Status Of 2 Servers</div>
+          <div class="statusmsg">Current Status Of 1 Servers</div>
           <p class="livetxt mb-0">Live</p>
         </div>
-    
       </div>
     </div>
-    <div class="col-md-2 d-flex ">
+    <div class="col-md-3 d-flex">
       <div class="serverStatus">
-        
+        <h6 class="statusmsg ms-2">Server Monitor <span class="livetxt mb-0 ">Live</span></h6>
+        <div id="serverStatusContainer">
+          <div class="down monitorrectangles">
+            <span class="monitor-text">Down</span> <span class="monitor-number">3</span>
+          </div>
+          <div class="overloaded monitorrectangles">
+            <span class="monitor-text">Overloaded</span> <span class="monitor-number">8</span>
+          </div>
+          <div class="maintenance monitorrectangles">
+            <span class="monitor-text">Maintenance</span> <span class="monitor-number">2</span>
+          </div>
+          <div class="idle monitorrectangles">
+            <span class="monitor-text">Idle</span> <span class="monitor-number">10</span>
+          </div>
+          <div class="healthy monitorrectangles">
+            <span class="monitor-text">Healthy</span> <span class="monitor-number">12</span>
+          </div>
+       
+        </div>
       </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-5">
       <div class="row no-gutters mb-2">
-        <div class="col-4 col-no-gutters d-flex">
-          <div class="metrics">
-            <!-- First 190x190 square -->
+          <div class="col-6">
+              <div class="metrics">
+                <h5 class="text-center">CPU Usage</h5>
+                  <div class="metric-data" style="height: 80%; width: 100%;">
+                      <canvas id="cpuUsageChart"></canvas>
+                  </div>
+              </div>
           </div>
-        </div>
-        <div class="col-4 col-no-gutters d-flex">
-          <div class="metrics">
-            <!-- Second 190x190 square -->
+          <div class="col-6">
+              <div class="metrics">
+                <h5 class="text-center">Memory Usage</h5>
+                  <div class="metric-data" style="  height:80%; width: 100%;">
+                      <canvas id="memoryUsageChart"></canvas>
+                  </div>
+              </div>
           </div>
-        </div>
-        <div class="col-4 col-no-gutters d-flex">
-          <div class="metrics">
-            <!-- Third 190x190 square -->
+          <div class="col-6">
+              <div class="metrics">
+                <h5 class="text-center">Total Requests</h5>
+                  <div class="metric-data" style="height: 80%; width: 100%;">
+                    <canvas id="totalRequestsChart"></canvas>
+                  </div>
+              </div>
           </div>
-        </div>
+          <div class="col-6">
+              <div class="metrics">
+                <h5 class="text-center">Active Connections</h5>
+                  <div class="metric-data" style="height: 80%; width: 100%;">
+                    <canvas id="activeConnectionsChart"></canvas>
+                  </div>
+              </div>
+          </div>
       </div>
-
-      <div class="row no-gutters">
-        <div class="col-4 col-no-gutters d-flex">
-          <div class="metrics">
-            <!-- Fourth 190x190 square -->
-          </div>
-        </div>
-        <div class="col-4 col-no-gutters d-flex">
-          <div class="metrics">
-            <!-- Fifth 190x190 square -->
-          </div>
-        </div>
-        <div class="col-4 col-no-gutters d-flex">
-          <div class="metrics">
-            <!-- Sixth 190x190 square -->
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
+</div>
 
   <!-- Fourth and Fifth Rows: Long Rectangles -->
   <div class="row">
     <div class="col-12">
       <div class="customChart">
         <!-- First 1280x234 rectangle -->
+        <canvas id="trafficChart" width="1280" height="234"></canvas>
       </div>
     </div>
   </div>
+  
   <div class="row">
     <div class="col-12">
       <div class="alertmonitor">
         <!-- Second 1280x234 rectangle -->
+        <table id="alertTable"  style="width: 100%; height: 100%; color:white; font-weight:600; " border-collapse: collapse;>
+          <thead>
+            <tr>
+              <th style="border: 1px solid #FFF;">Timestamp</th>
+              <th style="border: 1px solid #FFF;">Type</th>
+              <th style="border: 1px solid #FFF;">Condition</th>
+              <th style="border: 1px solid #FFF;">Source</th>
+              <th style="border: 1px solid #FFF;">Description</th>
+              <th style="border: 1px solid #FFF;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border: 1px solid #FFF;">2024-11-01 10:45:00</td>
+              <td style="border: 1px solid #FFF;">Overloaded</td>
+              <td style="border: 1px solid #FFF;">High CPU Usage</td>
+              <td style="border: 1px solid #FFF;">Server-01</td>
+              <td style="border: 1px solid #FFF;">CPU usage exceeded 90% threshold</td>
+              <td style="border: 1px solid #FFF;">Open</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #FFF;">2024-11-01 11:00:00</td>
+              <td style="border: 1px solid #FFF;">Overloaded</td>
+              <td style="border: 1px solid #FFF;">Memory Usage</td>
+              <td style="border: 1px solid #FFF;">Server-02</td>
+              <td style="border: 1px solid #FFF;">Memory usage approaching 80% capacity</td>
+              <td style="border: 1px solid #FFF;">In Progress</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #FFF;">2024-11-01 11:15:00</td>
+              <td style="border: 1px solid #FFF;">Maintenance</td>
+              <td style="border: 1px solid #FFF;">Service Restart</td>
+              <td style="border: 1px solid #FFF;">Server-03</td>
+              <td style="border: 1px solid #FFF;">Scheduled restart of the web service</td>
+              <td style="border: 1px solid #FFF;">Closed</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #FFF;">2024-11-01 11:30:00</td>
+              <td style="border: 1px solid #FFF;">Overloaded</td>
+              <td style="border: 1px solid #FFF;">Disk Space Low</td>
+              <td style="border: 1px solid #FFF;">Server-04</td>
+              <td style="border: 1px solid #FFF;">Disk space below 5% remaining</td>
+              <td style="border: 1px solid #FFF;">Open</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
+  
 </div>
 <script src="{{ url_for('static', filename='JS/server_status.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const cpuUsageCtx = document.getElementById('cpuUsageChart').getContext('2d');
+  new Chart(cpuUsageCtx, {
+      type: 'doughnut',
+      data: {
+          labels: ['Used', 'Free'],
+          datasets: [{
+              data: [45, 55],
+              backgroundColor: ['#007bff', '#e0e0e0']
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false
+      }
+  });
 
+  const memoryUsageCtx = document.getElementById('memoryUsageChart').getContext('2d');
+  new Chart(memoryUsageCtx, {
+      type: 'doughnut',
+      data: {
+          labels: ['Used', 'Free'],
+          datasets: [{
+              data: [67, 33],
+              backgroundColor: ['#28a745', '#e0e0e0']
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false
+      }
+  });
+
+  const totalRequestsCtx = document.getElementById('totalRequestsChart').getContext('2d');
+  new Chart(totalRequestsCtx, {
+      type: 'bar',
+      data: {
+          labels: ['Total Requests'],
+          datasets: [{
+              label: 'Requests',
+              data: [1234567],
+              backgroundColor: ['#17a2b8']
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+              y: {
+                  beginAtZero: true
+              }
+          }
+      }
+  });
+
+  const activeConnectionsCtx = document.getElementById('activeConnectionsChart').getContext('2d');
+  new Chart(activeConnectionsCtx, {
+      type: 'doughnut',
+      data: {
+          labels: ['Active', 'Idle'],
+          datasets: [{
+              data: [120, 80],
+              backgroundColor: ['#ffc107', '#e0e0e0']
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false
+      }
+  });
+
+
+
+   // Get the context of the canvas element
+   const ctx = document.getElementById('trafficChart').getContext('2d');
+
+// Create the chart
+const trafficChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+    datasets: [
+      {
+        label: 'Predictive Traffic',
+        data: [30, 50, 45, 60, 70, 80, 90],
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        fill: true,
+        tension: 0.4
+      },
+      {
+        label: 'Incoming Traffic',
+        data: [20, 40, 35, 55, 65, 75, 85],
+        borderColor: 'rgba(255, 99, 132, 1)',
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        beginAtZero: true
+      },
+      y: {
+        beginAtZero: true
+      }
+    }
+  }
+});
+
+
+document.addEventListener("DOMContentLoaded", function() {
+    const rows = document.querySelectorAll("#alertTable tbody tr");
+
+    rows.forEach(row => {
+      const statusCell = row.cells[1];
+      if (statusCell) {
+        switch (statusCell.textContent.trim().toLowerCase()) {
+          case "critical":
+            row.classList.add("critical"); // Assuming "critical" color for "Open" status.
+            break;
+          case "overloaded":
+            row.classList.add("overloaded"); // Assuming "overloaded" color for "In Progress" status.
+            break;
+          case "healthy":
+            row.classList.add("healthy"); // Assuming "healthy" color for "Closed" status.
+            break;
+          case "maintenance":
+            row.classList.add("maintenance"); // Assuming "healthy" color for "Closed" status.
+            break;
+          default:
+            row.classList.add("idle"); // Default to idle color.
+        }
+      }
+    });
+  });
+
+</script>
+<style>
+ 
+</style>
   {% endblock %}

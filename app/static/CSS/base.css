@@ -1,42 +1,56 @@
+/* base.css */
 @font-face {
-    font-family:'customFont';
-    src: url('../fonts/Roboto-Medium.ttf');
-  }
-  .nav-link{
-    font-family: 'customFont' !important;
-  }
-  body {
-    background-color: #494949;
-  }
-  .custom-hr {
-    border-top: 3px solid #FFFFFF; /* White horizontal rule */
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
-    width: 100%;
-    margin-right: 0.5rem;
-  }
+  font-family: 'customFont';
+  src: url('../fonts/Roboto-Medium.ttf');
+}
 
-  .extralinks, .nav-link {
-    color: rgb(255, 255, 255) !important; /* Ensure the sub nav links are white */
-  }
-  .extralinks:hover, .nav-link:hover {
-    text-decoration: underline;
-  }
-  #collapseSubLinks {
-   width: 100%;
-  }
-  /* Arrange navbar content vertically and align to the left */
-  .navbar-collapse {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch; /* Change from flex-start to stretch */
-  }
+body {
+  background-color: #0F1011;
+}
 
-  /* Display main nav links horizontally */
-  .navbar-nav {
-    display: flex;
-    flex-direction: row;
-  }
-  .bg-custom {
-    background-color: #131313 !important;
-  }
+/* Sidebar styling */
+.sidebar {
+  width: 250px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: #22252A;
+  padding-top: 20px;
+}
+
+.nav-link {
+  color: #888888 !important;
+  font-family: 'customFont' !important;
+  padding: 10px;
+}
+
+.nav-link:hover {
+  color: #ffffff !important;
+  text-decoration: none;
+}
+
+.nav .bi-plus {
+  float: right;
+}
+
+.collapse .nav-link {
+  padding-left: 30px;
+}
+
+.content {
+  margin-left: 260px;
+  padding: 20px;
+}
+
+.bg-custom {
+  background-color: #22252A !important;
+}
+
+.custom-hr {
+  border-top: 3px solid #FFFFFF;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  width: 100%;
+  margin-right: 0.5rem;
+}

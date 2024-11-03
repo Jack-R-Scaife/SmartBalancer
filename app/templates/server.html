@@ -1,3 +1,5 @@
+<link href="{{ url_for('static', filename='css/server.css') }}" rel="stylesheet">
+
 <!-- templates/server.html -->
 {% extends "base.html" %}
 
@@ -7,25 +9,22 @@
 {% block content %}
 
 
-<link href="{{ url_for('static', filename='css/server.css') }}" rel="stylesheet">
 
 <div class="container-fluid mt-3">
-    <div class="d-flex align-items-center gap-1 mb-3">
-      <input type="text" class="form-control me-1 cstSearchbar" placeholder="Search...">
-      <button type="button" class="custombtn" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
-        <span class="me-1 customIcon">Add New Device</span>
-        <i class="bi bi-plus-square"></i>
-      </button>
+    <div class="d-flex  mb-3">
+        <input type="text" class="search-bar w-50" placeholder="Search...">
+        <button type="button" class="custombtn" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+            <span class="me-1 customIcon">Add New Device</span>
+            <i class="bi bi-plus-square"></i>
+        </button>
     </div>
-<style> 
 
-</style>
       <!-- Table -->
-    <div class="table-responsive">
-        <table class="table table-dark customtable">
+    <div class="table-responsive ">
+        <table class="customtable">
             <thead>
-                <tr >
-                    <th>* <input class="checkboxes" type="checkbox"></th>
+                <tr>
+                    <th> <input class="checkboxes" type="checkbox"></th>
                     <th>Group</th>
                     <th>Status</th>
                     <th>Name</th>
@@ -45,7 +44,7 @@
                       {% if server.group %}
                           {{ server.group }}
                       {% else %}
-                          <button type="button" class="btn btn-sm customView buttonstyle" onclick="addToGroup('{{ server.server_id }}')">Add to Group</button>
+                          <button type="button" class="customView buttonstyle" onclick="addToGroup('{{ server.server_id }}')">Add to Group</button>
                       {% endif %}
                   </td>
                     <td>{{ server.status }}</td>
@@ -56,9 +55,9 @@
                     <td>{{ server.disk_usage }}%</td>
                     <td>{{ server.network_traffic }} mb/s</td>
                     <td>
-                        <button type="button" class="btn btn-sm customRemove buttonstyle">Remove</button>
-                        <button type="button" class="btn btn-sm customView buttonstyle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">View Details</button> 
-                        <button type="button" class="btn btn-sm customConfig buttonstyle" onclick="toggleSubLinks('{{ server.server_id }}')">Configure Device</button>
+                        <button type="button" class="customRemove buttonstyle">Remove</button>
+                        <button type="button" class=" customView buttonstyle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">View Details</button> 
+                        <button type="button" class=" customConfig buttonstyle" onclick="toggleSubLinks('{{ server.server_id }}')">Configure Device</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -68,24 +67,26 @@
 </div>
 <script>
     function toggleSubLinks(serverId) {
-        // Log server ID for debugging
-        console.log("Configuring device for server ID:", serverId);
+    console.log("Configuring device for server ID:", serverId);
 
-        // Send an Axios POST request to the backend to toggle sub-links
-        axios.post('/toggle_sublinks', {
-            server_id: serverId
-        })
-        .then(response => {
-            console.log(response.data.message);
+    axios.post('/toggle_sublinks', {
+        server_id: serverId
+    })
+    .then(response => {
+        console.log(response.data.message);
 
-            // Expand the sub-links in the navbar immediately
-            const subLinks = document.getElementById('collapseSubLinks');
+        // Expand the sub-links in the navbar
+        const subLinks = document.getElementById('serverSubLinks');
+        if (subLinks) {
             subLinks.classList.add('show');
-        })
-        .catch(error => {
-            console.error('There was an error!', error);
-        });
-    }
+        } else {
+            console.error('Sub-links element not found.');
+        }
+    })
+    .catch(error => {
+        console.error('There was an error!', error);
+    });
+}
 </script>
   {% include 'includes/serverOffCanvas.html' %}
   {% include 'includes/addDeviceModal.html' %}

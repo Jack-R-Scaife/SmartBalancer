@@ -27,8 +27,9 @@ def servers():
         groups = [association.server_group.name for association in server.server_group_associations]
         group_names = ', '.join(groups)
         
-        # Get latest resource usage (Assuming you have a ResourceUsage model)
+        # Get latest resource usage
         server_info = {
+            'server_id': server.server_id,
             'group': group_names ,
             'status': server.status,
             'name': getattr(server, 'name', 'N/A'),  # Use 'N/A' if name is not available
@@ -93,7 +94,4 @@ def toggle_sublinks():
     # Update the session to keep sub-links open
     session['sub_links_open'] = True
     
-    # You can also handle additional logic based on the server_id if needed
-    # server_id = request.json.get('server_id')
-
     return jsonify({'message': 'Sub-links toggled successfully!'})
