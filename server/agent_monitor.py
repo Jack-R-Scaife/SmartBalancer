@@ -5,10 +5,19 @@ from app.models import Server
 
 class LoadBalancer:
     def __init__(self):
+<<<<<<< Updated upstream
         # Initialize the LoadBalancer with an empty list to store agent IP addresses
         self.app = create_app()
         self.known_agents = []  # List of known agent IP addresses
         self.load_agents_from_db() # Load agents from the database on startup
+=======
+        if not hasattr(self, "initialized"):  
+            self.app = create_app()
+            self.known_agents = []  # List of known agent IP addresses
+            self.load_agents_from_db() # Load agents from the database on startup
+            self.initialized = True
+
+>>>>>>> Stashed changes
     def load_agents_from_db(self):
         """
         Load all agents' IP addresses from the database and add them to known_agents.

@@ -3,7 +3,7 @@ from app import db
 from app.models import Server, ServerGroup, ServerGroupServer, Authentication
 from cryptography.hazmat.primitives import serialization
 from .agent_monitor import LoadBalancer 
-
+import requests
 
 class ServerManager:
     def __init__(self):
@@ -101,3 +101,26 @@ class ServerManager:
         db.session.add(server_group_association)  # Add the association to the session.
         db.session.commit()  # Commit the changes to the database.
 
+    def remove_server(self, ip_address):
+        # Notify the agent to stop
+        try:
+            response = requests.post(f"http://{ip_address}:8000/delink", timeout=5)
+            if response.status_code == 200:
+                print(f"Successfully notified agent {ip_address} to stop.")
+            else:
+                print(f"Failed to notify agent {ip_address}: {response.status_code}")
+        except requests.RequestException as e:
+            print(f"Error notifying agent {ip_address} to stop: {e}")
+
+        # Proceed with removal if the agent stopped successfully
+        server = Server.query.filter_by(ip_address=ip_address).first()
+        if server:
+            db.session.delete(server)
+            db.session.commit()
+            # Remove from LoadBalancer known_agents
+            self.load_balancer.known_agents = [
+                ip for ip in self.load_balancer.known_agents if ip != ip_address
+            ]
+            return {'message': f'Server with IP {ip_address} removed successfully.', 'status': True}
+        else:
+            return {'message': 'Server not found.', 'status': False}

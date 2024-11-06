@@ -163,6 +163,17 @@ def health_check():
     status = health_check_instance.determine_status(agent_instance.load_balancer_ip)
     return jsonify({"status": status}), 200
 
+@app.route('/delink', methods=['POST'])
+def delink_server():
+    """
+    Handle request to delink the server from the load balancer.
+    This will stop the agent and remove any association with the load balancer.
+    """
+    print("Received de-link request. Stopping agent.")
+    agent_instance.stop()  # Stop the agent
+    # Clear any sensitive data, if needed (e.g., public/private keys)
+    agent_instance.secure_channel.private_key = None  # Remove private key
+    return jsonify({"message": "Server delinked and stopped successfully"}), 200
 
 if __name__ == "__main__":
     # Create the agent instance without hardcoding the load balancer IP
