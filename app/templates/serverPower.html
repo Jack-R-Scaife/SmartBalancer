@@ -1,0 +1,148 @@
+<!-- templates/serverOverview.html -->
+{% extends "base.html" %}
+
+{% block title %}Server Overview{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='CSS/serverStyle.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
+
+<div class="container customContainer mt-2"> 
+
+  <!-- Heading Section -->
+  <div class="row mt-2">
+    <div class="col-12 text-center">
+      <h2>Power Management</h2>
+    </div>
+  </div>
+
+  <div class="row  mb-5">
+    <div class="col-lg-3">
+      <div class="customh2">Power Profile:</div>
+      <small class="customSmall">Select the power profile to optimize system performance and energy usage</small>
+      <div >
+          <select class="customselect" id="powerprofile">
+              <option value="" disabled selected>Select profile</option>
+              <option value="balanced">Balanced - Optimized performance and energy consumption</option>
+              <option value="high_performance">High Performance - Maximum performance, higher energy use</option>
+              <option value="power_saver">Power Saver - Lower performance, reduced energy consumption</option>
+              <option value="ultimate_performance">Ultimate Performance - Maximum performance without restrictions</option>
+          </select>
+      </div>
+  </div>
+  
+  <div class="col-lg-3">
+    <div class="customh2">Fan Speed Control :</div>
+    <small class="customSmall">Select a fan speed control profile to balance cooling and noise levels</small>
+    <div>
+        <select class="customselect" id="fanspeedcontrol">
+            <option value="" disabled selected>Select profile</option>
+            <option value="automatic">Automatic - Fan speed adjusts based on system temperature</option>
+            <option value="silent">Silent - Low fan speed for minimal noise</option>
+            <option value="performance">Performance - Higher fan speed for optimal cooling</option>
+            <option value="manual">Manual - User-controlled fan speed</option>
+        </select>
+    </div>
+  </div>
+  
+  <div class="col-lg-3">
+    <div class="customh2">Power Supply Mode :</div>
+    <small class="customSmall">Select a power supply mode to control power efficiency and performance</small>
+    <div>
+        <select class="customselect" id="powersupplymode">
+            <option value="" disabled selected>Select profile</option>
+            <option value="he">High Efficiency - Optimizes power supply efficiency for reduced power waste</option>
+            <option value="performance_mode">Performance Mode - Higher power output for demanding applications</option>
+            <option value="eco_mode">Eco Mode - Reduces power usage to conserve energy</option>
+            <option value="balanced_mode">Balanced Mode - Mix between efficiency and performance</option>
+        </select>
+    </div>
+  </div>
+  
+    <div class="col-lg-3">
+      <div class="d-flex align-items-center">
+        <div class="customh2">Enable USB Power Saving:</div>
+        <div class="form-check ms-2">
+          <input class="form-check-input" type="checkbox" id="usbpowersaving">
+        </div>
+      </div>
+      <small class="customSmall">Enable or disable dynamic overclocking for extra performance.</small>
+    </div>
+  </div>
+  
+    <!-- Second Row of Inputs with Sliders -->
+      <div class="row  mb-5">
+  
+          <div class="col-lg-3">
+            <div class="d-flex align-items-center">
+              <div class="customh2">Enable UPS Support:</div>
+              <div class="form-check ms-2">
+                <input class="form-check-input" type="checkbox" id="uspsupport">
+              </div>
+            </div>
+            <small class="customSmall">Enable or disable dynamic overclocking for extra performance.</small>
+          </div>
+      
+          <div class="col-lg-3">
+            <div class="customh2">PCIe Link State Power:</div>
+            <small class="customSmall">Select the PCIe link state power management profile to adjust power consumption and latency</small>
+            <div>
+                <select class="customselect" id="pcielinkstatepower">
+                    <option value="" disabled selected>Select profile</option>
+                    <option value="l0">L0 - Maximum power consumption, minimal latency</option>
+                    <option value="l1">L1 - Low power consumption, moderate latency</option>
+                    <option value="l2">L2 - Reduced power consumption, increased latency</option>
+                    <option value="l3">L3 - Minimum power consumption, highest latency</option>
+                </select>
+            </div>
+        </div>
+  
+        <div class="col-lg-3">
+          <div class="d-flex align-items-center">
+            <div class="customh2">Enable Wake-on-Lan:</div>
+            <div class="form-check ms-2">
+              <input class="form-check-input" type="checkbox" id="wakeonlan">
+            </div>
+          </div>
+          <small class="customSmall">Enable or disable Wake-on-Lan functionality, allowing the system to be powered on remotely.</small>
+        </div>
+  
+        <div class="col-lg-3">
+          <div class="customh2">
+              <label for="disksleeptimer">
+                  Disk Sleep Timer: <span class="rangeValue" id="disksleeptimerValue">150s</span>
+              </label>
+          </div>
+          <small class="customSmall">Adjust the time before the disk enters sleep mode to save power.</small>
+          <input autocomplete="off" id="disksleeptimer" type="range" class="slider" min="1" max="300" value="150">
+          <div class="slider-labels">
+              <span>1s</span>
+              <span>150s</span>
+              <span>300s</span>
+          </div>
+      </div>
+    </div>
+  
+  
+
+    <div class="row  mb-5">
+  <!-- Chart Section -->
+    <div class="row mt-2">
+        <div class="col-12">
+            <h5>Power Usage</h5>
+            <canvas id="performanceChart" style="max-height: 200px; width: 100%; border:solid 1px red;"></canvas>
+        </div>
+    </div>
+
+  <!-- Buttons Section -->
+    <div class="row mt-2">
+        <div class="col-lg-12 d-flex justify-content-center">
+            <button class=" custom-apply me-3">Apply Changes</button>
+            <button class=" custom-reset">Reset to Default</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='JS/slider.js') }}"></script>
+
+{% endblock %}

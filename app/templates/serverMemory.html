@@ -1,0 +1,196 @@
+<!-- templates/serverOverview.html -->
+{% extends "base.html" %}
+
+{% block title %}Server Overview{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='CSS/serverStyle.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
+
+<div class="container customContainer mt-2"> 
+
+  <!-- Heading Section -->
+  <div class="row mt-2">
+    <div class="col-12 text-center">
+      <h2>Memory and Storage Management</h2>
+    </div>
+  </div>
+    <style>
+        .customSmall {
+            width: 100% !important;
+        }
+    </style>
+   <div class="row  mb-5">
+    <div class="col-lg-3">
+        <div class="customh2">
+            <label for="ramspeed">
+                Memory Frequency: <span class="rangeValue" id="ramspeedvalue">1</span>
+            </label>
+        </div>
+        <small class="customSmall">Adjust the speed of the memory (RAM) to optimize performance, measured in MHz.</small>
+        <input autocomplete="off" id="ramspeed" type="range" class="slider" min="1" max="5000" value="2100">
+        <div class="slider-labels">
+            <span>1MHz</span>
+            <span>2500MHz</span>
+            <span>5000MHz</span>
+        </div>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="customh2">CAS Latency</div>
+        <small class="customSmall">Delay in clock cycles between the read command and the moment the data is available.</small>
+        <div class="ms-2">
+            <select class="customselect" id="Caslatency">
+                <option value="" disabled selected>Select Mode</option>
+                <option value="CL14">CL14 - Low latency, better performance</option>
+                <option value="CL16">CL16 - Standard latency</option>
+                <option value="CL18">CL18 - Higher latency, more stability</option>
+                <option value="CL20">CL20 - High latency, energy efficient</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="d-flex align-items-center">
+        <div class="customh2">Enable ECC:</div>
+        <div class="form-check ms-2">
+            <input class="form-check-input" type="checkbox" id="turboBoostCheck">
+        </div>
+        </div>
+        <small class="customSmall">Enable Error-Correcting Code to detect and correct internal data corruption. Default is disabled.</small>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="customh2">XMP Profile:</div>
+        <small class="customSmall">Choose a predefined memory profile to automatically set RAM speed and timings.</small>
+        <div class="">
+            <select class="customselect" id="xmpProfile" aria-label="XMP Profile Select">
+                <option value="" disabled selected>Select Profile</option>
+                <option value="Profile 1">Profile 1</option>
+                <option value="Profile 2">Profile 2</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="row  mb-5">
+    <div class="col-lg-3">
+        <div class="d-flex align-items-center">
+          <div class="customh2">Enable Memory Interleaving</div>
+          <div class="form-check ms-2">
+            <input class="form-check-input" type="checkbox" id="memoryinterleaving">
+          </div>
+        </div>
+        <small class="customSmall">Enable memory interleaving to improve performance by spreading memory accesses across multiple channels.</small>
+    </div>
+    <div class="col-lg-3">
+        <div class="customh2">RAID</div>
+        <small class="customSmall">Select the RAID level to configure redundancy and performance for disk storage.</small>
+        <div>
+            <select class="customselect" id="Raidlevel">
+                <option value="" disabled selected>Select Raid Level</option>
+                <option value="RAID 0">RAID 0 - Striping (No redundancy, better performance)</option>
+                <option value="RAID 1">RAID 1 - Mirroring (Redundancy, data backup)</option>
+                <option value="RAID 5">RAID 5 - Striping with parity (Balanced performance and redundancy)</option>
+                <option value="RAID 10">RAID 10 - Striping and Mirroring (High performance and redundancy)</option>
+            </select>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="customh2">NVME:</div>
+        <small class="customSmall">Choose NVMe optimization mode for performance, balance, or quality settings.</small>
+        <div>
+            <select class="customselect" id="nvme">
+                <option value="" disabled selected>Select NVMe optimisation</option>
+                <option value="eth0">Performance</option>
+                <option value="eth1">Balance</option>
+                <option value="wlan0">Quality</option>
+            </select>
+        </div>
+    </div>  
+    <div class="col-lg-3">
+        <div class="customh2">DISK I/O</div>
+        <small class="customSmall">Set the priority level for disk input/output operations to manage system responsiveness.</small>
+        <div>
+            <select class="customselect" id="diskio">
+                <option value="" disabled selected>Select Priority</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+                <option value="Lowest">Lowest</option>
+            </select>
+        </div>
+    </div>  
+</div>
+
+<div class="row  mb-4">
+    <div class="col-lg-3">
+        <div class="customh2">
+            <label for="sddoverprior" class="">
+                SSD Over-Provisioning <span class="rangeValue" id="sddoverpriorvalue">1</span>
+            </label>
+        </div>
+        <small class="customSmall">Adjust the amount of over-provisioned space on your SSD to enhance performance and endurance.</small>
+        <input autocomplete="off" id="sddoverprior" type="range" class="slider" min="1" max="100" value="1">
+        <div class="slider-labels">
+            <span>1GB</span>
+            <span>50GB</span>
+            <span>100GB</span>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="d-flex align-items-center">
+            <div class="customh2">Enable Trim Support</div>
+            <div class="form-check ms-2">
+            <input class="form-check-input" type="checkbox" id="trimsupportcheck">
+            </div>
+        </div>
+        <small class="customSmall">Enable TRIM to optimize SSD performance by allowing the drive to manage unused data blocks.</small>
+    </div>
+
+        <div class="col-lg-3">
+        <div class="d-flex align-items-center">
+            <div class="customh2">Enable Write Cache Buffer</div>
+            <div class="form-check ms-2">
+            <input class="form-check-input" type="checkbox" id="writecachecheck">
+            </div>
+        </div>
+        <small class="customSmall">Enable write cache to temporarily store data before writing it to the disk, improving performance.</small>
+        </div>
+
+        <div class="col-lg-3">
+        <div class="customh2">
+            <label for="blocksize">
+                Block Size Configuration: <span class="rangeValue" id="blocksizeValue">1</span>
+            </label>
+        </div>
+        <small class="customSmall">Adjust the block size configuration to optimize read/write performance for different workloads.</small>
+        <input autocomplete="off" id="blocksize" type="range" class="slider" min="1" max="100" value="1">
+        <div class="slider-labels">
+            <span>1KB</span>
+            <span>50KB</span>
+            <span>100KB</span>
+        </div>
+    </div>
+</div>
+
+  <!-- Chart Section -->
+    <div class="row ">
+        <div class="col-12">
+            <h5>Server Performance</h5>
+            <canvas id="performanceChart" style="max-height: 200px; width: 100%; border:solid 1px red;"></canvas>
+        </div>
+    </div>
+
+  <!-- Buttons Section -->
+    <div class="row mt-2">
+        <div class="col-lg-12 d-flex justify-content-center">
+            <button class=" custom-apply me-3">Apply Changes</button>
+            <button class=" custom-reset">Reset to Default</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='JS/slider.js') }}"></script>
+
+{% endblock %}

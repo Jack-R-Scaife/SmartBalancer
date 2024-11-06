@@ -1,0 +1,676 @@
+{% extends "base.html" %}
+
+{% block title %}Server Overview{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/rule.css') }}" rel="stylesheet">
+
+<style>
+@media (min-width: 768px) {
+  .customcol4{
+    flex: 0 0 auto;
+    width: 33.33333333%;
+    height: 100px !important;
+  }
+}
+
+  .labelcst{
+    width: 67px;
+  }
+  .labelweight {
+  text-align: start;
+  max-width: 72px;
+}
+.labelcustom{
+  width: 200px;
+}
+  .red-text {
+    color: #ff6b6b;
+  }
+  .indent {
+    margin-left: 20px;
+  }
+
+  
+  label {
+    color: #c7c7c7;
+    width: 707px;
+  }
+
+  .customselect {
+    margin-left: 2px;
+    border: none;
+    border-bottom: 2px solid #fff; 
+    outline: none;
+    padding: 5px 0;
+    background-color: transparent;
+    box-shadow: none;
+    font-size: 16px;
+    color: #fff;
+    width: 100%;
+    max-width: 250px;
+    height: 36px;
+  }
+
+  .dropdown-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+ 
+
+  .customsearch{
+    border: none;
+    border-bottom: 2px solid #fff; 
+    outline: none;
+    padding: 5px 0;
+    background-color: transparent;
+    box-shadow: none;
+    font-size: 16px;
+    color: #ffffff;
+    width: 100%;
+  }
+
+
+  /*-------------- */
+
+ 
+  
+  select {
+    background-color: #333;
+    color: #ffffff;
+    border: 1px solid #555;
+    padding: 5px;
+  }
+
+ 
+  .customselect option {
+    background-color: #ffffff;
+    color: black;
+  }
+
+  .customselect:focus {
+    border-bottom: 2px solid #fff; 
+    box-shadow: none;
+  }
+
+  
+  /* Flex container to align labels and selects consistently */
+  .dropdown-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+ 
+  .customsearch{
+    border: none;
+    border-bottom: 2px solid #fff; 
+    outline: none;
+    padding: 5px 0;
+    background-color: transparent;
+    box-shadow: none;
+    font-size: 16px;
+    color: #ffffff;
+    width: 100%;
+  }
+
+  .custombtn {
+background: none;
+border: none;
+color: #ffffff;
+padding: 0;
+font-size: 16px;
+cursor: pointer;
+display: inline-flex;
+align-items: center;
+margin-left: 15px;
+}
+.buttonstyle{
+color:white;
+width: 160px;
+height: 30px;
+border-radius: 5px !important;
+text-align: left;
+padding-left:5px;
+padding-top: 1px;
+font-weight: 700;
+margin: 2px;
+}
+.customRemove {
+background-color: #681313;
+border:solid 1px #FF7676;
+}
+.customView{
+background-color: #055858;
+border:solid 1px #2BB7DC;
+width: 170px;
+}
+.customConfig{
+background-color: #652C0D;
+border:solid 1px #FFAA7B;
+}
+.sortable-header {
+  max-width: 192px;
+  width: 194px;
+}
+</style>
+
+<div class="container customContainer mt-2">
+  <div class="d-flex  mb-3">
+    <input type="text" class="search-bar" placeholder="Search...">
+
+</div>
+  <!-- Tabs for different sections -->
+  <div class="tabs">
+    <div class="tab active" data-tab="rules">Edit Group</div>
+    <div class="tab" data-tab="methods">Load Balancing Methods</div>
+    <div class="tab" data-tab="applied">Applied Rules</div>
+    <div class="tab" data-tab="create">Create Rules</div>
+  </div>
+
+  <!-- Section 1: Edit Rules for Group 1 -->
+   <div class="card-content active" id="rules">
+    <div class="table-responsive ">
+      <table class="customtable">
+        <button type="button" class="customView buttonstyle">Add Server to Group</button>
+
+          <thead>
+              <tr>
+                  <th> <input class="checkboxes" type="checkbox"></th>
+                  <th>Server Name</th>
+                  <th>IP Address</th>
+                  <th>Status</th>
+                  <th>Static Weights (Weighted Round Robin)</th>
+                  <th>Actions</th>
+              </tr>
+          </thead>
+          <tbody>
+              <tr>
+                  <td><input class="checkboxes" type="checkbox"></td>
+                  <td>yes</td>
+                  <td>te</td>
+                  <td>t</td>
+                  <td>t</td>
+                  <td>
+                      <button type="button" class="customRemove buttonstyle">Remove</button>
+                      <button type="button" class=" customConfig buttonstyle">Configure Device</button>
+                  </td>
+              </tr>
+          </tbody>
+      </table>
+  </div>
+  </div>
+
+  <!-- Section 2: Load Balancing Methods -->
+  <div class="card-content" id="methods">
+    <div class="row">
+      <!-- Column 1: Load Balancing Methods -->
+      <div class="col-md-4">
+        <h4>Load Balancing Method</h4>
+        <div class="dropdown-group">
+          <input type="checkbox" id="staticMethod">
+          <label for="staticMethod">Static Method</label>
+        </div>
+        <div class="dropdown-group">
+          <input type="checkbox" id="dynamicMethod">
+          <label for="dynamicMethod">Dynamic Method</label>
+        </div>
+        <div class="indent">
+        <div class="dropdown-group">
+          <input type="checkbox" id="cpuUsage">
+          <label for="cpuUsage">CPU Usage</label>
+          <label for="cpuUsageWeight" class="labelweight">Weight:</label>
+          <select id="cpuUsageWeight" class="customselect">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <div class="dropdown-group">
+          <input type="checkbox" id="cpuTemp">
+          <label for="cpuTemp">CPU Temperature</label>
+          <label for="cpuTempWeight" class="labelweight">Weight:</label>
+          <select id="cpuTempWeight" class="customselect">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        
+        <div class="dropdown-group">
+          <input type="checkbox" id="systemTemp">
+          <label for="systemTemp">System Temperature</label>
+          <label for="systemTempWeight" class="labelweight">Weight:</label>
+          <select id="systemTempWeight" class="customselect">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        
+        <div class="dropdown-group">
+          <input type="checkbox" id="memoryUsage">
+          <label for="memoryUsage">Memory Usage</label>
+          <label for="memoryUsageWeight" class="labelweight">Weight:</label>
+          <select id="memoryUsageWeight" class="customselect">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <div class="dropdown-group">
+          <input type="checkbox" id="networkRespTime">
+          <label for="networkRespTime">Network Response Time</label>
+          <label for="networkRespTimeWeight" class="labelweight">Weight:</label>
+          <select id="networkRespTimeWeight" class="customselect">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <div class="dropdown-group">
+          <input type="checkbox" id="leastConnections">
+          <label for="leastConnections">Least Connections</label>
+          <label for="leastConnectionsWeight" class="labelweight">Weight:</label>
+          <select id="leastConnectionsWeight" class="customselect">
+            <option value="0">0</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+            <option value="60">60</option>
+            <option value="70">70</option>
+            <option value="80">80</option>
+            <option value="90">90</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+        <div class="dropdown-group">
+          <input type="checkbox" id="predictiveAI">
+          <label for="predictiveAI">Predictive AI Driven Enhancement</label>
+        </div>
+        <p class="red-text">Predictive enhances static and dynamic methods to make smarter decisions based on future traffic patterns.</p>
+      </div>
+
+      <!-- Column 2: Load Balancing Strategies (Additional Options) -->
+      <div class="col-md-4">
+        <h4>Load Balancing Strategies</h4>
+        <div class="checkbox-group">
+          <div>
+            <input type="checkbox" id="RoundRobin">
+            <label for="RoundRobin" class="labelcustom">Round Robin</label>
+          </div>
+          <div>
+            <input type="checkbox" id="WeightedRoundRobin">
+            <label for="WeightedRoundRobin" class="labelcustom">Weighted Round Robin</label>
+          </div>
+          <div>
+            <input type="checkbox" id="LeastConnections">
+            <label for="LeastConnections" class="labelcustom">Least Connections</label>
+          </div>
+          <div>
+            <input type="checkbox" id="LeastResponseTime">
+            <label for="LeastResponseTime" class="labelcustom">Least Response Time</label>
+          </div>
+          <div>
+            <input type="checkbox" id="ResourceBased">
+            <label for="ResourceBased" class="labelcustom">Resource-Based</label>
+          </div>
+          <div>
+            <input type="checkbox" id="Custom">
+            <label for="Custom" class="labelcst">Custom</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Load Balancing Failover Priority -->
+      <div class="col-md-4">
+        <h4>Load Balancing Failover Priority</h4>
+        <div class="mb-3">
+          <div class="dropdown-group">
+            <label for="failoverPriority1" class="labelcst">Priority 1:</label>
+            <select id="failoverPriority1" class="customselect">
+              <option>Round Robin</option>
+              <option>Least Connections</option>
+              <option>Weighted Round Robin</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="dropdown-group">
+            <label for="failoverPriority2" class="labelcst">Priority 2:</label>
+            <select id="failoverPriority2" class="customselect">
+              <option>Round Robin</option>
+              <option>Least Connections</option>
+              <option>Weighted Round Robin</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-sm customView buttonstyle me-5">Apply Changes</button>
+    <button type="button" class="btn btn-sm customConfig buttonstyle">Reset to Default</button>
+
+  </div>
+
+  <!-- Section 3: Applied Rules -->
+  <div class="card-content" id="applied">
+    <input type="text" class=" w-100 mb-3 customsearch" placeholder="Search to filter for rules">
+    <div class="table-responsive">
+      <table class="customtable">
+        <thead>
+          <tr>
+            <th scope="col" class="sortable-header">Name <span class="sort-arrows">&#9650; &#9660;</span>
+            </th>
+            <th scope="col" class="sortable-header">Description <span class="sort-arrows">&#9650; &#9660;</span>
+            </th>
+            <th scope="col" class="sortable-header"> Rule Priority <span class="sort-arrows">&#9650; &#9660;</span>
+            </th>
+            <th scope="col" class="sortable-header">Schedule  <span class="sort-arrows">&#9650; &#9660;</span>
+            </th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Redirect HTTP to HTTPS</td>
+            <td>Ensures all traffic is secure by redirecting to HTTPS</td>
+            <td>1</td>
+            <td>Mon-Fri, 9:00 AM - 5:00 PM</td>
+            <td>
+              <span>Enable</span> <input type="checkbox" class="me-2">
+              <span>Disable</span> <input type="checkbox" class="me-2">
+              <button type="button" class=" customConfig buttonstyle">Edit</button>
+              <button type="button" class=" customRemove buttonstyle">Delete</button>
+            </td>
+          </tr>
+          <!-- Additional rows can be added here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card-content" id="create">
+    <form>
+      <div class="row mb-3">
+        <div class="col-md-4" >
+          <label for="ruleName" class="">Rule Name</label>
+          <input type="text" class="customselect" id="ruleName" placeholder="Enter rule name">
+        </div>
+        <div class="col-md-4">
+          <label for="ruleDescription" class="">Description</label>
+          <input type="text" class="customselect" id="ruleDescription" placeholder="Enter rule description">
+        </div>
+        <div class="col-md-4">
+          <label for="ruleType" class="">Rule Type</label>
+          <select id="ruleType" class="customselect">
+            <option value="geo">Geo-Based</option>
+            <option value="time">Time-Based</option>
+            <option value="load">Load-Based</option>
+            <!-- More rule types can be added here -->
+          </select>
+        </div>
+      </div>
+    
+      <div class="row mb-3">
+        <h4> Apply rules to groups</h4>
+        <div class="col-md-1">
+          <label for="g1" class="labelcst">Group 1</label>
+          <input type="checkbox" id="g1" >
+        </div>
+        <div class="col-md-1">
+          <label for="g1" class="labelcst">Group 1</label>
+          <input type="checkbox" id="g1" >
+        </div>
+        <div class="col-md-1">
+          <label for="g1" class="labelcst">Group 1</label>
+          <input type="checkbox" id="g1" >
+        </div>
+      </div>
+      <div class="row mb-3" id="conditionContainer">
+        <div class="col-md-4">
+          <label for="geoDirection" style="width: 200px;">If traffic originates from</label>
+          <select id="geoDirection" class="customselect">
+            <option value="outside">Outside</option>
+            <option value="inside">Inside</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="geoDirection" style="width: 200px;">of</label>
+          <select id="geoDirection" class="customselect">
+            <option value="" selected>Country or Region</option>
+            <option value="">Uk</option>
+            <option value=""></option>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="action" style="width: 200px;">Action</label>
+          <select id="action" class="customselect">
+            <option value="allow">Allow Traffic</option>
+            <option value="block">Block Traffic</option>
+            <option value="redirect">Redirect Traffic</option>
+            <!-- More actions can be added here -->
+          </select>
+        </div>
+      </div>
+      <div class="row mb-3" id="conditionContainer">
+
+      <div class="col-md-4 customcol4">
+        <label for="ruleSchedule" style="width: 200px;">Rule Scheduling</label>
+        <select id="ruleSchedule" class="customselect">
+          <option value="always">Always</option>
+          <option value="specific">Specific Days</option>
+        </select>
+      </div>
+      <div class="col-md-4 customcol4" id="specificDaysContainer" style="display: none;">
+        <label for="scheduleDays" style="width: 200px;">Days</label>
+        <select id="scheduleDays" class="customselect "style="height: 190px;" multiple>
+          <option value="monday">Monday</option>
+          <option value="tuesday">Tuesday</option>
+          <option value="wednesday">Wednesday</option>
+          <option value="thursday">Thursday</option>
+          <option value="friday">Friday</option>
+          <option value="saturday">Saturday</option>
+          <option value="sunday">Sunday</option>
+        </select>
+      </div>
+      <div class="col-md-4" id="specificHoursContainer">
+        <label for="scheduleStart" style="width: 200px;">Start Time</label>
+        <select id="scheduleStart" class="customselect">
+          <option value="12:00 AM">12:00 AM</option>
+          <option value="12:30 AM">12:30 AM</option>
+          <option value="1:00 AM">1:00 AM</option>
+          <option value="1:30 AM">1:30 AM</option>
+          <option value="2:00 AM">2:00 AM</option>
+          <option value="2:30 AM">2:30 AM</option>
+          <option value="3:00 AM">3:00 AM</option>
+          <option value="3:30 AM">3:30 AM</option>
+          <option value="4:00 AM">4:00 AM</option>
+          <option value="4:30 AM">4:30 AM</option>
+          <option value="5:00 AM">5:00 AM</option>
+          <option value="5:30 AM">5:30 AM</option>
+          <option value="6:00 AM">6:00 AM</option>
+          <option value="6:30 AM">6:30 AM</option>
+          <option value="7:00 AM">7:00 AM</option>
+          <option value="7:30 AM">7:30 AM</option>
+          <option value="8:00 AM">8:00 AM</option>
+          <option value="8:30 AM">8:30 AM</option>
+          <option value="9:00 AM">9:00 AM</option>
+          <option value="9:30 AM">9:30 AM</option>
+          <option value="10:00 AM">10:00 AM</option>
+          <option value="10:30 AM">10:30 AM</option>
+          <option value="11:00 AM">11:00 AM</option>
+          <option value="11:30 AM">11:30 AM</option>
+          <option value="12:00 PM">12:00 PM</option>
+          <option value="12:30 PM">12:30 PM</option>
+          <option value="1:00 PM">1:00 PM</option>
+          <option value="1:30 PM">1:30 PM</option>
+          <option value="2:00 PM">2:00 PM</option>
+          <option value="2:30 PM">2:30 PM</option>
+          <option value="3:00 PM">3:00 PM</option>
+          <option value="3:30 PM">3:30 PM</option>
+          <option value="4:00 PM">4:00 PM</option>
+          <option value="4:30 PM">4:30 PM</option>
+          <option value="5:00 PM">5:00 PM</option>
+          <option value="5:30 PM">5:30 PM</option>
+          <option value="6:00 PM">6:00 PM</option>
+          <option value="6:30 PM">6:30 PM</option>
+          <option value="7:00 PM">7:00 PM</option>
+          <option value="7:30 PM">7:30 PM</option>
+          <option value="8:00 PM">8:00 PM</option>
+          <option value="8:30 PM">8:30 PM</option>
+          <option value="9:00 PM">9:00 PM</option>
+          <option value="9:30 PM">9:30 PM</option>
+          <option value="10:00 PM">10:00 PM</option>
+          <option value="10:30 PM">10:30 PM</option>
+          <option value="11:00 PM">11:00 PM</option>
+          <option value="11:30 PM">11:30 PM</option>
+        </select>
+      </div>
+        <div class="col-md-4 customcol4" id="specificHoursContainer">
+        <label for="scheduleEnd" style="width: 200px;">End Time</label>
+        <select id="scheduleEnd" class="customselect">
+          <option value="12:00 AM">12:00 AM</option>
+          <option value="12:30 AM">12:30 AM</option>
+          <option value="1:00 AM">1:00 AM</option>
+          <option value="1:30 AM">1:30 AM</option>
+          <option value="2:00 AM">2:00 AM</option>
+          <option value="2:30 AM">2:30 AM</option>
+          <option value="3:00 AM">3:00 AM</option>
+          <option value="3:30 AM">3:30 AM</option>
+          <option value="4:00 AM">4:00 AM</option>
+          <option value="4:30 AM">4:30 AM</option>
+          <option value="5:00 AM">5:00 AM</option>
+          <option value="5:30 AM">5:30 AM</option>
+          <option value="6:00 AM">6:00 AM</option>
+          <option value="6:30 AM">6:30 AM</option>
+          <option value="7:00 AM">7:00 AM</option>
+          <option value="7:30 AM">7:30 AM</option>
+          <option value="8:00 AM">8:00 AM</option>
+          <option value="8:30 AM">8:30 AM</option>
+          <option value="9:00 AM">9:00 AM</option>
+          <option value="9:30 AM">9:30 AM</option>
+          <option value="10:00 AM">10:00 AM</option>
+          <option value="10:30 AM">10:30 AM</option>
+          <option value="11:00 AM">11:00 AM</option>
+          <option value="11:30 AM">11:30 AM</option>
+          <option value="12:00 PM">12:00 PM</option>
+          <option value="12:30 PM">12:30 PM</option>
+          <option value="1:00 PM">1:00 PM</option>
+          <option value="1:30 PM">1:30 PM</option>
+          <option value="2:00 PM">2:00 PM</option>
+          <option value="2:30 PM">2:30 PM</option>
+          <option value="3:00 PM">3:00 PM</option>
+          <option value="3:30 PM">3:30 PM</option>
+          <option value="4:00 PM">4:00 PM</option>
+          <option value="4:30 PM">4:30 PM</option>
+          <option value="5:00 PM">5:00 PM</option>
+          <option value="5:30 PM">5:30 PM</option>
+          <option value="6:00 PM">6:00 PM</option>
+          <option value="6:30 PM">6:30 PM</option>
+          <option value="7:00 PM">7:00 PM</option>
+          <option value="7:30 PM">7:30 PM</option>
+          <option value="8:00 PM">8:00 PM</option>
+          <option value="8:30 PM">8:30 PM</option>
+          <option value="9:00 PM">9:00 PM</option>
+          <option value="9:30 PM">9:30 PM</option>
+          <option value="10:00 PM">10:00 PM</option>
+          <option value="10:30 PM">10:30 PM</option>
+          <option value="11:00 PM">11:00 PM</option>
+          <option value="11:30 PM">11:30 PM</option>
+        </select>
+      </div>
+    </div>
+      <button type="submit" class="customView buttonstyle">Create Rule</button>
+    </form>
+</div>
+
+
+
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      // Remove active class from all tabs and all card content sections
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.card-content').forEach(content => content.classList.remove('active'));
+
+      // Add active class to the clicked tab and corresponding content
+      this.classList.add('active');
+      document.getElementById(this.getAttribute('data-tab')).classList.add('active');
+    });
+  });
+
+  document.getElementById('ruleSchedule').addEventListener('change', function() {
+    const specificDaysContainer = document.getElementById('specificDaysContainer');
+    if (this.value === 'specific') {
+      specificDaysContainer.style.display = 'block';
+    } else {
+      specificDaysContainer.style.display = 'none';
+    }
+  });
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+{% endblock %}

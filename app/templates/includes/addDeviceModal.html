@@ -3,7 +3,7 @@
         <div class="modal-content customModal">
             <div class="modal-header">
                 <h5 class="modal-title text-center" id="addDeviceModalLabel" style="max-width: 798px;width: 798px;">Add New Device</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="addDeviceForm">
@@ -11,8 +11,8 @@
                         <div class="col-md-8">
                             <label for="ipAddress" class="form-label">IP Address</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="ipAddress" placeholder="Enter IP address" style="height: 25px;border-radius: 2px !important;max-width: 200px;">
-                                <button type="submit" class="btn btn-sm customView buttonstyle text-center" style="height: 25px;margin-left: 10px; margin-top: 0px;">Link</button>
+                                <input type="text" class="custominput" id="ipAddress" placeholder="Enter IP address">
+                                <button type="submit" class="customView buttonstyle" style="height: 25px;">Link</button>
                             </div>
                         </div>
                         <div class="col-md-4 checkbox-container">
@@ -22,17 +22,17 @@
                     </div>
                     <div class="mt-3 d-flex align-items-center">
                         <p class="mb-0 me-2">Local Scanner (Multi-Link Devices)</p>
-                        <button type="button" class="btn btn-sm customView buttonstyle text-center">ARP Scan</button>
+                        <button type="button" class="customView buttonstyle"  style="height: 25px;">ARP Scan</button>
                     </div>
                     <div class="mt-3">
                         <div class="table-responsive">
-                            <table class="table table-custom">
+                            <table class="customtable">
                             <thead>
                                 <tr>
-                                    <th>* <input class="checkboxes" type="checkbox"></th>
+                                    <th><input class="checkboxes" type="checkbox"></th>
                                     <th>Device Name</th>
                                     <th>Device Ip</th>
-                                    <th><button type="button" class="btn btn-sm customView buttonstyle text-center">Link</button></th>
+                                    <th><button type="button" class="customView buttonstyle" style="height: 25px;">Link</button></th>
                                 </tr>
                             </thead>
                             <tbody>

@@ -42,5 +42,4 @@ class ResourceMonitor:
             'net_recv_MBps': net_recv_speed
         }
 
-# Create an instance of ResourceMonitor
 

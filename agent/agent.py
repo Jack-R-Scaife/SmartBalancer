@@ -7,11 +7,15 @@ from security import SecureChannel
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from flask import Flask, jsonify, request
+from flask_compress import Compress
 
 # Initialize Flask app
 app = Flask(__name__)
 health_check_instance = HealthCheck()
-
+compress = Compress()
+compress.init_app(app)
+app.config['COMPRESS_ALGORITHM'] = 'brotli'
+app.config['COMPRESS_LEVEL'] = 11
 class Agent:
     def __init__(self, server_id):
         self.server_id = server_id
@@ -160,8 +164,14 @@ def health_check():
     if not agent_instance.load_balancer_ip:
         agent_instance.set_load_balancer_ip(request.remote_addr)
     
+    # Determine the status of the agent
     status = health_check_instance.determine_status(agent_instance.load_balancer_ip)
-    return jsonify({"status": status}), 200
+    
+    # Log the status for debugging purposes
+    print(f"Determined status for agent {agent_instance.get_ip_address()}: {status}")
+    
+    # Return the JSON response using 'st' for status
+    return jsonify({"ip": agent_instance.get_ip_address(), "st": status}), 200
 
 @app.route('/delink', methods=['POST'])
 def delink_server():
