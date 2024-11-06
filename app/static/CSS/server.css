@@ -125,46 +125,4 @@ border:solid 1px #FFAA7B;
     .custom-btn-close {
         filter: invert(1) grayscale(100%) brightness(200%);
       }
-/* OFFCanvas CSS BELOW /*
 
-/* OffCanvas Styles */
-.offcanvas-custom {
-    width: 600px !important; 
-    background-color: #131313 !important;
-    color: #ffffff !important;
-    }
-    .accordion-button {
-    background-color: #131313!important;
-    color: #ffffff!important;
-    position: relative!important;
-    }
-    .accordion-button:not(.collapsed) {
-    background-color: #131313;
-    color: #ffffff;
-    }
-    .accordion-body{
-    background-color: #131313;
-    color: white;
-    }
-    
-    .ctmAccordion {
-    border: none !important;
-    }
-    .chart-container {
-    background-color: #1A1F26;
-    padding: 20px;
-    margin-top: 20px;
-    border-radius: 8px;
-    }
-    .accordion-button::after {
-    content: '\25BC';
-    font-size: 0.8em;
-    color: #ffffff;
-    transform: rotate(0deg);
-    transition: transform 0.3s ease;
-    position: absolute;
-    right: 1rem;
-    }
-    .accordion-button:not(.collapsed)::after {
-    transform: rotate(180deg);
-    }

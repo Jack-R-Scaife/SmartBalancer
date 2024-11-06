@@ -4,7 +4,7 @@
   }
   .card {
     max-width: 290px;
-    max-height: 320px;
+    max-height: 352px;
     margin: auto;
     margin-top:15px;
     margin-bottom: 15px;
@@ -44,4 +44,33 @@
 }
 .cstmh6{
   font-weight: bold;
+}
+.customselect {
+  border: none;
+   border-bottom: 2px solid #fff; 
+  outline: none;
+  padding: 5px 0;
+  background-color: transparent;
+  box-shadow: none;
+  font-size: .875em;
+  color: #fff;
+  width: 100%;
+  max-width: 250px;
+  height: 25px;
+  font-weight: bold;
+
+}
+
+.customselect option {
+  background-color: #ffffff;
+  color: black;
+}
+
+.customselect:focus {
+  border-bottom: 2px solid #fff; 
+  box-shadow: none;
+}
+.cstmsmall{
+  font-size: .875em;
+  margin: 0px ;
 }

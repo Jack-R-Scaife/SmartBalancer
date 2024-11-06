@@ -55,8 +55,7 @@
                     <td>{{ server.disk_usage }}%</td>
                     <td>{{ server.network_traffic }} mb/s</td>
                     <td>
-                        <button type="button" class="customRemove buttonstyle">Remove</button>
-                        <button type="button" class=" customView buttonstyle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">View Details</button> 
+                        <button type="button" class="customRemove buttonstyle" onclick="removeServer('{{ server.ip_address }}')">Remove</button>
                         <button type="button" class=" customConfig buttonstyle" onclick="toggleSubLinks('{{ server.server_id }}')">Configure Device</button>
                     </td>
                 </tr>
@@ -87,9 +86,22 @@
         console.error('There was an error!', error);
     });
 }
-</script>
-  {% include 'includes/serverOffCanvas.html' %}
-  {% include 'includes/addDeviceModal.html' %}
-  <script src="{{ url_for('static', filename='JS/addDevice.js') }}"></script>
 
+function removeServer(ipAddress) {
+        fetch(`/api/servers/remove/${ipAddress}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();  // Reload the page to update the server list
+            } else {
+                response.json().then(data => alert(data.message));
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>
+{% include 'includes/addDeviceModal.html' %}
+
+  <script src="{{ url_for('static', filename='JS/addDevice.js') }}"></script>
 {% endblock %}
