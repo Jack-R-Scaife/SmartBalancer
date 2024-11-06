@@ -46,16 +46,6 @@ def get_server_status():
     # Query all the servers from the database
     servers = Server.query.all()
     
-<<<<<<< Updated upstream
-    # Prepare a list of server statuses
-    server_statuses = [
-        {'ip_address': server.ip_address, 'status': server.status}
-        for server in servers
-    ]
-    
-    # Return the data as JSON
-    return jsonify(server_statuses), 200
-=======
     for server in servers:
         numeric_status = status_mapping.get(server.status, 4)  # Default to "down" if status is not recognized
         server_status_list.append({
@@ -74,4 +64,3 @@ def remove_server(ip_address):
     # Set appropriate status codes based on whether the server was found and removed
     status_code = 200 if result['status'] else 404
     return jsonify({'message': result['message']}), status_code
->>>>>>> Stashed changes
