@@ -71,3 +71,9 @@ def remove_server(ip_address):
     result = server_manager.remove_server(ip_address)
     status_code = 200 if result['status'] else 404
     return jsonify({'message': result['message']}), status_code
+
+@api_blueprint.route('/server_count', methods=['GET'])
+def get_server_count():
+    # Query the database to count the servers
+    server_count = Server.query.count()
+    return jsonify({'count': server_count})

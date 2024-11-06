@@ -18,7 +18,7 @@ document.getElementById('addDeviceForm').addEventListener('submit', function(eve
 
     const requestData = {
         ip_address: ipAddress,
-        dynamic_grouping: dynamicGrouping  // You can send this info to the backend if necessary
+        dynamic_grouping: dynamicGrouping  
     };
 
     axios.post('/api/servers/link', requestData)
@@ -27,8 +27,6 @@ document.getElementById('addDeviceForm').addEventListener('submit', function(eve
             alert('Server linked successfully!');
             // Optional: Close the modal after success
             let modal = bootstrap.Modal.getInstance(document.getElementById('addDeviceModal'));
-            modal.hide();
-            // Optional: Reset the form after submission
             document.getElementById('addDeviceForm').reset();
         })
         .catch(function(error) {
@@ -48,3 +46,8 @@ function isValidIPv6(ipAddress) {
     const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(([0-9a-fA-F]{1,4}:){1,7}:)|(([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})|(([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2})|(([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3})|(([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4})|(([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5})|([0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6}))|(::([0-9a-fA-F]{1,4}:){0,7}[0-9a-fA-F]{1,4})$/;
     return ipv6Regex.test(ipAddress);
 }
+
+document.getElementById('addDeviceModal').addEventListener('hidden.bs.modal', function () {
+    // Reload the page after the modal closes
+    location.reload();
+});
