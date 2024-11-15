@@ -27,6 +27,7 @@ class ServerGroup(db.Model):
 
     group_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(45), nullable=False, unique=True)
+    description = db.Column(db.String(200), nullable=False,)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     server_count = db.Column(db.Integer, nullable=False, default=0)

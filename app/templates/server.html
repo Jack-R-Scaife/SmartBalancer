@@ -41,12 +41,22 @@
                 <tr>
                     <td><input class="checkboxes" type="checkbox"></td>
                     <td>
-                      {% if server.group %}
-                          {{ server.group }}
-                      {% else %}
-                          <button type="button" class="customView buttonstyle" onclick="addToGroup('{{ server.server_id }}')">Add to Group</button>
-                      {% endif %}
-                  </td>
+                        <div>
+                            <select class="customselect" id="group_{{ server.server_id }}" aria-label="Group Select" onchange="changeGroup('{{ server.server_id }}')">                            {% if server.group %}
+                            <option value="{{ server.group.group_id }}" selected>{{ server.group.name }}</option>
+                          {% else %}
+                            <option value="" disabled selected>Select Group</option>
+                          {% endif %}
+                            {% for group in groups %}
+                              {% if not server.group or server.group.group_id != group.group_id %}
+                                <option value="{{ group.group_id }}">{{ group.name }}</option>
+                              {% endif %}
+                            {% endfor %}
+                            <option value="manage_groups">Manage Groups...</option>
+                            </select>
+                        </div>
+                    </td>
+                      
                     <td>{{ server.status }}</td>
                     <td>{{ server.name }}</td>
                     <td>{{ server.ip_address }}</td>
@@ -65,43 +75,19 @@
     </div>
 </div>
 <script>
-    function toggleSubLinks(serverId) {
-    console.log("Configuring device for server ID:", serverId);
+ 
 
-    axios.post('/toggle_sublinks', {
-        server_id: serverId
-    })
-    .then(response => {
-        console.log(response.data.message);
+    </script>
+    
 
-        // Expand the sub-links in the navbar
-        const subLinks = document.getElementById('serverSubLinks');
-        if (subLinks) {
-            subLinks.classList.add('show');
-        } else {
-            console.error('Sub-links element not found.');
-        }
-    })
-    .catch(error => {
-        console.error('There was an error!', error);
-    });
-}
-
-function removeServer(ipAddress) {
-        fetch(`/api/servers/remove/${ipAddress}`, {
-            method: 'DELETE'
-        })
-        .then(response => {
-            if (response.ok) {
-                location.reload();  // Reload the page to update the server list
-            } else {
-                response.json().then(data => alert(data.message));
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    }
-</script>
 {% include 'includes/addDeviceModal.html' %}
+{% include 'includes/addGroupModal.html' %}
+    <script src="{{ url_for('static', filename='JS/addDevice.js') }}"></script>
+    <script src="{{ url_for('static', filename='JS/server.js') }}"></script>
+    <script src="{{ url_for('static', filename='JS/updategroup.js') }}"></script>
 
-  <script src="{{ url_for('static', filename='JS/addDevice.js') }}"></script>
+    <script>
+
+
+    </script>
 {% endblock %}

@@ -1,0 +1,206 @@
+
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Server Status Dashboard{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/base.css') }}" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.7.7/axios.min.js" integrity="sha512-DdX/YwF5e41Ok+AI81HI8f5/5UsoxCVT9GKYZRIzpLxb8Twz4ZwPPX+jQMwMhNQ9b5+zDEefc+dcvQoPWGNZ3g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+    <!-- Content -->
+    <div class="content">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#groupManagementModal">
+            Manage Groups
+        </button>
+    </div>
+    <div class="modal fade" id="groupManagementModal" tabindex="-1" aria-labelledby="groupManagementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content customModal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="groupManagementModalLabel">Group Management</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    
+                    <!-- Initial Content for Managing Groups -->
+                    <div id="initialContent">
+                        <!-- Card for Server and Group Management -->
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-body">
+                                <!-- Header Section -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="card-title m-0">Manage Servers in Groups</h6>
+                                    <i class="bi bi-diagram-2-fill text-primary" style="font-size: 1.5rem;"></i> <!-- Icon -->
+                                </div>
+                                <p>Select multiple servers and groups to add servers into one or more groups.</p>
+                    
+                                <!-- Server Selection with Checkboxes -->
+                                <div class="mb-3">
+                                    <label class="form-label">Available Servers:</label>
+                                    <div class="list-group">
+                                        <label class="list-group-item">
+                                            <input class=" me-1" type="checkbox" value="1"> Server 1 - Status: Active
+                                        </label>
+                                        <label class="list-group-item">
+                                            <input class="form-check-input me-1" type="checkbox" value="2"> Server 2 - Status: Idle
+                                        </label>
+                                        <label class="list-group-item">
+                                            <input class="form-check-input me-1" type="checkbox" value="3"> Server 3 - Status: Maintenance
+                                        </label>
+                                        <label class="list-group-item">
+                                            <input class="form-check-input me-1" type="checkbox" value="4"> Server 4 - Status: Active
+                                        </label>
+                                        <label class="list-group-item">
+                                            <input class="form-check-input me-1" type="checkbox" value="5"> Server 5 - Status: Idle
+                                        </label>
+                                        <!-- Additional mock servers as needed -->
+                                    </div>
+                                </div>
+                    
+                                <!-- Group Selection with Checkboxes -->
+                                <div class="mb-3">
+                                    <label class="form-label">Select Groups to Add Servers To:</label>
+                                    <div class="list-group">
+                                        <label class="list-group-item">
+                                            <input class="form-check-input me-1" type="checkbox" value="alpha"> Group Alpha - 3 Servers
+                                        </label>
+                                        <label class="list-group-item">
+                                            <input class="form-check-input me-1" type="checkbox" value="beta"> Group Beta - 5 Servers
+                                        </label>
+                                        <label class="list-group-item">
+                                            <input class="form-check-input me-1" type="checkbox" value="gamma"> Group Gamma - 2 Servers
+                                        </label>
+                                        <!-- Additional mock groups as needed -->
+                                    </div>
+                                </div>
+                    
+                                <!-- Action Buttons -->
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                        <i class="bi bi-check-square"></i> Add Selected Servers to Selected Groups
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="startCreateGroup">
+                                        <i class="bi bi-plus-square"></i> Create a New Group
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <!-- Step Content (Initially Hidden) -->
+                    <div id="stepContent" class="d-none">
+                        <!-- Breadcrumb Navigation for Steps -->
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item active" aria-current="step1">Step 1: Group Details</li>
+                                <li class="breadcrumb-item">Step 2: Assign Servers</li>
+                                <li class="breadcrumb-item">Step 3: Confirm</li>
+                            </ol>
+                        </nav>
+    
+                        <!-- Step 1: Group Details -->
+                        <div id="step1" class="step">
+                            <h6>Step 1: Enter Group Details</h6>
+                            <input type="text" class="form-control mb-3" placeholder="Group Name">
+                            <textarea class="form-control" rows="3" placeholder="Group Description"></textarea>
+                        </div>
+    
+                        <!-- Step 2: Assign Servers (hidden by default) -->
+                        <div id="step2" class="step d-none">
+                            <h6>Step 2: Assign Servers to Group</h6>
+                            <select multiple class="form-select mb-3" aria-label="Select Servers to Add">
+                                <option value="1">Server 1</option>
+                                <option value="2">Server 2</option>
+                                <option value="3">Server 3</option>
+                                <!-- Additional servers as options -->
+                            </select>
+                        </div>
+    
+                        <!-- Step 3: Confirm (hidden by default) -->
+                        <div id="step3" class="step d-none">
+                            <h6>Step 3: Review & Confirm</h6>
+                            <p><strong>Group Name:</strong> [Display group name]</p>
+                            <p><strong>Description:</strong> [Display description]</p>
+                            <p><strong>Selected Servers:</strong> [Display selected servers]</p>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Modal Footer with Navigation Buttons -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="prevStep" disabled>Previous</button>
+                    <button type="button" class="btn btn-primary" id="nextStep">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Optional JavaScript to Control Step Navigation -->
+    <script>
+        const steps = ['step1', 'step2', 'step3'];
+        let currentStep = 0;
+    
+        // Show steps on "Create a New Group"
+        document.getElementById('startCreateGroup').addEventListener('click', () => {
+            document.getElementById('initialContent').classList.add('d-none');
+            document.getElementById('stepContent').classList.remove('d-none');
+            document.getElementById('prevStep').disabled = true; // reset to first step
+            currentStep = 0;
+        });
+    
+        document.getElementById('nextStep').addEventListener('click', () => {
+            if (currentStep < steps.length - 1) {
+                document.getElementById(steps[currentStep]).classList.add('d-none');
+                currentStep++;
+                document.getElementById(steps[currentStep]).classList.remove('d-none');
+                document.getElementById('prevStep').disabled = false;
+                if (currentStep === steps.length - 1) {
+                    document.getElementById('nextStep').textContent = 'Confirm';
+                }
+            } else {
+                document.getElementById('groupManagementModal').modal('hide'); // Submit or close modal
+            }
+        });
+    
+        document.getElementById('prevStep').addEventListener('click', () => {
+            if (currentStep > 0) {
+                document.getElementById(steps[currentStep]).classList.add('d-none');
+                currentStep--;
+                document.getElementById(steps[currentStep]).classList.remove('d-none');
+                document.getElementById('nextStep').textContent = 'Next';
+                if (currentStep === 0) {
+                    document.getElementById('prevStep').disabled = true;
+                }
+            }
+        });
+    </script>
+
+<style>
+   
+    
+    .addGroupModal-customView.buttonstyle {
+        margin-top: 15px;
+        padding: 8px 16px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .customModal {
+    color: white !important;
+    background-color: #0F1011 !important;
+    border: solid white 1px !important;
+    }
+    </style>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>

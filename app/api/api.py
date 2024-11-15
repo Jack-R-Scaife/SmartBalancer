@@ -1,6 +1,7 @@
 # app/api/api.py
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
 from server.server_manager import ServerManager
+from server.servergroups import update_server_group,get_servers_and_groups
 import requests
 from app.models import Server
 import json
@@ -77,3 +78,18 @@ def get_server_count():
     # Query the database to count the servers
     server_count = Server.query.count()
     return jsonify({'count': server_count})
+
+@api_blueprint.route('/servers/update_group', methods=['POST'])
+def api_update_server_group():
+    data = request.json
+    server_id = data.get('server_id')
+    group_id = data.get('group_id')
+
+    result = update_server_group(server_id, group_id)
+    return jsonify(result) if result['status'] == 'success' else jsonify(result), 400
+
+    
+@api_blueprint.route('/servers/groups', methods=['GET'])
+def api_get_servers_and_groups():
+    response_data = get_servers_and_groups()
+    return jsonify(response_data), 200 if response_data['status'] == 'success' else 500

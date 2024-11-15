@@ -1,0 +1,239 @@
+<div class="modal fade" id="addGroupModal" tabindex="-1" aria-labelledby="addGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content customModal">
+            <div class="modal-header">
+                <h5 class="modal-title text-center" id="addGroupModalLabel" style="max-width: 798px;width: 798px;">Group Management</h5>
+                <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addGroupForm" >
+                    <div id="initialContent">
+                    <p>Select multiple servers and groups to add servers into one or more groups.</p>
+                    <!-- Server Selection with Checkboxes -->
+                    <div class="mb-3">
+                        <label class="form-label">Available Servers:</label>
+                        <div class="list-group">
+                            <label class="list-group-item">
+                                <input class=" me-1" type="checkbox" value="1"> Server 1 - Status: Active
+                            </label>
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" value="2"> Server 2 - Status: Idle
+                            </label>
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" value="3"> Server 3 - Status: Maintenance
+                            </label>
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" value="4"> Server 4 - Status: Active
+                            </label>
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" value="5"> Server 5 - Status: Idle
+                            </label>
+                            <!-- Additional mock servers as needed -->
+                        </div>
+                    </div>
+        
+                    <!-- Group Selection with Checkboxes -->
+                    <div class="mb-3">
+                        <label class="form-label">Select Groups to Add Servers To:</label>
+                        <div class="list-group">
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" value="alpha"> Group Alpha - 3 Servers
+                            </label>
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" value="beta"> Group Beta - 5 Servers
+                            </label>
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="checkbox" value="gamma"> Group Gamma - 2 Servers
+                            </label>
+                            <!-- Additional mock groups as needed -->
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="customgreybutton" data-bs-dismiss="modal">
+                            <i class="bi bi-check-square"></i> Add Selected Servers to Selected Groups
+                        </button>
+                        <button type="button" class="customgreybutton" id="startCreateGroup">
+                            <i class="bi bi-plus-square"></i> Create a New Group
+                        </button>
+                    </div>
+                </div>
+                     <!-- Step Content (Initially Hidden) -->
+                     <div id="stepContent" class="d-none">
+                        <!-- Breadcrumb Navigation for Steps -->
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item active" aria-current="step1">Group Details</li>
+                                <li class="breadcrumb-item">Assign Servers</li>
+                                <li class="breadcrumb-item">Confirm</li>
+                            </ol>
+                        </nav>
+    
+                        <!-- Step 1: Group Details -->
+                        <div id="step1" class="step">
+                            <div class="customh2">Group Name</div>
+                            <div>
+                                <input type="text" class="custominput mb-3" placeholder="Group Name">
+                            </div>
+                            <div class="customh2">Group Description</div>
+                            <div>
+                                <textarea class="customtextarea" rows="3" placeholder="Short description of what this group is for."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Assign Servers (hidden by default) -->
+                        <div id="step2" class="step d-none">
+                            <h6>Step 2: Assign Servers to Group</h6>
+                            
+                            <!-- Select All Checkbox -->
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="selectAllServers">
+                                <label class="form-check-label" for="selectAllServers">Select All Servers</label>
+                            </div>
+                        
+                            <!-- Server List with Checkboxes -->
+                            <div class="list-group mb-3" id="serverList">
+                                <label class="list-group-item">
+                                    <input class="form-check-input me-1" type="checkbox" value="1" name="server"> Server 1 - Status: Active
+                                </label>
+                                <label class="list-group-item">
+                                    <input class="form-check-input me-1" type="checkbox" value="2" name="server"> Server 2 - Status: Idle
+                                </label>
+                                <label class="list-group-item">
+                                    <input class="form-check-input me-1" type="checkbox" value="3" name="server"> Server 3 - Status: Maintenance
+                                </label>
+                                <label class="list-group-item">
+                                    <input class="form-check-input me-1" type="checkbox" value="4" name="server"> Server 4 - Status: Active
+                                </label>
+                                <label class="list-group-item">
+                                    <input class="form-check-input me-1" type="checkbox" value="5" name="server"> Server 5 - Status: Idle
+                                </label>
+                                <!-- Additional servers as needed -->
+                            </div>
+                        </div>
+    
+                        <!-- Step 3: Confirm (hidden by default) -->
+                        <div id="step3" class="step d-none">
+                            <h6>Step 3: Review & Confirm</h6>
+                            <p><strong>Group Name:</strong> [Display group name]</p>
+                            <p><strong>Description:</strong> [Display description]</p>
+                            <p><strong>Selected Servers:</strong> [Display selected servers]</p>
+                        </div>
+                        <div class="d-none cstfooter" id="footer">
+                            <button type="button" class="customgreybutton prevbtn" id="prevStep" disabled>Previous</button>
+                            <button type="button" class="customgreybutton nextbtn" id="nextStep">Next</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+          
+        </div>
+    </div>
+</div>
+<script>
+    const steps = ['step1', 'step2', 'step3'];
+    let currentStep = 0;
+
+    // Show steps on "Create a New Group"
+    document.getElementById('startCreateGroup').addEventListener('click', () => {
+        document.getElementById('initialContent').classList.add('d-none');
+        document.getElementById('stepContent').classList.remove('d-none');
+        document.getElementById('footer').classList.remove('d-none');
+
+        document.getElementById('prevStep').disabled = true; // reset to first step
+        currentStep = 0;
+    });
+
+    document.getElementById('nextStep').addEventListener('click', () => {
+        if (currentStep < steps.length - 1) {
+            document.getElementById(steps[currentStep]).classList.add('d-none');
+            currentStep++;
+            document.getElementById(steps[currentStep]).classList.remove('d-none');
+            document.getElementById('prevStep').disabled = false;
+            if (currentStep === steps.length - 1) {
+                document.getElementById('nextStep').textContent = 'Confirm';
+            }
+        } else {
+            document.getElementById('groupManagementModal').modal('hide'); // Submit or close modal
+        }
+    });
+
+    document.getElementById('prevStep').addEventListener('click', () => {
+        if (currentStep > 0) {
+            document.getElementById(steps[currentStep]).classList.add('d-none');
+            currentStep--;
+            document.getElementById(steps[currentStep]).classList.remove('d-none');
+            document.getElementById('nextStep').textContent = 'Next';
+            if (currentStep === 0) {
+                document.getElementById('prevStep').disabled = true;
+            }
+        }
+    });
+</script>
+<style>
+.prevbtn, .nextbtn {
+    width: 350px;
+    margin: 15px;
+}
+.cstfooter{
+    text-align: center;     
+}
+.breadcrumb-item.active{
+    color: grey;
+ }
+
+.addGroupModal-modal-title {
+    text-align: center;
+    width: 100%;
+}
+
+.addGroupModal-custominput {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.customtextarea {
+    width: 100%;
+    height: 80px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: none;
+    background-color: transparent;
+    color: white;
+}
+
+.customgreybutton{
+    margin-top: 15px;
+    padding: 8px 16px;
+    background-color: transparent;
+    color: #fff;
+    border-radius: 4px;
+    border: whitesmoke solid 1px;
+    cursor: pointer;
+}
+.customgreybutton:hover{
+    margin-top: 15px;
+    padding: 8px 16px;
+    background-color: rgb(112, 112, 112);
+    color: #000000;
+    border-radius: 4px;
+    border: rgb(255, 255, 255) solid 1px;
+    cursor: pointer;
+}
+.list-group-item {
+  text-decoration: none;
+  color: white !important;
+  background-color: #1f2122 !important;
+  border: solid white 1px !important;
+}
+</style>
+
+<script>
+    document.getElementById('addGroupModal').addEventListener('hidden.bs.modal', function () {
+    // Reload the page after the modal closes
+    location.reload();
+});
+</script>

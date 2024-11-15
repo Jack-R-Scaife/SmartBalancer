@@ -126,3 +126,26 @@ border:solid 1px #FFAA7B;
         filter: invert(1) grayscale(100%) brightness(200%);
       }
 
+      .customselect {
+        border: none;
+         border-bottom: 2px solid #fff; 
+        outline: none;
+        padding: 5px 0;
+        background-color: transparent;
+        box-shadow: none;
+        font-size: 16px;
+        color: #fff;
+        width: 100%;
+        max-width: 250px;
+        height: 36px;
+      }
+      
+      .customselect option {
+        background-color: #ffffff;
+        color: black;
+      }
+      
+      .customselect:focus {
+        border-bottom: 2px solid #fff; 
+        box-shadow: none;
+      }
