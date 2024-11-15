@@ -1,18 +1,26 @@
-
 SmartBalancer.code-workspace
 agent/.bash_logout
 agent/.bash_history
+
 # Ignore pip cache
 __pycache__/
 *.py[cod]
 *.pyo
+
+# Ignore virtual environment files
 .Python
 .cache/
 .mypy_cache/
 .pytest_cache/
 pip-wheel-metadata/
 pip-log.txt
+
+# Ignore Python environment directories
 *.egg-info/
 *.eggs/
 .env/
 .venv/
+
+# Ignore shell scripts
+*.sh
+agent/*.sh
