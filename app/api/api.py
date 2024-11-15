@@ -1,7 +1,7 @@
 # app/api/api.py
 from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
 from server.server_manager import ServerManager
-from server.servergroups import update_server_group,get_servers_and_groups
+from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers
 import requests
 from app.models import Server
 import json
@@ -25,7 +25,6 @@ def link_server():
 
     if not ip_address:
         return jsonify({'message': 'IP address is required.'}), 400
-
     try:
         # Send a request to the agent at the given IP address to get the public key
         agent_response = requests.post(f"http://{ip_address}:8000/link")  # Assuming agent is listening on port 8000
@@ -93,3 +92,46 @@ def api_update_server_group():
 def api_get_servers_and_groups():
     response_data = get_servers_and_groups()
     return jsonify(response_data), 200 if response_data['status'] == 'success' else 500
+
+@api_blueprint.route('/groups/delete', methods=['POST'])
+def api_remove_groups():
+    try:
+        # Parse the incoming JSON payload
+        data = request.json
+        group_ids = data.get('group_ids', [])  # Extract group IDs
+
+        if not group_ids:
+            return jsonify({"status": "error", "message": "No group IDs provided"}), 400
+
+        # Pass `group_ids` to the helper function
+        response_data = remove_groups(group_ids)
+
+        # Check the response and return appropriate status code
+        if response_data['status']:
+            return jsonify(response_data), 200
+        else:
+            return jsonify(response_data), 500
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Exception in api_remove_groups: {e}")
+        return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
+
+@api_blueprint.route('/groups/create', methods=['POST'])
+def api_create_group():
+    try:
+        # Parse the incoming JSON payload
+        data = request.json
+        name = data.get('name')
+        description = data.get('description')
+        server_ids = data.get('servers', [])
+
+        # Call the function to create the group in servergroups.py
+        result = create_group_with_servers(name, description, server_ids)
+
+        if result['status'] == 'success':
+            return jsonify({"status": "success", "message": result['message']}), 200
+        else:
+            return jsonify({"status": "error", "message": result['message']}), 400
+    except Exception as e:
+        print(f"Error in api_create_group: {e}")
+        return jsonify({"status": "error", "message": "An unexpected error occurred."}), 500
