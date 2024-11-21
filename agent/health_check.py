@@ -48,7 +48,7 @@ class HealthCheck:
     def determine_status(self, ip_address):
         """
         Determine the health status of the server based on resource usage, ping, and maintenance mode.
-        :return: The server's status as a string (e.g., 'kealthy', 'Overloaded', 'Down', etc.).
+        :return: The server's status as a string (e.g., 'Healthy', 'Overloaded', 'Down', etc.).
         """
         # If maintenance mode is on, the server is in maintenance
         if self.maintenance_mode:

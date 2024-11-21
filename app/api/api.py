@@ -2,8 +2,8 @@
 from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers
-import requests
 from app.models import Server
+import requests
 import json
 # Define the blueprint for API routes
 api_blueprint = Blueprint('api', __name__)
@@ -135,3 +135,13 @@ def api_create_group():
     except Exception as e:
         print(f"Error in api_create_group: {e}")
         return jsonify({"status": "error", "message": "An unexpected error occurred."}), 500
+
+@api_blueprint.route('/metrics/all', methods=['GET'])
+def api_get_all_metrics():
+    from server.agent_monitor import LoadBalancer
+    load_balancer = LoadBalancer()
+    try:
+        metrics = load_balancer.fetch_metrics_from_all_agents()
+        return jsonify(metrics), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

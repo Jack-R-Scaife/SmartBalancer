@@ -156,7 +156,23 @@ class LoadBalancer:
         if server:
             server.status = status  # Update the status in the database
             db.session.commit()
-    
+        
+    def fetch_metrics_from_all_agents(self):
+        metrics = []
+        for ip in self.known_agents:
+            try:
+                response = requests.get(f"http://{ip}:8000/metrics", timeout=500)
+                if response.status_code == 200:
+                    data = response.json()
+                    metrics.append({
+                        "ip": data.get('ip'),
+                        "metrics": data.get('metric')  # Updated to handle 'metric' key
+                    })
+                else:
+                    metrics.append({"ip": ip, "error": f"Unexpected status code: {response.status_code}"})
+            except requests.RequestException as e:
+                metrics.append({"ip": ip, "error": str(e)})
+        return metrics     
 
 if __name__ == "__main__":
     load_balancer = LoadBalancer()

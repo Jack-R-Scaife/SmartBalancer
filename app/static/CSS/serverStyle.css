@@ -100,3 +100,39 @@
   box-shadow: none;
 }
 
+.ctmbm{
+  margin-bottom: 7rem;
+}
+
+.custombtn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  padding: 0;
+  font-size: 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 15px;
+  }
+  .buttonstyle{
+  color:white;
+  width: 150px;
+  height: 20px;
+  border-radius: 5px !important;
+  text-align: left;
+  padding-left:5px;
+  padding-top: 1px;
+  font-weight: 700;
+  margin: 2px;
+  }
+  .customReset {
+  background-color: #681313;
+  border:solid 1px #FF7676;
+  }
+  .customApply{
+  background-color: #055858;
+  border:solid 1px #2BB7DC;
+  }
+
+  

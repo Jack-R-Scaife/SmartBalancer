@@ -12,13 +12,13 @@
 <div class="container customContainer mt-2"> 
 
   <!-- Heading Section -->
-  <div class="row mt-2">
+  <div class="row mt-2 mb-5">
     <div class="col-12 text-center">
       <h2>Network and Connection Management</h2>
     </div>
   </div>
 
-<div class="row  mb-5">
+<div class="row  ctmbm">
 
     <div class="col-lg-3">
         <div class="d-flex align-items-center">
@@ -60,7 +60,7 @@
 </div>
 
   <!-- Second Row of Inputs with Sliders -->
-    <div class="row  mb-5">
+    <div class="row ctmbm">
        
 
         <div class="col-lg-3">
@@ -104,7 +104,7 @@
         </div>
     </div>
 
-<div class="row  mb-5">
+<div class="row  ctmbm">
     <div class="col-lg-3">
         <div class="customh2">Bonding Mode:</div>
         <small class="customSmall">Select the network bonding mode.</small>
@@ -156,22 +156,15 @@
             <span>100%</span>
         </div>
     </div>
-    <!-- Chart Section -->
-    <div class="row mt-2">
-        <div class="col-12">
-            <h5 class="mb-1">Server Performance</h5>
-            <canvas id="performanceChart" style="max-height: 200px; width: 100%; border:solid 1px red;"></canvas>
-        </div>
-    </div>
+</div>
 
     <!-- Buttons Section -->
-    <div class="row ">
+    <div class="row mt-2">
         <div class="col-lg-12 d-flex justify-content-center">
-            <button class=" custom-apply me-3">Apply Changes</button>
-            <button class=" custom-reset">Reset to Default</button>
+            <button class=" buttonstyle customApply me-3">Apply Changes</button>
+            <button class=" buttonstyle  customReset">Reset to Default</button>
         </div>
     </div>
-</div>
 </div>
 <script src="{{ url_for('static', filename='JS/slider.js') }}"></script>
 

@@ -24,6 +24,7 @@ def create_app():
     app.register_blueprint(main_blueprint)
 
     from app.api.api import api_blueprint
+    print("Registering api_blueprint...")
     app.register_blueprint(api_blueprint, url_prefix='/api')
     
     return app

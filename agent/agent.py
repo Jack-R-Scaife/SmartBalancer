@@ -8,9 +8,10 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from flask import Flask, jsonify, request
 from flask_compress import Compress
-
+import random
 # Initialize Flask app
 app = Flask(__name__)
+resource_monitor = ResourceMonitor()  #
 health_check_instance = HealthCheck()
 compress = Compress()
 compress.init_app(app)
@@ -184,6 +185,17 @@ def delink_server():
     # Clear any sensitive data, if needed (e.g., public/private keys)
     agent_instance.secure_channel.private_key = None  # Remove private key
     return jsonify({"message": "Server delinked and stopped successfully"}), 200
+
+@app.route('/metrics', methods=['GET'])
+def get_metrics():
+    try:
+        metrics = resource_monitor.monitor(interval=20)  
+        return jsonify({"ip": agent_instance.get_ip_address(), "metric": metrics}), 200
+    except Exception as e:
+        print(f"Error in /metrics: {str(e)}")
+        return jsonify({"error": f"Failed to generate metrics: {str(e)}"}), 500
+
+
 
 if __name__ == "__main__":
     # Create the agent instance without hardcoding the load balancer IP

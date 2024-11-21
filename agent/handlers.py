@@ -50,3 +50,4 @@ class LinkHandler:
         except Exception as e:
             print(f"LinkHandler: Error contacting load balancer: {str(e)}")
             return {'message': f'Error contacting load balancer: {str(e)}'}
+        
