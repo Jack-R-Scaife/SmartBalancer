@@ -25,3 +25,4 @@ venv/
 # Ignore shell scripts
 *.sh
 agent/*.sh
+agent/agent_debug.log
