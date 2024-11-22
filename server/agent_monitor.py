@@ -1,9 +1,9 @@
-import requests
 import time
 from app import db, create_app
 from app.models import Server
 import threading
-
+import socket
+import json
 class LoadBalancer:
     _instance = None
     _lock = threading.Lock()  # To ensure thread safety
@@ -47,6 +47,38 @@ class LoadBalancer:
             else:
                 print(f"[DEBUG] Agent {agent_ip} already exists in known agents")
 
+    def send_tcp_request(self, ip_address, port, command, payload=None):
+        """
+        Send a command to an agent over TCP and return the response.
+        """
+        try:
+            with socket.create_connection((ip_address, port), timeout=5) as sock:
+                request = {"command": command}
+                if payload:
+                    request.update(payload)
+                sock.sendall(json.dumps(request).encode('utf-8'))
+                response = sock.recv(1024).decode('utf-8')
+                return json.loads(response)
+        except Exception as e:
+            print(f"Error communicating with agent {ip_address}: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def fetch_metrics_from_all_agents(self):
+        """
+        Fetch metrics from all known agents using TCP.
+        """
+        metrics = []
+        for ip in self.known_agents:
+            response = self.send_tcp_request(ip, 9000, "metrics")
+            if response.get("status") == "success":
+                metrics.append({
+                    "ip": response.get("ip"),
+                    "metrics": response.get("metrics")
+                })
+            else:
+                metrics.append({"ip": ip, "error": response.get("message")})
+        return metrics
+
     def ping_agents(self):
         """
         Ping all known agents and update their status in the database.
@@ -65,10 +97,11 @@ class LoadBalancer:
             retry_count = 0
             max_retries = 5
 
+            # Retry logic for when no agents are available
             while retry_count <= max_retries:
                 if not self.known_agents:
                     print("No agents are currently being monitored") 
-                    retry_count +=1
+                    retry_count += 1
 
                     if retry_count > max_retries:
                         print("No agents found after multiple attempts. Waiting for 20 seconds before trying again.")
@@ -76,12 +109,13 @@ class LoadBalancer:
                         retry_count = 0  # Reset retry count after waiting
                     else:
                         print(f"Retrying... Attempt {retry_count}/{max_retries}")
-                        time.sleep(2)  # Small delay before next retry attempt (can be adjusted)
+                        time.sleep(2)  # Small delay before next retry attempt
                 else:
                     # If agents are found, break the retry loop
                     print(f"Currently monitoring agents: {self.known_agents}")
                     break
 
+            # Reset retry count for other purposes
             retry_count = 0
             print(f"Currently monitoring agents: {self.known_agents}")
             
@@ -91,12 +125,13 @@ class LoadBalancer:
                 # Default interval is 1 second unless otherwise specified
                 interval = agent_intervals.get(agent_ip, 1)
                 try:
-                    response = requests.get(f"http://{agent_ip}:8000/health", timeout=5)
-                    print(f"Raw response from agent {agent_ip}: {response.text}")
+                    response = self.send_tcp_request(agent_ip, 9000, "health")
+                    print(f"Raw response from agent {agent_ip}: {response}")
 
-                    if response.status_code == 200:
-                        agent_status_code = response.json().get('st', None)
+                    agent_status = "unknown"  # Default value for agent_status
 
+                    if response.get("status") == "success":
+                        agent_status_code = response.get("health")
                         if agent_status_code is not None:
                             # Map numeric status to string
                             agent_status = status_mapping.get(agent_status_code, "down")
@@ -116,7 +151,6 @@ class LoadBalancer:
 
                             # Update the interval for next time
                             agent_intervals[agent_ip] = interval
-
                         else:
                             print(f"No status returned from agent {agent_ip}")
                             self.update_server_status(agent_ip, "offline")
@@ -127,7 +161,7 @@ class LoadBalancer:
                         agent_intervals[agent_ip] = 10  # Slow interval for unresponsive agents
 
                 except Exception as e:
-                    print(f"Error pinging agent {agent_ip}: {e}")
+                    print(f"Error with TCP connection to agent {agent_ip}: {e}")
                     self.update_server_status(agent_ip, "offline")
                     agent_intervals[agent_ip] = 10  # Slow interval for agents that caused an error
 
@@ -158,21 +192,24 @@ class LoadBalancer:
             db.session.commit()
         
     def fetch_metrics_from_all_agents(self):
+        """
+        Fetch metrics from all known agents using TCP.
+        """
         metrics = []
         for ip in self.known_agents:
             try:
-                response = requests.get(f"http://{ip}:8000/metrics", timeout=500)
-                if response.status_code == 200:
-                    data = response.json()
+                # Send the TCP request to fetch metrics
+                response = self.send_tcp_request(ip, 9000, "metrics")
+                if response.get("status") == "success":
                     metrics.append({
-                        "ip": data.get('ip'),
-                        "metrics": data.get('metric')  # Updated to handle 'metric' key
+                        "ip": response.get("ip"),
+                        "metrics": response.get("metrics")
                     })
                 else:
-                    metrics.append({"ip": ip, "error": f"Unexpected status code: {response.status_code}"})
-            except requests.RequestException as e:
-                metrics.append({"ip": ip, "error": str(e)})
-        return metrics     
+                    metrics.append({"ip": ip, "error": response.get("message")})
+            except Exception as e:
+                metrics.append({"ip": ip, "error": f"Error communicating with agent: {str(e)}"})
+        return metrics
 
 if __name__ == "__main__":
     load_balancer = LoadBalancer()

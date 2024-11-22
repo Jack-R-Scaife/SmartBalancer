@@ -3,10 +3,10 @@ from app import db
 from app.models import Server, ServerGroup, ServerGroupServer, Authentication
 from cryptography.hazmat.primitives import serialization
 from .agent_monitor import LoadBalancer 
-import requests
 
 class ServerManager:
-    def __init__(self):
+    def __init__(self, app):
+        self.app = app
         # Initialize the ServerManager with an instance of the LoadBalancer class.
         self.load_balancer = LoadBalancer()
 
@@ -102,25 +102,39 @@ class ServerManager:
         db.session.commit()  # Commit the changes to the database.
 
     def remove_server(self, ip_address):
-        # Notify the agent to stop
+        """
+        Remove a server from the database, notify the agent to stop, and clean up associated records.
+        """
         try:
-            response = requests.post(f"http://{ip_address}:8000/delink", timeout=5)
-            if response.status_code == 200:
+            # Notify the agent to stop
+            response = self.load_balancer.send_tcp_request(ip_address, 9000, "delink")
+            if response.get("status") == "success":
                 print(f"Successfully notified agent {ip_address} to stop.")
             else:
-                print(f"Failed to notify agent {ip_address}: {response.status_code}")
-        except requests.RequestException as e:
-            print(f"Error notifying agent {ip_address} to stop: {e}")
+                print(f"Failed to notify agent {ip_address}: {response.get('message')}")
 
-        # Proceed with removal if the agent stopped successfully
-        server = Server.query.filter_by(ip_address=ip_address).first()
-        if server:
-            db.session.delete(server)
-            db.session.commit()
-            # Remove from LoadBalancer known_agents
-            self.load_balancer.known_agents = [
-                ip for ip in self.load_balancer.known_agents if ip != ip_address
-            ]
-            return {'message': f'Server with IP {ip_address} removed successfully.', 'status': True}
-        else:
-            return {'message': 'Server not found.', 'status': False}
+            with self.app.app_context():
+                # Find the server by IP address
+                server = Server.query.filter_by(ip_address=ip_address).first()
+                if server:
+                    # Remove associations in the ServerGroupServer table
+                    ServerGroupServer.query.filter_by(server_id=server.server_id).delete()
+
+                    # Remove the server from the database
+                    db.session.delete(server)
+                    db.session.commit()
+
+                    # Remove from LoadBalancer known_agents
+                    self.load_balancer.known_agents = [
+                        ip for ip in self.load_balancer.known_agents if ip != ip_address
+                    ]
+
+                    print(f"Successfully removed server {ip_address}.")
+                    return {'message': f'Server with IP {ip_address} removed successfully.', 'status': True}
+                else:
+                    return {'message': 'Server not found.', 'status': False}
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error removing server {ip_address}: {e}")
+            return {'message': f'Error removing server: {str(e)}', 'status': False}

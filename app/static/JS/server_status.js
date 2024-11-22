@@ -20,7 +20,7 @@ function getStatusClass(statusCode) {
         case 2:
             return 'overloaded';
         case 3:
-            return 'critical';
+            return 'overloaded';
         case 4:
             return 'down';
         case 5:

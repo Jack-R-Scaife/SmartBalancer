@@ -1,4 +1,5 @@
 import threading
+import socket
 import time
 from handlers import LinkHandler
 from health_check import HealthCheck
@@ -8,22 +9,30 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from flask import Flask, jsonify, request
 from flask_compress import Compress
-import random
+import json
+import traceback  
+import logging
+
+logging.basicConfig(filename='agent_debug.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
+
 # Initialize Flask app
 app = Flask(__name__)
-resource_monitor = ResourceMonitor()  #
+resource_monitor = ResourceMonitor()
 health_check_instance = HealthCheck()
 compress = Compress()
 compress.init_app(app)
 app.config['COMPRESS_ALGORITHM'] = 'brotli'
 app.config['COMPRESS_LEVEL'] = 11
+
 class Agent:
     def __init__(self, server_id):
         self.server_id = server_id
-        self.load_balancer_ip = None  # Initialize as None to capture dynamically later
-        self.link_handler = None  # Will be initialized once load_balancer_ip is set
+        self.load_balancer_ip = None
+        self.link_handler = None
         self.secure_channel = SecureChannel()
         self.is_running = False
+        self.tcp_server_socket = None
+        logging.info(f"Agent initialized with server_id: {self.server_id}")
 
     def set_load_balancer_ip(self, ip_address):
         """
@@ -32,176 +41,249 @@ class Agent:
         if not self.load_balancer_ip:
             self.load_balancer_ip = ip_address
             self.link_handler = LinkHandler(load_balancer_ip=self.load_balancer_ip)
-            print(f"Load Balancer IP set to {self.load_balancer_ip}")
+            logging.info(f"Load Balancer IP set to {self.load_balancer_ip}")
 
     def link_to_load_balancer(self):
         """
         Link the server to the load balancer.
-        This sends the public key and other necessary data to the load balancer.
         """
-        if self.is_running:
-            print("Agent is already linked to the load balancer. Skipping relink.")
-            return True
-    
-        if not self.load_balancer_ip:
-            print("Load Balancer IP is not set. Cannot link.")
-            return False
-        
-        ip_address = self.get_ip_address()  # Get the server's IP address
-        public_key = self.secure_channel.get_public_key()  # Get the public key in PEM format
-        signature = self.generate_signature(public_key)  # Sign the public key with the private key
+        try:
+            if self.is_running:
+                logging.info("Agent is already linked to the load balancer. Skipping relink.")
+                return True
 
-        # Send the public key, IP address, and signature to the load balancer
-        success = self.link_handler.link(public_key, ip_address, signature, b'challenge message')
+            if not self.load_balancer_ip:
+                logging.info("Load Balancer IP is not set. Waiting for TCP connection to link.")
+                return False
 
-        if success:
-            print("Agent successfully linked to load balancer.")
-            return True
-        else:
-            print("Failed to link to load balancer.")
-            if success.get('message') == 'Server already linked.':
-                print("Server is already linked. Stopping further attempts.")
-                return True  # Stop retrying
+            ip_address = self.get_ip_address()
+            public_key = self.secure_channel.get_public_key()
+            signature = self.generate_signature(public_key)
+
+            success = self.link_handler.link(public_key, ip_address, signature, b'challenge message')
+
+            if success and success.get("status") == "success":
+                logging.info("Agent successfully linked to load balancer.")
+                self.is_running = True
+                return True
+            else:
+                logging.error(f"Failed to link to load balancer. Response: {success}")
+                return False
+        except Exception as e:
+            logging.error(f"Error linking to load balancer: {e}")
+            logging.debug(traceback.format_exc())
             return False
 
     def get_ip_address(self):
         """
-        Get the actual IP address of the server from the proper network interface.
+        Get the actual IP address of the server.
         """
-        import socket
-        # Use socket to get the actual IP of the agent, not the loopback address
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            # Connect to an external server to get the network interface IP
-            s.connect(('8.8.8.8', 80))  # Google's DNS server is used just to get the route
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(('8.8.8.8', 80))
             ip_address = s.getsockname()[0]
+            logging.info(f"Server IP address determined: {ip_address}")
+            return ip_address
+        except Exception as e:
+            logging.error(f"Error getting IP address: {e}")
+            logging.debug(traceback.format_exc())
+            return None
         finally:
             s.close()
-        return ip_address
 
     def generate_signature(self, message):
         """
-        Generate a digital signature for the public key using the agent's private key.
+        Generate a digital signature for the public key.
         """
-        if isinstance(message, str):
-            message = message.encode('utf-8')  # Convert string to bytes
+        try:
+            if isinstance(message, str):
+                message = message.encode('utf-8')
+            private_key = self.secure_channel.private_key
+            signature = private_key.sign(
+                message,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            logging.info("Signature generated successfully.")
+            return signature
+        except Exception as e:
+            logging.error(f"Error generating signature: {e}")
+            logging.debug(traceback.format_exc())
+            return None
 
-        private_key = self.secure_channel.private_key
-        signature = private_key.sign(
-            message,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        return signature
 
     def reconnect_loop(self, retry_interval=5):
         """
-        Periodically attempt to reconnect to the load balancer.
+        Attempt to reconnect periodically.
         """
         while not self.is_running:
+            logging.info("Attempting to reconnect to load balancer...")
             success = self.link_to_load_balancer()
             if success:
-                print("Reconnected to load balancer.")
+                logging.info("Reconnected to load balancer.")
                 self.is_running = True
-                return  # Exit the loop once connected successfully.
+                return
             else:
-                print(f"Retrying connection in {retry_interval} seconds...")
+                logging.info(f"Retrying connection in {retry_interval} seconds...")
                 time.sleep(retry_interval)
 
     def start(self):
         self.is_running = True
-        while not self.link_to_load_balancer():
-            print("Retrying connection in 5 seconds...")
-            time.sleep(5)
+        threading.Thread(target=self.run_tcp_server, daemon=True).start()
 
-        app.run(host="0.0.0.0", port=8000)
+    def run_tcp_server(self):
+        """
+        Run a simple TCP server to listen for link requests.
+        """
+        try:
+            self.tcp_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.tcp_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.tcp_server_socket.bind(("0.0.0.0", 9000))
+            self.tcp_server_socket.listen(5)
+            logging.info("TCP Server listening on port 9000...")
+
+            while True:
+                try:
+                    client_socket, addr = self.tcp_server_socket.accept()
+                    logging.info(f"TCP Connection established with {addr}")
+                    threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True).start()
+                except OSError as e:
+                    logging.error(f"Error in TCP server loop: {e}")
+        except Exception as e:
+            logging.error(f"Unhandled exception in TCP server: {e}")
+            logging.debug(traceback.format_exc())
+        finally:
+            if self.tcp_server_socket:
+                self.tcp_server_socket.close()
+            logging.info("TCP Server has stopped.")
 
     def run(self):
-        """
-        Run the agent's main loop to monitor resources and health.
-        """
-        while self.is_running:
-            current_status = health_check_instance.determine_status(self.load_balancer_ip)
-            print(f"Current health status: {current_status}")
-            self.link_handler.handle()
-            time.sleep(5)
+        try:
+            logging.info("Starting agent main loop...")
+            while self.is_running:
+                try:
+                    if self.load_balancer_ip:
+                        current_status = health_check_instance.determine_status(self.load_balancer_ip)
+                        logging.info(f"Current health status: {current_status}")
+                    else:
+                        logging.info("Waiting for load balancer to initiate connection...")
+                    time.sleep(5)
+                except Exception as e:
+                    logging.error(f"Error in main loop iteration: {e}")
+                    logging.debug(traceback.format_exc())
+        except Exception as e:
+            logging.error(f"Unhandled exception in main loop: {e}")
+            logging.debug(traceback.format_exc())
+        finally:
+            logging.info("Exiting the main loop.")
 
     def stop(self):
-        """
-        Stop the agent.
-        """
+        logging.info(f"Stopping agent {self.server_id}...")
         self.is_running = False
-        print(f"Agent {self.server_id} stopped.")
+        if self.tcp_server_socket:
+            self.tcp_server_socket.close()
+        logging.info("Agent stopped successfully.")
 
+    def handle_client(self, client_socket):
+        """
+        Handle incoming TCP requests from the load balancer.
+        """
+        try:
+            ip_address = client_socket.getpeername()[0]
+            if not self.load_balancer_ip:
+                self.set_load_balancer_ip(ip_address)
 
-# Flask route to respond to the load balancer's request to link the server
-@app.route('/link', methods=['POST'])
-def link_server():
-    """
-    Handle request from load balancer to link server and return public key.
-    """
-    print("Request received by agent.")  # Debugging message
+            # Receive and process the request
+            data = client_socket.recv(1024).decode('utf-8')  # Receive and decode the request
+            logging.info(f"Received data: {data}")
+            request = json.loads(data)  # Parse the JSON request
+
+            command = request.get("command")  # Extract the command from the request
+
+            if command == "link":
+                response = self.handle_link(client_socket)
+            elif command == "health":
+                response = self.health_check()
+            elif command == "delink":
+                response = self.delink_server()
+            elif command == "metrics":
+                response = self.get_metrics()
+            else:
+                response = {"status": "error", "message": "Unknown command"}
+
+            client_socket.sendall(json.dumps(response).encode('utf-8'))  # Send the response
+        except Exception as e:
+            logging.error(f"Error handling client: {e}")
+            error_response = {"status": "error", "message": str(e)}
+            client_socket.sendall(json.dumps(error_response).encode('utf-8'))
+        finally:
+            client_socket.close()
+
     
-    # Dynamically set the load balancer IP from the incoming request
-    agent_instance.set_load_balancer_ip(request.remote_addr)
 
-    # Retrieve the public key and ensure it's in string format
-    public_key = agent_instance.secure_channel.get_public_key()
-    
-    if isinstance(public_key, bytes):
-        public_key = public_key.decode('utf-8')
+    def handle_link(self,client_socket):
+        """
+        Handle 'link' command to dynamically set load balancer IP and return public key.
+        """
+        try:
+            # Get the source IP of the TCP request (load balancer's IP)
+            ip_address = client_socket.getpeername()[0]
+            self.set_load_balancer_ip(ip_address)
+            public_key = self.secure_channel.get_public_key()
+            if isinstance(public_key, bytes):
+                public_key = public_key.decode('utf-8')
+            return {"status": "success", "public_key": public_key}
+        except Exception as e:
+            logging.error(f"Error handling link: {e}")
+            return {"status": "error", "message": str(e)}
 
-    return jsonify({
-        "public_key": public_key
-    })
+    def health_check(self):
+        """
+        Handle 'health' command to return the agent's health status.
+        """
+        if not self.load_balancer_ip:
+            logging.warning("Health check requested, but Load balancer IP is not set.")
+            return {"status": "error", "message": "Load balancer IP not set"}
 
-# Flask route to respond to health check requests
-@app.route('/health', methods=['GET'])
-def health_check():
-    # If load_balancer_ip is not set, capture it from the incoming request
-    if not agent_instance.load_balancer_ip:
-        agent_instance.set_load_balancer_ip(request.remote_addr)
-    
-    # Determine the status of the agent
-    status = health_check_instance.determine_status(agent_instance.load_balancer_ip)
-    
-    # Log the status for debugging purposes
-    print(f"Determined status for agent {agent_instance.get_ip_address()}: {status}")
-    
-    # Return the JSON response using 'st' for status
-    return jsonify({"ip": agent_instance.get_ip_address(), "st": status}), 200
+        status = health_check_instance.determine_status(self.load_balancer_ip)
+        logging.info(f"Health check result: {status}")
+        return {"status": "success", "ip": self.get_ip_address(), "health": status}
 
-@app.route('/delink', methods=['POST'])
-def delink_server():
-    """
-    Handle request to delink the server from the load balancer.
-    This will stop the agent and remove any association with the load balancer.
-    """
-    print("Received de-link request. Stopping agent.")
-    agent_instance.stop()  # Stop the agent
-    # Clear any sensitive data, if needed (e.g., public/private keys)
-    agent_instance.secure_channel.private_key = None  # Remove private key
-    return jsonify({"message": "Server delinked and stopped successfully"}), 200
+    def delink_server(self):
+        """
+        Handle 'delink' command to stop the agent and clear sensitive data.
+        """
+        self.stop()  # Stop the agent
+        self.secure_channel.private_key = None  # Clear the private key
+        return {"status": "success", "message": "Server delinked and stopped successfully"}
 
-@app.route('/metrics', methods=['GET'])
-def get_metrics():
-    try:
-        metrics = resource_monitor.monitor(interval=20)  
-        return jsonify({"ip": agent_instance.get_ip_address(), "metric": metrics}), 200
-    except Exception as e:
-        print(f"Error in /metrics: {str(e)}")
-        return jsonify({"error": f"Failed to generate metrics: {str(e)}"}), 500
+    def get_metrics(self):
+        """
+        Handle 'metrics' command to return resource metrics.
+        """
+        try:
+            metrics = resource_monitor.monitor(interval=20)
+            return {"status": "success", "ip": self.get_ip_address(), "metrics": metrics}
+        except Exception as e:
+            print(f"Error generating metrics: {e}")
+            return {"status": "error", "message": str(e)}
 
 
+
+    # Adjusted Flask API endpoint
+    @app.route('/start_agent', methods=['POST'])
+    def start_agent():
+        agent_instance.start()
+        return jsonify(status="success", message="Agent started successfully")
 
 if __name__ == "__main__":
     # Create the agent instance without hardcoding the load balancer IP
     agent_instance = Agent(server_id="server-1234")
-    
     # Start the agent
     agent_instance.start()
-
+    while True:
+        time.sleep(10)
 

@@ -3,10 +3,10 @@ from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers
 from app.models import Server
-import requests
 import json
 # Define the blueprint for API routes
 api_blueprint = Blueprint('api', __name__)
+
 
 status_mapping = {
     "healthy": 1,
@@ -25,28 +25,30 @@ def link_server():
 
     if not ip_address:
         return jsonify({'message': 'IP address is required.'}), 400
+
     try:
-        # Send a request to the agent at the given IP address to get the public key
-        agent_response = requests.post(f"http://{ip_address}:8000/link")  # Assuming agent is listening on port 8000
-        agent_data = agent_response.json()
+        # Use LoadBalancer to send a TCP request to the agent
+        from server.agent_monitor import LoadBalancer
+        load_balancer = LoadBalancer()
+        response = load_balancer.send_tcp_request(ip_address, 9000, "link")
 
-        # Extract the public key from the agent's response
-        public_key = agent_data.get('public_key')
+        if response.get("status") == "success":
+            public_key = response.get("public_key")
+            from app import create_app
+            app = create_app()
+            server_manager = ServerManager(app)
+            result = server_manager.link_server(ip_address, dynamic_grouping, public_key)
 
-        if not public_key:
-            return jsonify({'message': 'Public key not received from the agent'}), 400
-
-        # Pass the public key and IP to ServerManager to handle linking
-        server_manager = ServerManager()
-        result = server_manager.link_server(ip_address, dynamic_grouping, public_key)
-
-        if result['status']:
-            return jsonify({'message': result['message']}), 200
+            if result['status']:
+                return jsonify({'message': result['message']}), 200
+            else:
+                return jsonify({'message': result['message']}), 500
         else:
-            return jsonify({'message': result['message']}), 500
+            return jsonify({'message': f'Error linking server: {response.get("message")}'}), 500
 
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         return jsonify({'message': f'Error contacting agent: {str(e)}'}), 500
+
     
 # Route to get server status
 @api_blueprint.route('/server_status', methods=['GET'])
@@ -64,13 +66,15 @@ def get_server_status():
     response_data = json.dumps(server_status_list, separators=(',', ':'))  # Minify the response
     return Response(response_data, content_type='application/json')
 
-# api.py
 @api_blueprint.route('/servers/remove/<ip_address>', methods=['DELETE'])
 def remove_server(ip_address):
-    server_manager = ServerManager()
+    from app import create_app
+    app = create_app()
+    server_manager = ServerManager(app)
     result = server_manager.remove_server(ip_address)
     status_code = 200 if result['status'] else 404
     return jsonify({'message': result['message']}), status_code
+
 
 @api_blueprint.route('/server_count', methods=['GET'])
 def get_server_count():
@@ -141,7 +145,7 @@ def api_get_all_metrics():
     from server.agent_monitor import LoadBalancer
     load_balancer = LoadBalancer()
     try:
-        metrics = load_balancer.fetch_metrics_from_all_agents()
+        metrics = load_balancer.fetch_metrics_from_all_agents()  # Now TCP-based
         return jsonify(metrics), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
