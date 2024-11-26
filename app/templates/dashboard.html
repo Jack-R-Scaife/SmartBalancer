@@ -123,40 +123,30 @@ h5 {
     </div>
     <div class="col-md-5">
       <div class="row no-gutters mb-2">
-          <div class="col-6">
+          <div class="col-12">
               <div class="metrics">
-                <h5 class="text-center">CPU Usage</h5>
-                  <div class="metric-data" style="height: 80%; width: 100%;">
+                <div class="d-flex">
+                <button id="resetCpuZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+                 <h5 class="text-center">CPU Usage</h5>
+                </div>
+                  <div class="metric-data" style="height: 85%; width: 100%;">
                       <canvas id="cpuUsageChart"></canvas>
                   </div>
               </div>
           </div>
-          <div class="col-6">
+          <div class="col-12">
               <div class="metrics">
-                <h5 class="text-center">Memory Usage</h5>
-                  <div class="metric-data" style="  height:80%; width: 100%;">
+                <div class="d-flex">
+                  <button id="resetMemoryZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+                  <h5 class="text-center">Memory Usage</h5>
+                </div>
+                  <div class="metric-data" style=" width: 100%; height: 85%;">
                       <canvas id="memoryUsageChart"></canvas>
                   </div>
               </div>
           </div>
-          <div class="col-6">
-              <div class="metrics">
-                <h5 class="text-center">Total Requests</h5>
-                  <div class="metric-data" style="height: 80%; width: 100%;">
-                    <canvas id="totalRequestsChart"></canvas>
-                  </div>
-              </div>
-          </div>
-          <div class="col-6">
-              <div class="metrics">
-                <h5 class="text-center">Active Connections</h5>
-                  <div class="metric-data" style="height: 80%; width: 100%;">
-                    <canvas id="activeConnectionsChart"></canvas>
-                  </div>
-              </div>
-          </div>
       </div>
-  </div>
+    </div>
 </div>
 
   <!-- Fourth and Fifth Rows: Long Rectangles -->
@@ -173,132 +163,31 @@ h5 {
     <div class="col-12">
       <div class="alertmonitor">
         <!-- Second 1280x234 rectangle -->
-        <table id="alertTable"  style="width: 100%; height: 100%; color:white; font-weight:600; " border-collapse: collapse;>
+        <table id="alertTable" style="width: 100%;  text-align: left;">
           <thead>
-            <tr>
-              <th style="border: 1px solid #FFF;">Timestamp</th>
-              <th style="border: 1px solid #FFF;">Type</th>
-              <th style="border: 1px solid #FFF;">Condition</th>
-              <th style="border: 1px solid #FFF;">Source</th>
-              <th style="border: 1px solid #FFF;">Description</th>
-              <th style="border: 1px solid #FFF;">Status</th>
-            </tr>
+              <tr style="background-color: #333; color: #FFF;">
+                  <th style="padding: 8px; border: 1px solid #FFF;">Timestamp</th>
+                  <th style="padding: 8px; border: 1px solid #FFF;">Type</th>
+                  <th style="padding: 8px; border: 1px solid #FFF;">Condition</th>
+                  <th style="padding: 8px; border: 1px solid #FFF;">Source</th>
+                  <th style="padding: 8px; border: 1px solid #FFF;">Description</th>
+              </tr>
           </thead>
           <tbody>
-            <tr>
-              <td style="border: 1px solid #FFF;">2024-11-01 10:45:00</td>
-              <td style="border: 1px solid #FFF;">Overloaded</td>
-              <td style="border: 1px solid #FFF;">High CPU Usage</td>
-              <td style="border: 1px solid #FFF;">Server-01</td>
-              <td style="border: 1px solid #FFF;">CPU usage exceeded 90% threshold</td>
-              <td style="border: 1px solid #FFF;">Open</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #FFF;">2024-11-01 11:00:00</td>
-              <td style="border: 1px solid #FFF;">Overloaded</td>
-              <td style="border: 1px solid #FFF;">Memory Usage</td>
-              <td style="border: 1px solid #FFF;">Server-02</td>
-              <td style="border: 1px solid #FFF;">Memory usage approaching 80% capacity</td>
-              <td style="border: 1px solid #FFF;">In Progress</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #FFF;">2024-11-01 11:15:00</td>
-              <td style="border: 1px solid #FFF;">Maintenance</td>
-              <td style="border: 1px solid #FFF;">Service Restart</td>
-              <td style="border: 1px solid #FFF;">Server-03</td>
-              <td style="border: 1px solid #FFF;">Scheduled restart of the web service</td>
-              <td style="border: 1px solid #FFF;">Closed</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #FFF;">2024-11-01 11:30:00</td>
-              <td style="border: 1px solid #FFF;">Overloaded</td>
-              <td style="border: 1px solid #FFF;">Disk Space Low</td>
-              <td style="border: 1px solid #FFF;">Server-04</td>
-              <td style="border: 1px solid #FFF;">Disk space below 5% remaining</td>
-              <td style="border: 1px solid #FFF;">Open</td>
-            </tr>
+              <!-- Rows will be populated dynamically -->
           </tbody>
-        </table>
+      </table>
       </div>
     </div>
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
 <script src="{{ url_for('static', filename='JS/server_status.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/dashboardchart.js') }}"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const cpuUsageCtx = document.getElementById('cpuUsageChart').getContext('2d');
-  new Chart(cpuUsageCtx, {
-      type: 'doughnut',
-      data: {
-          labels: ['Used', 'Free'],
-          datasets: [{
-              data: [45, 55],
-              backgroundColor: ['#007bff', '#e0e0e0']
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false
-      }
-  });
-
-  const memoryUsageCtx = document.getElementById('memoryUsageChart').getContext('2d');
-  new Chart(memoryUsageCtx, {
-      type: 'doughnut',
-      data: {
-          labels: ['Used', 'Free'],
-          datasets: [{
-              data: [67, 33],
-              backgroundColor: ['#28a745', '#e0e0e0']
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false
-      }
-  });
-
-  const totalRequestsCtx = document.getElementById('totalRequestsChart').getContext('2d');
-  new Chart(totalRequestsCtx, {
-      type: 'bar',
-      data: {
-          labels: ['Total Requests'],
-          datasets: [{
-              label: 'Requests',
-              data: [1234567],
-              backgroundColor: ['#17a2b8']
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-              y: {
-                  beginAtZero: true
-              }
-          }
-      }
-  });
-
-  const activeConnectionsCtx = document.getElementById('activeConnectionsChart').getContext('2d');
-  new Chart(activeConnectionsCtx, {
-      type: 'doughnut',
-      data: {
-          labels: ['Active', 'Idle'],
-          datasets: [{
-              data: [120, 80],
-              backgroundColor: ['#ffc107', '#e0e0e0']
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false
-      }
-  });
-
-
-
    // Get the context of the canvas element
    const ctx = document.getElementById('trafficChart').getContext('2d');
 
@@ -368,7 +257,163 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
 </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const alertCache = new Set(); // Cache to track unique alerts
+    const tableBody = document.querySelector("#alertTable tbody");
+
+    // Key-value mapping for conditions, types, and description prefixes
+    const mapping = {
+        conditions: {
+            C: "CPU Usage",
+            M: "Memory Usage",
+            D: "Disk Usage",
+            N: "Network Usage" // Extendable for more metrics
+        },
+        types: {
+            O: "Overload",
+            D: "Down",
+            M: "Maintenance",
+            H: "Healthy"
+        },
+        descriptionPrefix: {
+            ORU: "Overloaded resource usage detected",
+            IDL: "Idle resource usage detected",
+            HTH: "System health is normal"
+        }
+    };
+
+function fetchAlerts() {
+axios.get('/api/alerts')
+    .then(response => {
+        if (response.status === 200 && response.data.status === "success") {
+            // Extract alerts from the nested structure
+            const alerts = response.data.data[0]?.alerts || [];
+            updateAlertTable(alerts);
+        } else {
+            console.error("Unexpected response structure:", response);
+        }
+    })
+    .catch(error => {
+        console.error("Error fetching alerts:", error);
+    });
+}
+
+    function updateAlertTable(alerts) {
+        // Clear existing rows
+        tableBody.innerHTML = "";
+
+        if (!Array.isArray(alerts) || alerts.length === 0) {
+            displayNoAlertsRow();
+            return;
+        }
+
+        alerts.forEach(alert => {
+            processAndAddAlert(alert);
+        });
+    }
+
+    function displayNoAlertsRow() {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td colspan="5" style="padding: 8px; border: 1px solid; text-align: center;">
+                No alerts, everything is running fine.
+            </td>
+        `;
+        tableBody.appendChild(row);
+    }
+
+    function processAndAddAlert(alert) {
+        if (!alert.type || !alert.condition || !alert.source) {
+            console.warn("Skipping incomplete alert:", alert);
+            return;
+        }
+
+        const conditions = alert.condition.split(",");
+        conditions.forEach(condition => {
+            const [key, value] = condition.split(":");
+            const metric = mapping.conditions[key.trim()] || key.trim(); // Map or use raw key
+            const normalizedValue = value.trim().endsWith("%") ? value.trim() : `${value.trim()}%`;
+            const descriptionPrefix = mapping.descriptionPrefix[alert.type] || "Alert detected";
+            const fullDescription = `${descriptionPrefix}: ${metric} at ${normalizedValue}`;
+
+            const uniqueId = `${alert.source}-${alert.type}-${metric}-${normalizedValue}`;
+            if (alertCache.has(uniqueId)) return; // Skip duplicates
+
+            alertCache.add(uniqueId);
+
+            const ukTimestamp = formatToUKDate(alert.timestamp || "N/A");
+
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td style="padding: 8px; border: 1px solid;">${ukTimestamp}</td>
+                <td style="padding: 8px; border: 1px solid;">${mapping.types[alert.type] || alert.type}</td>
+                <td style="padding: 8px; border: 1px solid;">${metric}: ${normalizedValue}</td>
+                <td style="padding: 8px; border: 1px solid;">${alert.source}</td>
+                <td style="padding: 8px; border: 1px solid;">${fullDescription}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    function formatToUKDate(timestamp) {
+        if (!timestamp || timestamp === "N/A") return "N/A";
+        const date = new Date(timestamp);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        const seconds = String(date.getSeconds()).padStart(2, "0");
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    }
+
+    // Fetch alerts periodically
+    setInterval(fetchAlerts, 2000);
+    fetchAlerts();
+});
+
+
+
+
+</script>
 <style>
- 
+ #alertTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+    color: #ffffff;
+}
+
+#alertTable thead tr {
+    background-color: #444;
+    color: white;
+    border: none !important;
+}
+
+#alertTable th,
+#alertTable td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+
+#alertTable th:nth-child(3),
+#alertTable td:nth-child(3) {
+    max-width: 200px;
+    word-wrap: break-word;
+}
+
+#alertTable th:nth-child(5),
+#alertTable td:nth-child(5) {
+    max-width: 300px;
+    word-wrap: break-word;
+}
+.alertmonitor{
+  height: auto !important;
+  max-height: auto !important;
+}
 </style>
   {% endblock %}

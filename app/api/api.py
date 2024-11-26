@@ -149,3 +149,21 @@ def api_get_all_metrics():
         return jsonify(metrics), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@api_blueprint.route('/alerts', methods=['GET'])
+def api_get_alerts():
+    try:
+        from server.agent_monitor import LoadBalancer
+        # Create an instance of LoadBalancer
+        load_balancer = LoadBalancer()
+        
+        # Send TCP requests to all agents to get alerts
+        alerts = load_balancer.fetch_alerts_from_all_agents()
+        
+        # Return the alerts with a successful response if they exist
+        return jsonify({'status': 'success', 'data': alerts}), 200
+    except Exception as e:
+        # In case of any errors, return a server error response
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+    

@@ -12,10 +12,10 @@ class HealthCheck:
         self.resource_monitor = ResourceMonitor()  # Initialize the ResourceMonitor
         self.maintenance_mode = False  # This could be toggled by user commands
         
-        # Thresholds for determining health status
-        self.cpu_thresholds = cpu_thresholds or {'critical': 90, 'overloaded': 75, 'idle': 10}
-        self.memory_thresholds = memory_thresholds or {'critical': 90, 'overloaded': 75, 'idle': 10}
-        self.disk_thresholds = disk_thresholds or {'critical': 90, 'overloaded': 80, 'idle': 10}
+        # Revised thresholds for determining health status
+        self.cpu_thresholds = cpu_thresholds or {'overloaded': 85, 'idle': 20}
+        self.memory_thresholds = memory_thresholds or {'overloaded': 85, 'idle': 20}
+        self.disk_thresholds = disk_thresholds or {'overloaded': 85, 'idle': 20}
 
     def check_ping(self, ip_address):
         """
@@ -84,19 +84,14 @@ class HealthCheck:
         print(f"Resource Usage - CPU: {cpu_usage}%, Memory: {memory_usage}%, Disk: {disk_usage}%")
 
         # Determine status based on thresholds
-        if cpu_usage >= self.cpu_thresholds['critical'] or \
-        memory_usage >= self.memory_thresholds['critical'] or \
-        disk_usage >= self.disk_thresholds['critical']:
-            print("Status: Critical")
-            return 3  # Critical
-        elif cpu_usage >= self.cpu_thresholds['overloaded'] or \
-            memory_usage >= self.memory_thresholds['overloaded'] or \
-            disk_usage >= self.disk_thresholds['overloaded']:
+        if cpu_usage >= self.cpu_thresholds['overloaded'] or \
+           memory_usage >= self.memory_thresholds['overloaded'] or \
+           disk_usage >= self.disk_thresholds['overloaded']:
             print("Status: Overloaded")
             return 2  # Overloaded
         elif cpu_usage <= self.cpu_thresholds['idle'] and \
-            memory_usage <= self.memory_thresholds['idle'] and \
-            ping_latency < 50:
+             memory_usage <= self.memory_thresholds['idle'] and \
+             ping_latency < 50:
             print("Status: Idle")
             return 5  # Idle
         else:

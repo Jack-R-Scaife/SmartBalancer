@@ -79,6 +79,26 @@ class LoadBalancer:
                 metrics.append({"ip": ip, "error": response.get("message")})
         return metrics
 
+    def fetch_alerts_from_all_agents(self):
+        """
+        Fetch alerts from all known agents using TCP.
+        """
+        alerts = []
+        for ip in self.known_agents:
+            try:
+                # Send the TCP request to fetch alerts
+                response = self.send_tcp_request(ip, 9000, "alerts")
+                if response.get("status") == "success":
+                    alerts.append({
+                        "ip": ip,
+                        "alerts": response.get("alerts", [])
+                    })
+                else:
+                    alerts.append({"ip": ip, "error": response.get("message")})
+            except Exception as e:
+                alerts.append({"ip": ip, "error": f"Error communicating with agent: {str(e)}"})
+        return alerts
+    
     def ping_agents(self):
         """
         Ping all known agents and update their status in the database.

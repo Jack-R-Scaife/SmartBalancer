@@ -1,6 +1,7 @@
 import threading
 import socket
 import time
+from alert_manager import AlertManager
 from handlers import LinkHandler
 from health_check import HealthCheck
 from resource_monitor import ResourceMonitor
@@ -12,8 +13,7 @@ from flask_compress import Compress
 import json
 import traceback  
 import logging
-
-logging.basicConfig(filename='agent_debug.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
+from response_factory import ResponseFactory
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -21,8 +21,6 @@ resource_monitor = ResourceMonitor()
 health_check_instance = HealthCheck()
 compress = Compress()
 compress.init_app(app)
-app.config['COMPRESS_ALGORITHM'] = 'brotli'
-app.config['COMPRESS_LEVEL'] = 11
 
 class Agent:
     def __init__(self, server_id):
@@ -32,6 +30,8 @@ class Agent:
         self.secure_channel = SecureChannel()
         self.is_running = False
         self.tcp_server_socket = None
+        self.alert_manager_thread = None
+        self.start_alert_manager()
         logging.info(f"Agent initialized with server_id: {self.server_id}")
 
     def set_load_balancer_ip(self, ip_address):
@@ -211,6 +211,8 @@ class Agent:
                 response = self.delink_server()
             elif command == "metrics":
                 response = self.get_metrics()
+            elif command == "alerts":  # New command for alerts
+                response = self.get_alerts()
             else:
                 response = {"status": "error", "message": "Unknown command"}
 
@@ -221,8 +223,37 @@ class Agent:
             client_socket.sendall(json.dumps(error_response).encode('utf-8'))
         finally:
             client_socket.close()
-
     
+
+
+    def start_alert_manager(self):
+        """
+        Start the AlertManager thread to update alerts periodically.
+        """
+        if self.alert_manager_thread is None or not self.alert_manager_thread.is_alive():
+            logging.info("Starting AlertManager thread.")
+            self.alert_manager_thread = threading.Thread(
+                target=AlertManager.update_alerts,
+                args=(self.get_ip_address(),),
+                daemon=True
+            )
+            self.alert_manager_thread.start()
+        else:
+            logging.info("AlertManager thread is already running.")
+
+
+    def get_alerts(self):
+        """
+        Handle 'alerts' command to return cached alerts.
+        """
+        try:
+            alerts = AlertManager.get_cached_alerts()
+            logging.info(f"Returning cached alerts: {alerts}")
+            return alerts
+        except Exception as e:
+            logging.error(f"Error fetching cached alerts: {e}")
+            logging.debug(traceback.format_exc())
+            return {"status": "error", "message": str(e)}
 
     def handle_link(self,client_socket):
         """
