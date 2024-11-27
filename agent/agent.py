@@ -14,7 +14,6 @@ import json
 import traceback  
 import logging
 from response_factory import ResponseFactory
-
 # Initialize Flask app
 app = Flask(__name__)
 resource_monitor = ResourceMonitor()
@@ -192,17 +191,22 @@ class Agent:
         Handle incoming TCP requests from the load balancer.
         """
         try:
+            # Get the IP of the client (load balancer)
             ip_address = client_socket.getpeername()[0]
             if not self.load_balancer_ip:
                 self.set_load_balancer_ip(ip_address)
 
             # Receive and process the request
-            data = client_socket.recv(1024).decode('utf-8')  # Receive and decode the request
-            logging.info(f"Received data: {data}")
-            request = json.loads(data)  # Parse the JSON request
+            data = client_socket.recv(65536).decode('utf-8')  # Receive up to 4 KB of data
+            logging.info(f"[DEBUG] Received raw data: {data}")
 
-            command = request.get("command")  # Extract the command from the request
+            # Parse the received JSON request
+            request = json.loads(data)
+            command = request.get("command")
 
+            logging.info(f"[DEBUG] Received command: {command}, Request Data: {request}")
+
+            # Handle different commands
             if command == "link":
                 response = self.handle_link(client_socket)
             elif command == "health":
@@ -211,19 +215,25 @@ class Agent:
                 response = self.delink_server()
             elif command == "metrics":
                 response = self.get_metrics()
-            elif command == "alerts":  # New command for alerts
+            elif command == "alerts":
                 response = self.get_alerts()
             else:
                 response = {"status": "error", "message": "Unknown command"}
 
-            client_socket.sendall(json.dumps(response).encode('utf-8'))  # Send the response
+            logging.info(f"[DEBUG] Sending response: {response}")
+
+            # Send the JSON response
+            client_socket.sendall(json.dumps(response).encode('utf-8'))
+        except json.JSONDecodeError as e:
+            logging.error(f"[ERROR] Failed to parse JSON: {e}")
+            error_response = {"status": "error", "message": "Invalid JSON format"}
+            client_socket.sendall(json.dumps(error_response).encode('utf-8'))
         except Exception as e:
-            logging.error(f"Error handling client: {e}")
+            logging.error(f"[ERROR] Error handling client: {e}")
             error_response = {"status": "error", "message": str(e)}
             client_socket.sendall(json.dumps(error_response).encode('utf-8'))
         finally:
             client_socket.close()
-    
 
 
     def start_alert_manager(self):
@@ -302,13 +312,6 @@ class Agent:
             print(f"Error generating metrics: {e}")
             return {"status": "error", "message": str(e)}
 
-
-
-    # Adjusted Flask API endpoint
-    @app.route('/start_agent', methods=['POST'])
-    def start_agent():
-        agent_instance.start()
-        return jsonify(status="success", message="Agent started successfully")
 
 if __name__ == "__main__":
     # Create the agent instance without hardcoding the load balancer IP

@@ -4,6 +4,14 @@ from app.models import Server
 import threading
 import socket
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(
+    filename='agent_monitor.log',  # Log file name
+    level=logging.DEBUG,  # Log everything from DEBUG level upwards
+    format='%(asctime)s - %(levelname)s - %(message)s'  # Log format
+)
 class LoadBalancer:
     _instance = None
     _lock = threading.Lock()  # To ensure thread safety
@@ -50,17 +58,43 @@ class LoadBalancer:
     def send_tcp_request(self, ip_address, port, command, payload=None):
         """
         Send a command to an agent over TCP and return the response.
+        Logs all key steps and errors for debugging.
         """
         try:
+            # Log the IP, port, and command
+            logging.info(f"[DEBUG] Preparing to send command '{command}' to {ip_address}:{port}")
+
             with socket.create_connection((ip_address, port), timeout=5) as sock:
+                # Prepare the request
                 request = {"command": command}
                 if payload:
                     request.update(payload)
+
+                # Log the outgoing request
+                logging.info(f"[DEBUG] Sending request: {request}")
                 sock.sendall(json.dumps(request).encode('utf-8'))
-                response = sock.recv(1024).decode('utf-8')
-                return json.loads(response)
+
+                # Receive the response in chunks
+                data = b""
+                while True:
+                    chunk = sock.recv(65536)  # Read in chunks of 64 KB
+                    if not chunk:
+                        break
+                    data += chunk
+
+                # Log the raw response
+                logging.info(f"[DEBUG] Raw response received: {data.decode('utf-8')}")
+
+                # Decode and parse the JSON response
+                response = json.loads(data.decode('utf-8'))
+                logging.info(f"[DEBUG] Parsed response: {response}")
+                return response
+
+        except json.JSONDecodeError as e:
+            logging.error(f"[ERROR] Malformed JSON response from {ip_address}: {e}")
+            return {"status": "error", "message": "Malformed JSON response"}
         except Exception as e:
-            print(f"Error communicating with agent {ip_address}: {e}")
+            logging.error(f"[ERROR] Communication error with {ip_address}: {e}")
             return {"status": "error", "message": str(e)}
 
     def fetch_metrics_from_all_agents(self):
@@ -69,6 +103,7 @@ class LoadBalancer:
         """
         metrics = []
         for ip in self.known_agents:
+            logging.info(f"[DEBUG] Current known agents: {self.known_agents}")
             response = self.send_tcp_request(ip, 9000, "metrics")
             if response.get("status") == "success":
                 metrics.append({
@@ -120,6 +155,7 @@ class LoadBalancer:
             # Retry logic for when no agents are available
             while retry_count <= max_retries:
                 if not self.known_agents:
+                    logging.info(f"[DEBUG] Current known agents: {self.known_agents}")
                     print("No agents are currently being monitored") 
                     retry_count += 1
 

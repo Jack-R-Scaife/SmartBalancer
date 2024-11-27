@@ -4,6 +4,7 @@ from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers
 from app.models import Server
 import json
+import random
 # Define the blueprint for API routes
 api_blueprint = Blueprint('api', __name__)
 
@@ -165,5 +166,4 @@ def api_get_alerts():
     except Exception as e:
         # In case of any errors, return a server error response
         return jsonify({'status': 'error', 'message': str(e)}), 500
-    
     

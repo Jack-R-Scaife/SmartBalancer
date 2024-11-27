@@ -23,6 +23,6 @@ pip-log.txt
 venv/
 
 # Ignore shell scripts
-*.sh
-agent/*.sh
 agent/agent_debug.log
+agent_monitor.log
+deploy_agent.sh
