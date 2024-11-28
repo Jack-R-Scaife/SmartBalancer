@@ -25,7 +25,7 @@ class HealthCheck:
         """
         try:
             # Determine platform-specific ping command
-            ping_command = ['ping', '-c', '1', ip_address] if psutil.WINDOWS else ['ping', '-c', '1', ip_address]
+            ping_command = ['ping', '-c', '1', ip_address]
             result = subprocess.run(ping_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if result.returncode == 0:
                 # Extract latency from the output
