@@ -49,7 +49,7 @@ class ResponseFactory:
                 logging.warning(f"Overloaded condition detected: {metric.capitalize()} usage at {usage}% exceeds threshold.")
 
         # Check if the server is down based on resource and ping checks
-        ip_address = "192.168.1.202"  # Replace with the actual IP as required
+        ip_address = "192.168.1.2
         if health_check.check_ping(ip_address) == -1:
             logging.error(f"Server is down. Unable to reach IP: {ip_address}")
             alerts.append({
