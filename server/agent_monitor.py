@@ -5,6 +5,7 @@ import threading
 import socket
 import json
 import logging
+from server.traffic_store import TrafficStore
 
 # Configure logging
 logging.basicConfig(
@@ -12,6 +13,12 @@ logging.basicConfig(
     level=logging.DEBUG,  # Log everything from DEBUG level upwards
     format='%(asctime)s - %(levelname)s - %(message)s'  # Log format
 )
+traffic_logger = logging.getLogger("traffic_lb")
+traffic_handler = logging.FileHandler("traffic_lb.log")
+traffic_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+traffic_handler.setFormatter(traffic_formatter)
+traffic_logger.addHandler(traffic_handler)
+traffic_logger.setLevel(logging.INFO)
 class LoadBalancer:
     _instance = None
     _lock = threading.Lock()  # To ensure thread safety
@@ -266,6 +273,55 @@ class LoadBalancer:
             except Exception as e:
                 metrics.append({"ip": ip, "error": f"Error communicating with agent: {str(e)}"})
         return metrics
+
+
+    def simulate_traffic(self, traffic_config):
+        """
+        Simulate traffic and aggregate traffic rates for overlapping requests.
+        """
+        logging.info(f"simulate_traffic invoked with: {traffic_config}")
+
+        # Validate traffic_config
+        required_keys = ["url", "type", "rate", "duration"]
+        for key in required_keys:
+            if key not in traffic_config:
+                logging.error(f"Missing key '{key}' in traffic_config: {traffic_config}")
+                return {"status": "error", "message": f"Missing key '{key}' in traffic_config"}
+
+        if not self.known_agents:
+            logging.warning("No known agents available to send traffic.")
+            return {"status": "error", "message": "No agents available for traffic simulation"}
+
+        # Get the TrafficStore instance for storing traffic data
+        traffic_store = TrafficStore.get_instance()
+
+        # Extract rate and duration
+        rate = traffic_config["rate"]
+        duration = traffic_config["duration"]
+
+        # Send the traffic simulation request to all agents
+        for server_ip in self.known_agents:
+            try:
+                response = self.send_tcp_request(server_ip, 9000, "simulate_traffic", payload=traffic_config)
+                logging.info(f"Response from agent {server_ip}: {response}")
+            except Exception as e:
+                logging.error(f"Error sending traffic simulation command to {server_ip}: {str(e)}")
+                return {"status": "error", "message": str(e)}
+
+        # Log traffic data once per second for the duration
+        for second in range(duration):
+            current_time = int(time.time())  # Current time in seconds
+            traffic_store.append_traffic_data(current_time, rate)
+            logging.info(f"Aggregated traffic_data: {traffic_store.get_traffic_data()[-1]}")
+
+            time.sleep(1)  # Wait for 1 second
+
+        return {"status": "success", "message": "Traffic simulation completed"}
+
+
+
+
+
 
 if __name__ == "__main__":
     load_balancer = LoadBalancer()

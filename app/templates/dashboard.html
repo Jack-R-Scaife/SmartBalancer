@@ -152,9 +152,13 @@ h5 {
   <!-- Fourth and Fifth Rows: Long Rectangles -->
   <div class="row mb-2">
     <div class="col-12">
-      <div class="customChart">
-        <!-- First 1280x234 rectangle -->
-        <canvas id="trafficChart" width="1280" height="234"></canvas>
+      <div class="metrics">
+        <div class="d-flex">
+          <button id="resetTrafficZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+        </div>
+          <div class="metric-data" style="height: 85%; width: 100%;">
+              <canvas id="trafficChart"></canvas>
+          </div>
       </div>
     </div>
   </div>
@@ -188,47 +192,90 @@ h5 {
 <script src="{{ url_for('static', filename='JS/server_status.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/dashboardchart.js') }}"></script>
 <script>
-   // Get the context of the canvas element
-   const ctx = document.getElementById('trafficChart').getContext('2d');
+// Get the canvas context
+const ctx = document.getElementById('trafficChart').getContext('2d');
 
-// Create the chart
+// Initialize the chart
 const trafficChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-    datasets: [
-      {
-        label: 'Predictive Traffic',
-        data: [30, 50, 45, 60, 70, 80, 90],
-        borderColor: 'rgba(75, 192, 192, 1)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        fill: true,
-        tension: 0.4
-      },
-      {
-        label: 'Incoming Traffic',
-        data: [20, 40, 35, 55, 65, 75, 85],
-        borderColor: 'rgba(255, 99, 132, 1)',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        fill: true,
-        tension: 0.4
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: {
-        beginAtZero: true
-      },
-      y: {
-        beginAtZero: true
-      }
+    type: 'line',
+    data: {
+        labels: [], 
+        datasets: [
+            {
+                label: 'Incoming Traffic',
+                data: [], // Dynamic data
+                borderColor: 'rgba(75, 192, 192, 1)',
+                fill: false, 
+                tension: 0.4, 
+                borderWidth: 1 
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            x: {
+                display: true,
+                type: 'time', // Time-based x-axis
+                time: {
+                    unit: 'second'
+                },
+                title: {
+                    display: true,
+                    text: 'Time'
+                }
+            },
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Requests per Second'
+                }
+            }
+        },
+        plugins: {
+            zoom: {
+                pan: {
+                    enabled: true,
+                    mode: 'x', // Allow panning horizontally
+                },
+                zoom: {
+                    wheel: {
+                        enabled: true // Zoom with the mouse wheel
+                    },
+                    pinch: {
+                        enabled: true // Zoom with pinch gestures
+                    },
+                    mode: 'x', // Only zoom horizontally
+                }
+            }
+        }
     }
-  }
 });
 
+// Fetch data dynamically
+function fetchTrafficData() {
+    fetch('/api/traffic')
+        .then(response => response.json())
+        .then(data => {
+            const timestamps = data.map(point => new Date(point.timestamp));
+            const values = data.map(point => point.value);
+
+            trafficChart.data.labels = timestamps;
+            trafficChart.data.datasets[0].data = values;
+            trafficChart.update();
+        })
+        .catch(error => console.error('Error fetching traffic data:', error));
+}
+
+// Fetch data every second
+setInterval(fetchTrafficData, 1000);
+
+// Add Reset Zoom functionality
+document.getElementById('resetTrafficZoomButton').addEventListener('click', () => {
+    trafficChart.resetZoom();
+});
 
 document.addEventListener("DOMContentLoaded", function() {
     const rows = document.querySelectorAll("#alertTable tbody tr");

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Simulator</title>
+</head>
+<body>
+    <h1>Traffic Simulation Controller</h1>
+    <form id="trafficForm">
+        <label for="url">Target URL:</label><br>
+        <input type="url" id="url" name="url" required><br><br>
+
+        <label for="method">HTTP Method:</label><br>
+        <select id="method" name="method">
+            <option value="get">GET</option>
+            <option value="post">POST</option>
+        </select><br><br>
+
+        <label for="rate">Requests per Second:</label><br>
+        <input type="number" id="rate" name="rate" min="1" required><br><br>
+
+        <label for="duration">Duration (seconds):</label><br>
+        <input type="number" id="duration" name="duration" min="1" required><br><br>
+
+        <button type="submit">Start Traffic</button>
+    </form>
+
+    <p id="response"></p>
+
+    <script>
+        const form = document.getElementById("trafficForm");
+        const responseDisplay = document.getElementById("response");
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const data = {
+                config: {
+                    url: document.getElementById("url").value,
+                    type: document.getElementById("method").value,
+                    rate: parseInt(document.getElementById("rate").value),
+                    duration: parseInt(document.getElementById("duration").value)
+                }
+            };
+
+            try {
+                const response = await fetch("http://192.168.1.102:8000/simulate_traffic", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                responseDisplay.textContent = `Response: ${JSON.stringify(result)}`;
+            } catch (error) {
+                responseDisplay.textContent = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from flask import Flask, jsonify, request
 from flask_compress import Compress
-import json
+import json,requests
 import traceback  
 import logging
 from response_factory import ResponseFactory
@@ -20,6 +20,12 @@ resource_monitor = ResourceMonitor()
 health_check_instance = HealthCheck()
 compress = Compress()
 compress.init_app(app)
+
+logging.basicConfig(
+    filename="agent.log",  # Dedicated log file for the agent
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 class Agent:
     def __init__(self, server_id):
@@ -32,6 +38,14 @@ class Agent:
         self.alert_manager_thread = None
         self.start_alert_manager()
         logging.info(f"Agent initialized with server_id: {self.server_id}")
+
+
+        self.logger = logging.getLogger(f"Agent-{server_id}")
+        handler = logging.FileHandler(f"agent_{server_id}.log")
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        self.logger.setLevel(logging.INFO)
 
     def set_load_balancer_ip(self, ip_address):
         """
@@ -197,13 +211,12 @@ class Agent:
                 self.set_load_balancer_ip(ip_address)
 
             # Receive and process the request
-            data = client_socket.recv(65536).decode('utf-8')  # Receive up to 4 KB of data
+            data = client_socket.recv(65536).decode('utf-8')  # Receive up to 64 KB of data
             logging.info(f"[DEBUG] Received raw data: {data}")
 
             # Parse the received JSON request
             request = json.loads(data)
             command = request.get("command")
-
             logging.info(f"[DEBUG] Received command: {command}, Request Data: {request}")
 
             # Handle different commands
@@ -217,6 +230,24 @@ class Agent:
                 response = self.get_metrics()
             elif command == "alerts":
                 response = self.get_alerts()
+            elif command == "simulate_traffic":
+                # Extract the traffic configuration
+                if "payload" in request:
+                    traffic_config = request.get("payload")
+                else:
+                    # If payload is not provided, assume config keys are top-level
+                    traffic_config = {key: request.get(key) for key in ["url", "type", "rate", "duration"]}
+
+                logging.info(f"Received traffic_config: {traffic_config}")
+
+                # Validate traffic_config
+                if not isinstance(traffic_config, dict) or any(value is None for value in traffic_config.values()):
+                    logging.error(f"Invalid payload for simulate_traffic: {traffic_config}")
+                    response = {"status": "error", "message": "Invalid or missing traffic configuration."}
+                else:
+                    logging.info(f"Executing traffic simulation with config: {traffic_config}")
+                    threading.Thread(target=self.simulate_traffic, args=(traffic_config,), daemon=True).start()
+                    response = {"status": "success", "message": "Traffic simulation started."}
             else:
                 response = {"status": "error", "message": "Unknown command"}
 
@@ -310,6 +341,50 @@ class Agent:
             return {"status": "success", "ip": self.get_ip_address(), "metrics": metrics}
         except Exception as e:
             print(f"Error generating metrics: {e}")
+            return {"status": "error", "message": str(e)}
+
+
+
+    def simulate_traffic(self, config):
+        """
+        Simulate traffic based on the configuration received from the load balancer.
+        """
+        try:
+            if not config:
+                self.logger.error("Received an empty or None config.")
+                return {"status": "error", "message": "Traffic configuration is missing."}
+
+            # Validate required keys
+            required_keys = ["url", "type", "rate", "duration"]
+            for key in required_keys:
+                if key not in config:
+                    self.logger.error(f"Missing key in config: {key}")
+                    return {"status": "error", "message": f"Missing key in config: {key}"}
+
+            # Extract configuration
+            url = config["url"]
+            req_type = config["type"]
+            rate = config["rate"]
+            duration = config["duration"]
+            self.logger.info(f"Simulating {req_type.upper()} traffic to {url} at {rate} req/s for {duration} seconds.")
+
+            end_time = time.time() + duration
+            while time.time() < end_time:
+                for _ in range(rate):
+                    try:
+                        if req_type.lower() == "get":
+                            requests.get(url)
+                        elif req_type.lower() == "post":
+                            requests.post(url, data={"key": "value"})
+                        self.logger.debug(f"Sent {req_type.upper()} request to {url}")
+                    except Exception as e:
+                        self.logger.error(f"Error during traffic simulation: {str(e)}")
+                time.sleep(1)
+
+            self.logger.info("Traffic simulation completed.")
+            return {"status": "success", "message": "Traffic simulation completed"}
+        except Exception as e:
+            self.logger.error(f"Error in simulate_traffic: {str(e)}")
             return {"status": "error", "message": str(e)}
 
 

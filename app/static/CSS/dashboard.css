@@ -53,14 +53,12 @@ body {
 }
 
 .customChart, .alertmonitor {
-    height: 150px;
     background-color: #17191C;
     border: 1px solid #cccccc6b;
     margin-top: 5px;
     margin-bottom: 5px;
 
 }
-
 .statusmsg {
     max-width: 400px !important;
     width: 350px !important;
@@ -89,12 +87,6 @@ body {
 .status-critical { background-color: #652C0D; }
 
 
-.customChart, .alertmonitor {
-    height: 150px;
-    background-color: #17191C;
-    border: 1px solid #cccccc6b;
-    margin-bottom: 5px;
-}
 .statusmsg {
   max-width: 400px !important;
   width: 350px !important;

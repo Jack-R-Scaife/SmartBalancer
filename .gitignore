@@ -26,3 +26,4 @@ venv/
 agent/agent_debug.log
 agent_monitor.log
 deploy_agent.sh
+*.log

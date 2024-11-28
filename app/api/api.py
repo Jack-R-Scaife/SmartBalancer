@@ -4,7 +4,8 @@ from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers
 from app.models import Server
 import json
-import random
+import random,logging
+from server.traffic_store import TrafficStore
 # Define the blueprint for API routes
 api_blueprint = Blueprint('api', __name__)
 
@@ -167,3 +168,31 @@ def api_get_alerts():
         # In case of any errors, return a server error response
         return jsonify({'status': 'error', 'message': str(e)}), 500
     
+@api_blueprint.route('/simulate_traffic', methods=['POST'])
+def simulate_traffic():
+    try:
+        from server.agent_monitor import LoadBalancer
+        load_balancer = LoadBalancer()
+
+        traffic_config = request.json
+        logging.info(f"Received traffic_config: {traffic_config}")
+
+        if not traffic_config:
+            return jsonify({"error": "Missing traffic configuration"}), 400
+
+        load_balancer.simulate_traffic(traffic_config)
+        return jsonify({"message": "Traffic simulation started"}), 200
+    except Exception as e:
+        logging.error(f"Error in /simulate_traffic: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@api_blueprint.route('/traffic', methods=['GET'])
+def get_traffic_data():
+    """
+    API endpoint to fetch real-time traffic data for the dashboard.
+    """
+    traffic_store = TrafficStore.get_instance()
+    traffic_data = traffic_store.get_traffic_data()
+    logging.info(f"Serving traffic_data: {traffic_data}")
+    return jsonify(traffic_data)
