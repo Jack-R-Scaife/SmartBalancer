@@ -172,37 +172,73 @@ border:solid 1px #FFAA7B;
   </div>
 
   <!-- Section 1: Edit Rules for Group 1 -->
-   <div class="card-content active" id="rules">
-    <div class="table-responsive ">
-      <table class="customtable">
-        <button type="button" class="customView buttonstyle">Add Server to Group</button>
-
-          <thead>
-              <tr>
-                  <th> <input class="checkboxes" type="checkbox"></th>
-                  <th>Server Name</th>
-                  <th>IP Address</th>
-                  <th>Status</th>
-                  <th>Static Weights (Weighted Round Robin)</th>
-                  <th>Actions</th>
-              </tr>
-          </thead>
-          <tbody>
-              <tr>
-                  <td><input class="checkboxes" type="checkbox"></td>
-                  <td>yes</td>
-                  <td>te</td>
-                  <td>t</td>
-                  <td>t</td>
-                  <td>
-                      <button type="button" class="customRemove buttonstyle">Remove</button>
-                      <button type="button" class=" customConfig buttonstyle">Configure Device</button>
-                  </td>
-              </tr>
-          </tbody>
+  <div class="card-content active" id="rules">
+    <div class="table-responsive">
+      <button type="button" class="customView buttonstyle">Add Server to Group</button>
+      <table class="customtable" id="editGroupTable">
+        <thead>
+          <tr>
+            <th><input class="checkboxes" type="checkbox"></th>
+            <th>Server Name</th>
+            <th>IP Address</th>
+            <th>Status</th>
+            <th>Static Weights (Weighted Round Robin)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Dynamic content will be populated here -->
+        </tbody>
       </table>
+    </div>
   </div>
-  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const serverTableBody = document.querySelector('#editGroupTable tbody');
+  
+      // Fetch and populate servers for a specific group
+      function fetchServers(groupId) {
+        axios.get(`/api/servers/${groupId}`)
+          .then(response => {
+            if (response.data.status === 'success') {
+              const servers = response.data.servers;
+  
+              // Populate the table body
+              serverTableBody.innerHTML = servers.map(server => `
+                <tr>
+                  <td><input type="checkbox" data-server-id="${server.id}"></td>
+                  <td>${server.name}</td>
+                  <td>${server.ip}</td>
+                  <td>${server.status}</td>
+                  <td>
+                    <input type="number" min="0" max="100" step="1" value="0" data-server-id="${server.id}" class="weight-input">
+                  </td>
+                  <td>
+                    <button type="button" class="customRemove buttonstyle" data-server-id="${server.id}">Remove</button>
+                    <button type="button" class="customConfig buttonstyle" data-server-id="${server.id}">Configure</button>
+                  </td>
+                </tr>
+              `).join('');
+            } else {
+              console.error('Failed to fetch servers:', response.data.message);
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching servers:', error);
+          });
+      }
+  
+      // Extract group_id from the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const groupId = urlParams.get('group_id');
+  
+      if (groupId) {
+        fetchServers(groupId);
+      } else {
+        console.error('Group ID is missing in the URL!');
+      }
+    });
+  </script>
 
   <!-- Section 2: Load Balancing Methods -->
   <div class="card-content" id="methods">

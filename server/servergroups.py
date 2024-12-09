@@ -116,3 +116,26 @@ def create_group_with_servers(name, description, server_ids):
         db.session.rollback()
         print(f"Error creating group with servers: {e}")
         return {"status": "error", "message": "Failed to create group."}
+    
+def get_servers_by_group(group_id):
+    """
+    Fetch servers associated with a specific group, including group ID.
+    :param group_id: ID of the group to fetch servers for.
+    :return: List of servers in the group with their details.
+    """
+    servers = (
+        db.session.query(Server, ServerGroupServer.group_id)
+        .join(ServerGroupServer, Server.server_id == ServerGroupServer.server_id)
+        .filter(ServerGroupServer.group_id == group_id)
+        .all()
+    )
+    return [
+        {
+            "id": server.Server.server_id,  # Server ID
+            "name": server.Server.ip_address,  # Replace with actual name if available
+            "ip": server.Server.ip_address,  # Server IP Address
+            "status": server.Server.status,  # Server Status
+            "group_id": server.group_id,  # Group ID
+        }
+        for server in servers
+    ]

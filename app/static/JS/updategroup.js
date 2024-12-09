@@ -63,6 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
   
     servers.forEach(server => {
       const selectElement = document.getElementById(`group_${server.server_id}`);
+      if (!selectElement) {
+        console.warn(`Dropdown not found for server ID: ${server.server_id}`);
+        return; // Skip to the next server
+      }
+  
       selectElement.innerHTML = ''; // Clear any existing options
   
       if (!server.group) {

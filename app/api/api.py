@@ -1,7 +1,7 @@
 # app/api/api.py
 from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
 from server.server_manager import ServerManager
-from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers
+from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers,get_servers_by_group
 from app.models import Server
 import json
 import random,logging
@@ -196,3 +196,16 @@ def get_traffic_data():
     traffic_data = traffic_store.get_traffic_data()
     logging.info(f"Serving traffic_data: {traffic_data}")
     return jsonify(traffic_data)
+
+@api_blueprint.route('/servers/<int:group_id>', methods=['GET'])
+def fetch_servers(group_id):
+    """
+    API endpoint to fetch servers for a given group ID.
+    :param group_id: ID of the group to fetch servers for.
+    :return: JSON response containing server data.
+    """
+    try:
+        servers = get_servers_by_group(group_id)
+        return jsonify({"status": "success", "servers": servers})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

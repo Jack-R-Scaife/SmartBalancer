@@ -1,3 +1,5 @@
+<link href="{{ url_for('static', filename='css/server.css') }}" rel="stylesheet">
+
 <div class="modal fade" id="addGroupModal" tabindex="-1" aria-labelledby="addGroupModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content customModal">
@@ -311,3 +313,5 @@ color: white;
     location.reload();
 });
 </script>
+<script src="{{ url_for('static', filename='JS/updategroup.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/RequestnDeleteGroups.js') }}"></script>
