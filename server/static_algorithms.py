@@ -4,7 +4,14 @@ class StaticAlgorithms:
         self.known_agents = []
         self.current_index = 0
         self.index_weights = []
-    
+        self.active_strategy = None  # Track the active strategy
+    def set_active_strategy(self, strategy_name):
+        """
+        Set the active strategy.
+        """
+        self.active_strategy = strategy_name
+        print(f"StaticAlgorithms: Active strategy set to {strategy_name}")
+        
     def round_robin(self):
         # Select the next server in the list using round-robin
         if not self.known_agents:

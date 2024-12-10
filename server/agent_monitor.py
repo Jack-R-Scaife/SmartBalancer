@@ -6,7 +6,7 @@ import socket
 import json
 import logging
 from server.traffic_store import TrafficStore
-
+from server.static_algorithms import StaticAlgorithms
 # Configure logging
 logging.basicConfig(
     filename='agent_monitor.log',  # Log file name
@@ -34,7 +34,9 @@ class LoadBalancer:
         if not hasattr(self, "initialized"):  
             self.app = create_app()
             self.known_agents = []  # List of known agent IP addresses
-            self.load_agents_from_db() # Load agents from the database on startup
+            self.strategy_executor = StaticAlgorithms()
+            self.active_strategy = None  # Track the active strategy
+            self.load_agents_from_db()
             self.initialized = True
 
     def load_agents_from_db(self):
@@ -277,7 +279,7 @@ class LoadBalancer:
 
     def simulate_traffic(self, traffic_config):
         """
-        Simulate traffic and aggregate traffic rates for overlapping requests.
+        Simulate traffic and route requests based on the active strategy.
         """
         logging.info(f"simulate_traffic invoked with: {traffic_config}")
 
@@ -288,6 +290,7 @@ class LoadBalancer:
                 logging.error(f"Missing key '{key}' in traffic_config: {traffic_config}")
                 return {"status": "error", "message": f"Missing key '{key}' in traffic_config"}
 
+        # Check if there are known agents
         if not self.known_agents:
             logging.warning("No known agents available to send traffic.")
             return {"status": "error", "message": "No agents available for traffic simulation"}
@@ -299,29 +302,65 @@ class LoadBalancer:
         rate = traffic_config["rate"]
         duration = traffic_config["duration"]
 
-        # Send the traffic simulation request to all agents
-        for server_ip in self.known_agents:
-            try:
-                response = self.send_tcp_request(server_ip, 9000, "simulate_traffic", payload=traffic_config)
-                logging.info(f"Response from agent {server_ip}: {response}")
-            except Exception as e:
-                logging.error(f"Error sending traffic simulation command to {server_ip}: {str(e)}")
-                return {"status": "error", "message": str(e)}
+        # Access the LoadBalancer instance
+        load_balancer = LoadBalancer()
 
-        # Log traffic data once per second for the duration
+        if not load_balancer.active_strategy:
+            logging.error("No active strategy set in LoadBalancer.")
+            return {"status": "error", "message": "No active strategy set"}
+
+        # Simulate traffic for the specified duration
         for second in range(duration):
             current_time = int(time.time())  # Current time in seconds
-            traffic_store.append_traffic_data(current_time, rate)
-            logging.info(f"Aggregated traffic_data: {traffic_store.get_traffic_data()[-1]}")
 
-            time.sleep(1)  # Wait for 1 second
+            for _ in range(rate):
+                try:
+                    # Determine the target agent using the active strategy
+                    target_agent = load_balancer.execute_strategy()
+
+                    if not target_agent:
+                        logging.warning("No agent selected by the strategy.")
+                        continue
+
+                    # Send traffic to the selected agent
+                    response = self.send_tcp_request(target_agent, 9000, "simulate_traffic", payload=traffic_config)
+                    logging.info(f"Traffic sent to {target_agent}: {response}")
+
+                    # Log traffic data for the selected agent
+                    traffic_store.append_traffic_data(current_time, 1)  # Log 1 request for the current second
+
+                except Exception as e:
+                    logging.error(f"Error sending traffic simulation command: {str(e)}")
+                    continue
+
+            # Wait for 1 second before sending the next batch
+            time.sleep(1)
 
         return {"status": "success", "message": "Traffic simulation completed"}
+    
+    def set_active_strategy(self, strategy_name):
+        """
+        Set the active strategy for the load balancer.
+        """
+        self.active_strategy = strategy_name
+        self.strategy_executor.set_active_strategy(strategy_name)
+        print(f"LoadBalancer: Active strategy set to {strategy_name}")
 
+    def execute_strategy(self):
+        """
+        Route traffic based on the active strategy.
+        """
+        if not self.known_agents:
+            raise ValueError("No agents available for routing.")
 
+        self.strategy_executor.known_agents = self.known_agents  # Sync agents with the strategy executor
 
-
-
+        if self.active_strategy == "Round Robin":
+            return self.strategy_executor.round_robin()
+        elif self.active_strategy == "Weighted Round Robin":
+            return self.strategy_executor.weighted_round_robin()
+        else:
+            raise ValueError(f"Unsupported strategy: {self.active_strategy}")
 
 if __name__ == "__main__":
     load_balancer = LoadBalancer()

@@ -211,7 +211,7 @@ border:solid 1px #FFAA7B;
                   <td>${server.ip}</td>
                   <td>${server.status}</td>
                   <td>
-                    <input type="number" min="0" max="100" step="1" value="0" data-server-id="${server.id}" class="weight-input">
+                    <input type="number" min="0" max="100" step="1" value="0" data-server-id="${server.id}" class="customselect">
                   </td>
                   <td>
                     <button type="button" class="customRemove buttonstyle" data-server-id="${server.id}">Remove</button>
@@ -432,11 +432,204 @@ border:solid 1px #FFAA7B;
         </div>
       </div>
     </div>
-    <button type="button" class="btn btn-sm customView buttonstyle me-5">Apply Changes</button>
+    <button type="button" class="btn btn-sm customView buttonstyle me-5" id="tab2button">Apply Changes</button>
     <button type="button" class="btn btn-sm customConfig buttonstyle">Reset to Default</button>
 
   </div>
+  <script>
+document.addEventListener("DOMContentLoaded", function () {
+  // Get the method checkboxes
+  const staticMethodCheckbox = document.getElementById("staticMethod");
+  const dynamicMethodCheckbox = document.getElementById("dynamicMethod");
+  const customCheckbox = document.getElementById("Custom");
 
+  // Get the strategy checkboxes
+  const staticStrategies = [
+    document.getElementById("RoundRobin"),
+    document.getElementById("WeightedRoundRobin")
+  ];
+
+  const dynamicStrategies = [
+    document.getElementById("LeastConnections"),
+    document.getElementById("LeastResponseTime"),
+    document.getElementById("ResourceBased")
+  ];
+
+  const dynamicResources = [
+    document.getElementById("cpuUsage"),
+    document.getElementById("cpuTemp"),
+    document.getElementById("systemTemp"),
+    document.getElementById("memoryUsage"),
+    document.getElementById("networkRespTime"),
+    document.getElementById("leastConnections")
+  ];
+
+  const dynamicWeights = [
+    document.getElementById("cpuUsageWeight"),
+    document.getElementById("cpuTempWeight"),
+    document.getElementById("systemTempWeight"),
+    document.getElementById("memoryUsageWeight"),
+    document.getElementById("networkRespTimeWeight"),
+    document.getElementById("leastConnectionsWeight")
+  ];
+
+  // Get failover priority dropdowns
+  const failoverPriorityDropdowns = [
+    document.getElementById("failoverPriority1"),
+    document.getElementById("failoverPriority2")
+  ];
+
+  // Enable or disable checkboxes based on conditions
+  function toggleCheckboxes(checkbox, targets, enable) {
+    targets.forEach((target) => {
+      target.disabled = !enable;
+      if (!enable) target.checked = false; // Uncheck when disabled
+    });
+  }
+
+  // Enable or disable resources and weights for Dynamic Method
+  function toggleDynamicResources(enable) {
+    toggleCheckboxes(null, dynamicResources, enable);
+    dynamicWeights.forEach((weight) => {
+      weight.disabled = !enable;
+      if (!enable) weight.value = "0"; // Reset weight to 0 when disabled
+    });
+  }
+
+  // Custom logic: Enable all strategies without ticking them
+  function toggleCustom(enable) {
+    const allStrategies = [...staticStrategies, ...dynamicStrategies];
+    toggleCheckboxes(null, allStrategies, enable);
+  }
+
+  // Update failover priority dropdowns based on checked strategies
+ // Update failover priority dropdowns based on checked strategies
+function updateFailoverPriorities() {
+  const allStrategies = [
+    ...staticStrategies,
+    ...dynamicStrategies
+  ];
+
+  // Get the names of all currently checked strategies
+  const availableStrategies = allStrategies
+    .filter((strategy) => strategy.checked)
+    .map((strategy) => {
+      const label = document.querySelector(`label[for="${strategy.id}"]`);
+      return label ? label.textContent.trim() : ""; // Get label text if exists
+    });
+
+  // Filter out any empty values in case of missing labels
+  const options = availableStrategies
+    .filter((name) => name) // Exclude empty names
+    .map((strategyName) => `<option value="${strategyName}">${strategyName}</option>`)
+    .join("");
+
+  // Update each failover priority dropdown
+  failoverPriorityDropdowns.forEach((dropdown) => {
+    dropdown.innerHTML = options || "<option value=''>No strategies available</option>";
+  });
+}
+
+  // Event listeners for method checkboxes
+  staticMethodCheckbox.addEventListener("change", () => {
+    toggleCheckboxes(staticMethodCheckbox, staticStrategies, staticMethodCheckbox.checked);
+    if (!staticMethodCheckbox.checked && customCheckbox.checked) {
+      staticMethodCheckbox.checked = true; // Custom always includes static strategies
+    }
+    updateFailoverPriorities();
+  });
+
+  dynamicMethodCheckbox.addEventListener("change", () => {
+    toggleCheckboxes(dynamicMethodCheckbox, dynamicStrategies, dynamicMethodCheckbox.checked);
+    toggleDynamicResources(dynamicMethodCheckbox.checked);
+    if (!dynamicMethodCheckbox.checked && customCheckbox.checked) {
+      dynamicMethodCheckbox.checked = true; // Custom always includes dynamic strategies
+    }
+    updateFailoverPriorities();
+  });
+
+  customCheckbox.addEventListener("change", () => {
+    const enable = customCheckbox.checked;
+    toggleCustom(enable);
+    if (enable) {
+      staticMethodCheckbox.checked = true;
+      dynamicMethodCheckbox.checked = true;
+      toggleDynamicResources(true);
+    } else {
+      // Reset to individual method states
+      toggleCheckboxes(staticMethodCheckbox, staticStrategies, staticMethodCheckbox.checked);
+      toggleCheckboxes(dynamicMethodCheckbox, dynamicStrategies, dynamicMethodCheckbox.checked);
+      toggleDynamicResources(dynamicMethodCheckbox.checked);
+    }
+    updateFailoverPriorities();
+  });
+
+  // Event listeners for strategy checkboxes to update failover priorities
+  [...staticStrategies, ...dynamicStrategies].forEach((strategy) => {
+    strategy.addEventListener("change", updateFailoverPriorities);
+  });
+
+  // Initialize the state of checkboxes and failover dropdowns on page load
+  toggleCheckboxes(staticMethodCheckbox, staticStrategies, staticMethodCheckbox.checked);
+  toggleCheckboxes(dynamicMethodCheckbox, dynamicStrategies, dynamicMethodCheckbox.checked);
+  toggleDynamicResources(dynamicMethodCheckbox.checked);
+  updateFailoverPriorities();
+});
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Find the Apply Changes button
+    const applyChangesButton = document.getElementById('tab2button');
+
+    // Add event listener
+    applyChangesButton.addEventListener('click', () => {
+        // Gather selected strategies and methods
+        const selectedMethods = [];
+        const selectedStrategies = [];
+
+        // Collect selected methods
+        if (document.getElementById('staticMethod').checked) {
+            selectedMethods.push('static');
+        }
+        if (document.getElementById('dynamicMethod').checked) {
+            selectedMethods.push('dynamic');
+        }
+
+        // Collect selected strategies
+        const strategyCheckboxes = document.querySelectorAll('.checkbox-group input[type="checkbox"]');
+        strategyCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                const label = document.querySelector(`label[for="${checkbox.id}"]`);
+                if (label) {
+                    selectedStrategies.push(label.textContent.trim());
+                }
+            }
+        });
+
+        // Validate the selections
+        if (selectedMethods.length === 0 || selectedStrategies.length === 0) {
+            alert('Please select at least one method and one strategy.');
+            return;
+        }
+
+        // Prepare the payload for the backend
+        const payload = {
+            methods: selectedMethods,
+            strategies: selectedStrategies
+        };
+
+        // Make the Axios POST request
+        axios.post('/api/load_balancer/set_strategy', payload)
+            .then(response => {
+            })
+            .catch(error => {
+                console.error('Error activating strategy:', error);
+                alert('Failed to activate strategy. Check the console for details.');
+            });
+    });
+});
+
+  </script>
   <!-- Section 3: Applied Rules -->
   <div class="card-content" id="applied">
     <input type="text" class=" w-100 mb-3 customsearch" placeholder="Search to filter for rules">

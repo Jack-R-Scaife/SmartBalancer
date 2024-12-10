@@ -181,3 +181,28 @@ class Alert(db.Model):
     severity = db.Column(db.Enum('info', 'warning', 'critical'), nullable=False)
     description = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+def initialize_strategies():
+    from app import db
+    from app.models import Strategy
+
+    default_strategies = [
+        {"name": "Round Robin", "method_type": "static", "description": "Distributes traffic equally among all servers."},
+        {"name": "Weighted Round Robin", "method_type": "static", "description": "Distributes traffic based on server weights."},
+        {"name": "Least Connections", "method_type": "dynamic", "description": "Directs traffic to the server with the least active connections."},
+        {"name": "Least Response Time", "method_type": "dynamic", "description": "Directs traffic to the server with the shortest response time."},
+        {"name": "Resource-Based", "method_type": "dynamic", "description": "Balances traffic based on server resource usage."}
+    ]
+
+    for strategy_data in default_strategies:
+        existing_strategy = Strategy.query.filter_by(name=strategy_data['name']).first()
+        if not existing_strategy:
+            new_strategy = Strategy(
+                name=strategy_data['name'],
+                method_type=strategy_data['method_type'],
+                description=strategy_data['description']
+            )
+            db.session.add(new_strategy)
+
+    db.session.commit()
+    print("Strategies initialized successfully.")

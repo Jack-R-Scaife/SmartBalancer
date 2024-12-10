@@ -6,9 +6,10 @@ from app.models import Server
 import json
 import random,logging
 from server.traffic_store import TrafficStore
+from server.strategy_manager import StrategyManager
 # Define the blueprint for API routes
 api_blueprint = Blueprint('api', __name__)
-
+from server.agent_monitor import LoadBalancer
 
 status_mapping = {
     "healthy": 1,
@@ -208,4 +209,47 @@ def fetch_servers(group_id):
         servers = get_servers_by_group(group_id)
         return jsonify({"status": "success", "servers": servers})
     except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+@api_blueprint.route('/load_balancer/set_strategy', methods=['POST'])
+def set_load_balancer_strategy():
+    """
+    API endpoint to set the load balancing strategy.
+    """
+    try:
+        # Parse the request JSON
+        data = request.json
+        selected_methods = data.get('methods', [])
+        selected_strategies = data.get('strategies', [])
+
+        # Validate input
+        if not selected_methods or not selected_strategies:
+            return jsonify({"status": "error", "message": "Methods and strategies are required."}), 400
+
+        # Initialize the LoadBalancer singleton
+        load_balancer = LoadBalancer()
+
+        # Handle strategy activation and setting
+        messages = []
+        for strategy_name in selected_strategies:
+            try:
+                # Activate the strategy in StrategyManager
+                message = StrategyManager.activate_strategy(strategy_name)
+                messages.append(message)
+
+                # Set the strategy in LoadBalancer for execution
+                load_balancer.set_active_strategy(strategy_name)
+
+            except ValueError as e:
+                messages.append(str(e))
+
+        # Response with aggregated results
+        return jsonify({
+            "status": "success",
+            "messages": messages,
+            "active_strategy": load_balancer.active_strategy
+        }), 200
+
+    except Exception as e:
+        # General error handling
         return jsonify({"status": "error", "message": str(e)}), 500

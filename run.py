@@ -2,7 +2,7 @@ from app import create_app, db
 from server.agent_monitor import LoadBalancer
 from server.server_manager import ServerManager
 import threading
-
+from app.models import initialize_strategies
 app = create_app()
 app.secret_key = 'your_super_secret_key'
 
@@ -19,6 +19,7 @@ if __name__ == '__main__':
     # Ensure the database tables are created before starting the server
     with app.app_context():
         db.create_all()
+        initialize_strategies()
 
     # Initialize ServerManager after the database tables are created
     server_manager = ServerManager(app)
