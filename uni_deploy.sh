@@ -27,7 +27,7 @@ if [ ! -d "$AGENT_DIR" ]; then
     exit 1
 fi
 
-# Deploy the `agent` directory to backend servers
+# Deploy the `agent` directory to backend servers and create the agent service
 for VM in "${BACKEND_VMS[@]}"; do
     echo "Deploying 'agent' to $VM..."
 
@@ -49,7 +49,29 @@ for VM in "${BACKEND_VMS[@]}"; do
             pip install -r requirements.txt
         fi
 
-        echo "Agent setup complete on $VM."
+        # Create a systemd service for the agent
+        SERVICE_FILE="/etc/systemd/system/smartbalancer-agent.service"
+        sudo bash -c "cat > \$SERVICE_FILE" << SERVICE_CONTENT
+[Unit]
+Description=SmartBalancer Agent
+After=network.target
+
+[Service]
+User=${VM%%@*}
+WorkingDirectory=/home/${VM%%@*}/smartbalancer/agent
+ExecStart=/home/${VM%%@*}/smartbalancer/agent/venv/bin/python /home/${VM%%@*}/smartbalancer/agent/agent.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_CONTENT
+
+        # Enable and start the service
+        sudo systemctl daemon-reload
+        sudo systemctl enable smartbalancer-agent
+        sudo systemctl restart smartbalancer-agent
+
+        echo "Agent service setup complete on $VM."
 EOF
 done
 
