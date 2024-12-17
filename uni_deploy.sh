@@ -1,105 +1,83 @@
 #!/bin/bash
 
-# Set variables
-GITHUB_REPO_URL="https://github.com/Jack-R-Scaife/SmartBalancer.git"
-TEMP_DIR="/tmp/smartbalancer_deployment"
-AGENT_DIR="${TEMP_DIR}/agent"
-BACKEND_VMS=("server1@192.168.1.4" "server2@192.168.1.5")
-REST_VM="specific-vm@192.168.1.2"
+# Variables
+GITHUB_REPO="https://github.com/Jack-R-Scaife/SmartBalancer.git"
+CLONE_DIR="/tmp/load_balancer_repo"
+AGENT_FOLDER="agent"
+BACKEND_VMS=("192.168.1.3" "192.168.1.4" "192.168.1.5" "192.168.1.6" "192.168.1.7" "192.168.1.8" "192.168.1.9" "192.168.1.10" "192.168.1.11" "192.168.1.12" "192.168.1.13" "192.168.1.14" "192.168.1.15")
+LB_VM="192.168.1.2"
+TARGET_DIR="/opt/load_balancer"  # Directory to SCP files
 
-# Start SSH Agent
-echo "Starting SSH Agent..."
-eval "$(ssh-agent -s)"
-ssh-add
+# Exit on error
+set -e
 
-# Clone the GitHub repository
-echo "Cloning GitHub repository..."
-rm -rf "$TEMP_DIR"
-git clone "$GITHUB_REPO_URL" "$TEMP_DIR"
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to clone GitHub repository."
-    exit 1
+# Function to set up a virtual environment and install dependencies
+setup_venv() {
+    local target_dir=$1
+    echo "Setting up virtual environment in $target_dir"
+    python3 -m venv "$target_dir/venv"
+    source "$target_dir/venv/bin/activate"
+    pip install --upgrade pip
+    pip install -r "$target_dir/requirements.txt"
+    deactivate
+}
+
+# Clone the latest repository
+if [ -d "$CLONE_DIR" ]; then
+    rm -rf "$CLONE_DIR"
 fi
+git clone "$GITHUB_REPO" "$CLONE_DIR"
 
-# Ensure the agent directory exists
-if [ ! -d "$AGENT_DIR" ]; then
-    echo "Error: 'agent' directory not found in the repository."
-    exit 1
-fi
+# Set permissions for the cloned directory
+chmod -R 755 "$CLONE_DIR"
 
-# Deploy the `agent` directory to backend servers and create the agent service
+# Deploy to Backend VMs
 for VM in "${BACKEND_VMS[@]}"; do
-    echo "Deploying 'agent' to $VM..."
-
-    ssh "$VM" "rm -rf /home/${VM%%@*}/smartbalancer/agent"
-    scp -r "$AGENT_DIR" "$VM:/home/${VM%%@*}/smartbalancer/agent"
+    echo "Deploying agent to backend VM: $VM"
+    ssh "$VM" "mkdir -p $TARGET_DIR/$AGENT_FOLDER && chmod -R 755 $TARGET_DIR"
+    scp -r "$CLONE_DIR/$AGENT_FOLDER" "$VM:$TARGET_DIR/"
 
     ssh "$VM" << EOF
-        echo "Setting up the agent on $VM..."
-        cd /home/${VM%%@*}/smartbalancer/agent
-
-        # Set up virtual environment
-        if [ ! -d "venv" ]; then
-            python3 -m venv venv
-        fi
+        cd $TARGET_DIR/$AGENT_FOLDER
+        python3 -m venv venv
         source venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        deactivate
 
-        # Install dependencies from the agent's own requirements.txt
-        if [ -f "requirements.txt" ]; then
-            pip install -r requirements.txt
-        fi
+        # Set up agent.py as a systemd service
+        echo "[Unit]
+        Description=Agent Service
+        After=network.target
 
-        # Create a systemd service for the agent
-        SERVICE_FILE="/etc/systemd/system/smartbalancer-agent.service"
-        sudo bash -c "cat > \$SERVICE_FILE" << SERVICE_CONTENT
-[Unit]
-Description=SmartBalancer Agent
-After=network.target
+        [Service]
+        User=$(whoami)
+        WorkingDirectory=$TARGET_DIR/$AGENT_FOLDER
+        ExecStart=$TARGET_DIR/$AGENT_FOLDER/venv/bin/python $TARGET_DIR/$AGENT_FOLDER/agent.py
+        Restart=always
 
-[Service]
-User=${VM%%@*}
-WorkingDirectory=/home/${VM%%@*}/smartbalancer/agent
-ExecStart=/home/${VM%%@*}/smartbalancer/agent/venv/bin/python /home/${VM%%@*}/smartbalancer/agent/agent.py
-Restart=always
+        [Install]
+        WantedBy=multi-user.target" | sudo tee /etc/systemd/system/agent.service > /dev/null
 
-[Install]
-WantedBy=multi-user.target
-SERVICE_CONTENT
-
-        # Enable and start the service
         sudo systemctl daemon-reload
-        sudo systemctl enable smartbalancer-agent
-        sudo systemctl restart smartbalancer-agent
-
-        echo "Agent service setup complete on $VM."
+        sudo systemctl enable agent.service
+        sudo systemctl start agent.service
 EOF
+    echo "Agent deployed and service started on $VM"
 done
 
-# Deploy the rest of the directory to the specific VM
-echo "Deploying the rest of the code to $REST_VM..."
+# Deploy to Load Balancer or REST VM
+echo "Deploying to Load Balancer/REST VM: $LB_VM"
+ssh "$LB_VM" "mkdir -p $TARGET_DIR && chmod -R 755 $TARGET_DIR"
+scp -r "$CLONE_DIR"/* "$LB_VM:$TARGET_DIR/"
 
-ssh "$REST_VM" "rm -rf /home/${REST_VM%%@*}/smartbalancer"
-scp -r "$TEMP_DIR" "$REST_VM:/home/${REST_VM%%@*}/smartbalancer"
-
-ssh "$REST_VM" << EOF
-    echo "Setting up the rest of the code on $REST_VM..."
-    cd /home/${REST_VM%%@*}/smartbalancer
-
-    # Set up virtual environment
-    if [ ! -d "venv" ]; then
-        python3 -m venv venv
-    fi
+ssh "$LB_VM" << EOF
+    cd $TARGET_DIR
+    python3 -m venv venv
     source venv/bin/activate
-
-    # Install dependencies from the main requirements.txt
-    if [ -f "requirements.txt" ]; then
-        pip install -r requirements.txt
-    fi
-
-    echo "Setup complete for the rest of the code on $REST_VM."
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    deactivate
 EOF
 
-# Kill the SSH Agent
-eval "$(ssh-agent -k)"
-
-echo "Deployment process completed."
+echo "Deployment completed successfully."

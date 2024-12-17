@@ -3,8 +3,8 @@
 {% block title %}Server Overview{% endblock %}
 
 {% block content %}
-<link href="{{ url_for('static', filename='css/serverOverview.css') }}" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/rule.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='CSS/serverOverview.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='CSS/rule.css') }}" rel="stylesheet">
 
 <style>
   
@@ -22,7 +22,7 @@ function updateGroups(groups, servers) {
   // Map servers to their groups
   const groupedServers = {};
   servers.forEach(server => {
-    const groupId = server.group.group_id;
+    const groupId = server.group?.group_id;
     if (!groupedServers[groupId]) {
       groupedServers[groupId] = [];
     }
@@ -34,10 +34,10 @@ function updateGroups(groups, servers) {
 
   // Create cards for each group
   groups.forEach(group => {
-    const serversInGroup = groupedServers[group.group_id] || [];
-    const currentMethod = group.current_method || "N/A"; // Default to N/A if unknown
-    const currentTemplate = group.current_template || "N/A"; // Default to N/A if unknown
-    const activeRules = group.active_rules || []; // Default to empty array if no rules
+    const serversInGroup = groupedServers[group.group_id] || []; // Default to empty array if no servers
+    const currentMethod = group.current_method || "N/A";
+    const currentTemplate = group.current_template || "N/A";
+    const activeRules = group.active_rules || [];
 
     const card = document.createElement('div');
     card.className = 'col-md-4';
@@ -47,9 +47,12 @@ function updateGroups(groups, servers) {
           <h6 class="card-title mb-2 text-center cstmh6">Group Name: ${group.name}</h6>
           <div class="row">
             <div class="col-6">
-              <p class="mb-1 small serveringroup"><strong>Servers in Group</strong></p>
+               <p class="mb-1 small serveringroup"><strong>Servers in Group</strong></p>
               <ol class="small ps-3 mb-1">
-                ${serversInGroup.map(server => `<li>${server.ip_address}</li>`).join('')}
+                ${serversInGroup.length > 0 
+                  ? serversInGroup.map(server => `<li>${server.ip_address}</li>`).join('')
+                  : '<li>No servers in group</li>'
+                }
               </ol>
             </div>
             <div class="col-6">

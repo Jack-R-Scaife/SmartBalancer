@@ -23,3 +23,4 @@ class DynamicAlgorithms:
         if not self.known_agents:
             return None
         return max(self.known_agents, key=lambda server: self.resources.get(server, 0))
+        
