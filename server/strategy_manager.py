@@ -1,8 +1,11 @@
 from app.models import Strategy, LoadBalancerSetting
 from server.static_algorithms import StaticAlgorithms
+from server.dynamic_algorithms import DynamicAlgorithms
 from app import db
 
 class StrategyManager:
+    static_algorithms = StaticAlgorithms()
+    dynamic_algorithms = DynamicAlgorithms()
     @staticmethod
     def activate_strategy(strategy_name):
         """
@@ -31,14 +34,20 @@ class StrategyManager:
             load_balancer_setting.active_strategy_id = strategy.strategy_id
 
         db.session.commit()
-
+    
         # Trigger the appropriate logic in StaticAlgorithms
-        static_algorithms = StaticAlgorithms()
         if strategy_name == "Round Robin":
-            static_algorithms.round_robin()
+            StrategyManager.static_algorithms.round_robin()
         elif strategy_name == "Weighted Round Robin":
-            static_algorithms.set_weights({})
+            StrategyManager.static_algorithms.set_weights({})
+        elif strategy_name == "Least Connections":
+            StrategyManager.dynamic_algorithms.least_connections()
+        elif strategy_name == "Least Response Time":
+            StrategyManager.dynamic_algorithms.response_time()
+        elif strategy_name == "Resource-Based":
+            StrategyManager.dynamic_algorithms.resource_based()
         else:
+            print(f"[ERROR] Unsupported strategy: {strategy_name}")
             raise ValueError(f"Unsupported strategy: {strategy_name}")
 
         return f"{strategy_name} strategy activated successfully."

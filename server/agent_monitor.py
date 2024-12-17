@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from app import db, create_app
 from app.models import Server
 import threading
@@ -7,6 +8,7 @@ import json
 import logging
 from server.traffic_store import TrafficStore
 from server.static_algorithms import StaticAlgorithms
+from server.dynamic_algorithms import DynamicAlgorithms
 # Configure logging
 logging.basicConfig(
     filename='agent_monitor.log',  # Log file name
@@ -19,10 +21,16 @@ traffic_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s
 traffic_handler.setFormatter(traffic_formatter)
 traffic_logger.addHandler(traffic_handler)
 traffic_logger.setLevel(logging.INFO)
+traffic_log = logging.getLogger("traffic_log")
+traffic_handler = logging.FileHandler("traffic_logs.log")
+traffic_formatter = logging.Formatter("%(asctime)s - Strategy: %(message)s, Target Server: %(server)s")
+traffic_handler.setFormatter(traffic_formatter)
+traffic_log.addHandler(traffic_handler)
+traffic_log.setLevel(logging.INFO)
+
 class LoadBalancer:
     _instance = None
     _lock = threading.Lock()  # To ensure thread safety
-
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             with cls._lock:
@@ -35,6 +43,7 @@ class LoadBalancer:
             self.app = create_app()
             self.known_agents = []  # List of known agent IP addresses
             self.strategy_executor = StaticAlgorithms()
+            self.dynamic_executor = DynamicAlgorithms()
             self.active_strategy = None  # Track the active strategy
             self.load_agents_from_db()
             self.initialized = True
@@ -318,6 +327,12 @@ class LoadBalancer:
                     # Determine the target agent using the active strategy
                     target_agent = load_balancer.execute_strategy()
 
+                    # Log the traffic event
+                    traffic_log.info(
+                        f"{load_balancer.active_strategy}",
+                        extra={"server": target_agent}
+                    )
+
                     if not target_agent:
                         logging.warning("No agent selected by the strategy.")
                         continue
@@ -347,21 +362,30 @@ class LoadBalancer:
         print(f"LoadBalancer: Active strategy set to {strategy_name}")
 
     def execute_strategy(self):
-        """
-        Route traffic based on the active strategy.
-        """
         if not self.known_agents:
             raise ValueError("No agents available for routing.")
 
-        self.strategy_executor.known_agents = self.known_agents  # Sync agents with the strategy executor
+        self.strategy_executor.known_agents = self.known_agents
+        self.dynamic_executor.known_agents = self.known_agents
 
         if self.active_strategy == "Round Robin":
-            return self.strategy_executor.round_robin()
+            target = self.strategy_executor.round_robin()
         elif self.active_strategy == "Weighted Round Robin":
-            return self.strategy_executor.weighted_round_robin()
+            target = self.strategy_executor.weighted_round_robin()
+        elif self.active_strategy == "Least Connections":
+            target = self.dynamic_executor.least_connections()
+        elif self.active_strategy == "Least Response Time":
+            target = self.dynamic_executor.response_time()
+        elif self.active_strategy == "Resource-Based":
+            target = self.dynamic_executor.resource_based()
         else:
             raise ValueError(f"Unsupported strategy: {self.active_strategy}")
+        
+        # Log which strategy was used and the selected target
+        traffic_log.info(f"Executing {self.active_strategy} strategy", extra={"server": target})
+        return target
 
+    
 if __name__ == "__main__":
     load_balancer = LoadBalancer()
     # Start monitoring the agents, pinging them every 10 seconds
