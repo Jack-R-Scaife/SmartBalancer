@@ -1,4 +1,4 @@
-import time
+from time import time
 from datetime import datetime
 from app import db, create_app
 from app.models import Server
@@ -199,10 +199,12 @@ class LoadBalancer:
                 # Default interval is 1 second unless otherwise specified
                 interval = agent_intervals.get(agent_ip, 1)
                 try:
+                    start_time = time()
                     response = self.send_tcp_request(agent_ip, 9000, "health")
+                    response_time = (time() - start_time) * 1000  # Convert to milliseconds
                     print(f"Raw response from agent {agent_ip}: {response}")
 
-                    agent_status = "unknown"  # Default value for agent_status
+                    agent_status = "down"  # Default value for agent_status
 
                     if response.get("status") == "success":
                         agent_status_code = response.get("health")
@@ -216,6 +218,8 @@ class LoadBalancer:
                             if server:
                                 server.status = agent_status
                                 db.session.commit()
+                            # Update DynamicAlgorithms with response time
+                            self.dynamic_executor.response_times[agent_ip] = response_time  
 
                             # Adjust interval based on the agent's status
                             if agent_status in ['idle', 'down']:
@@ -228,15 +232,18 @@ class LoadBalancer:
                         else:
                             print(f"No status returned from agent {agent_ip}")
                             self.update_server_status(agent_ip, "offline")
-                            agent_intervals[agent_ip] = 10  # Default slower interval for offline agents
+                            self.dynamic_executor.response_times[agent_ip] = float('inf')
+                            agent_intervals[agent_ip] = 30  # Default slower interval for offline agents
                     else:
                         print(f"Agent {agent_ip} is not responding.")
                         self.update_server_status(agent_ip, "offline")
+                        self.dynamic_executor.response_times[agent_ip] = float('inf')
                         agent_intervals[agent_ip] = 10  # Slow interval for unresponsive agents
 
                 except Exception as e:
                     print(f"Error with TCP connection to agent {agent_ip}: {e}")
                     self.update_server_status(agent_ip, "offline")
+                    self.dynamic_executor.response_times[agent_ip] = float('inf')
                     agent_intervals[agent_ip] = 10  # Slow interval for agents that caused an error
 
             # Return the calculated intervals for further use in sleep
