@@ -24,10 +24,18 @@ prepare_files() {
         exit 1
     fi
 
-    # Remove the agent folder from the cloned repository
+    # Prepare agent folder for backend servers
+    if [ -d "$TEMP_DIR/repo/$AGENT_FOLDER" ]; then
+        cp -r "$TEMP_DIR/repo/$AGENT_FOLDER" "$TEMP_DIR/agent"
+    else
+        echo "Error: '$AGENT_FOLDER' folder does not exist in the repository!"
+        exit 1
+    fi
+
+    # Remove the agent folder for load balancer preparation
     rm -rf "$TEMP_DIR/repo/$AGENT_FOLDER"
 
-    # Copy the repository (minus the agent folder) to the temporary directory for the load balancer
+    # Prepare the remaining repository for load balancer
     cp -r "$TEMP_DIR/repo/" "$TEMP_DIR/SmartBalancer"
 
     # Clean up repository clone
@@ -41,7 +49,7 @@ copy_with_fallback() {
     local password="$4"
 
     echo "Attempting to copy using rsync..."
-    sshpass -p "$PASSWORD" rsync -avz -e "ssh -o StrictHostKeyChecking=no" "$src" "$vm:$dest" 2>/dev/null
+    sshpass -p "$password" rsync -avz -e "ssh -o StrictHostKeyChecking=no" "$src" "$vm:$dest" 2>/dev/null
     if [ $? -ne 0 ]; then
         echo "rsync failed. Falling back to scp..."
         sshpass -p "$password" scp -r "$src" "$vm:$dest"
