@@ -14,24 +14,21 @@ prepare_files() {
     echo "Preparing deployment files..."
     rm -rf "$TEMP_DIR"
     mkdir -p "$TEMP_DIR"
-    
+
     # Clone repo locally
     git clone "$GITHUB_REPO" "$TEMP_DIR/repo"
 
-    # Ensure agent folder exists
-    if [ ! -d "$TEMP_DIR/repo/$AGENT_FOLDER" ]; then
-        echo "Error: '$AGENT_FOLDER' does not exist in the repository!"
+    # Ensure repository was cloned
+    if [ ! -d "$TEMP_DIR/repo" ]; then
+        echo "Error: Repository clone failed!"
         exit 1
     fi
 
-    # Copy agent folder to the temporary directory
-    cp -r "$TEMP_DIR/repo/$AGENT_FOLDER" "$TEMP_DIR/agent"
+    # Remove the agent folder from the cloned repository
+    rm -rf "$TEMP_DIR/repo/$AGENT_FOLDER"
 
-    # Verify the copy was successful
-    if [ ! "$(ls -A $TEMP_DIR/agent)" ]; then
-        echo "Error: Agent folder is empty after copying!"
-        exit 1
-    fi
+    # Copy the repository (minus the agent folder) to the temporary directory for the load balancer
+    cp -r "$TEMP_DIR/repo/" "$TEMP_DIR/SmartBalancer"
 
     # Clean up repository clone
     rm -rf "$TEMP_DIR/repo"
@@ -108,15 +105,15 @@ deploy_to_lb() {
     USERNAME=$(echo "$LB_VM" | cut -d '@' -f 1)
     PASSWORD=$USERNAME
 
-    # Clean up old directories
+    # Clean up old directories on the load balancer
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
         rm -rf ~/SmartBalancer
     "
 
-    # Copy repo to load balancer with fallback
-    copy_with_fallback "$TEMP_DIR/agent/" "~/SmartBalancer/" "$LB_VM" "$PASSWORD"
+    # Copy repository excluding the agent folder
+    copy_with_fallback "$TEMP_DIR/SmartBalancer/" "~/SmartBalancer/" "$LB_VM" "$PASSWORD"
 
-    # Set up environment
+    # Set up environment on the load balancer
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
         sudo apt update && sudo apt install -y python3 python3-venv git &&
         python3 -m venv ~/SmartBalancer/venv &&
