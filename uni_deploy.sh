@@ -6,21 +6,10 @@ CLONE_DIR="/tmp/load_balancer_repo"
 AGENT_FOLDER="agent"
 BACKEND_VMS=("ubs1@192.168.1.3" "ubs2@192.168.1.4" "ubs3@192.168.1.5" "ubs4@192.168.1.6" "ubs5@192.168.1.7")
 LB_VM="192.168.1.2"
-TARGET_DIR="/opt/load_balancer"  # Directory to SCP files
+TARGET_DIR="~/load_balancer"  # Directory to SCP files in the home directory
 
 # Exit on error
 set -e
-
-# Function to set up a virtual environment and install dependencies
-setup_venv() {
-    local target_dir=$1
-    echo "Setting up virtual environment in $target_dir"
-    python3 -m venv "$target_dir/venv"
-    source "$target_dir/venv/bin/activate"
-    pip install --upgrade pip
-    pip install -r "$target_dir/requirements.txt"
-    deactivate
-}
 
 # Clone the latest repository
 if [ -d "$CLONE_DIR" ]; then
@@ -34,10 +23,17 @@ chmod -R 755 "$CLONE_DIR"
 # Deploy to Backend VMs
 for VM in "${BACKEND_VMS[@]}"; do
     echo "Deploying agent to backend VM: $VM"
-    ssh "$VM" "mkdir -p $TARGET_DIR/$AGENT_FOLDER && chmod -R 755 $TARGET_DIR"
+
+    ssh "$VM" << EOF
+        set -e
+        mkdir -p $TARGET_DIR/$AGENT_FOLDER
+        chmod -R 755 $TARGET_DIR
+EOF
+
     scp -r "$CLONE_DIR/$AGENT_FOLDER" "$VM:$TARGET_DIR/"
 
     ssh "$VM" << EOF
+        set -e
         cd $TARGET_DIR/$AGENT_FOLDER
         python3 -m venv venv
         source venv/bin/activate
@@ -72,6 +68,7 @@ ssh "$LB_VM" "mkdir -p $TARGET_DIR && chmod -R 755 $TARGET_DIR"
 scp -r "$CLONE_DIR"/* "$LB_VM:$TARGET_DIR/"
 
 ssh "$LB_VM" << EOF
+    set -e
     cd $TARGET_DIR
     python3 -m venv venv
     source venv/bin/activate
