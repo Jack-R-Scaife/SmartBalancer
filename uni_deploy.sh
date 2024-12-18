@@ -50,7 +50,7 @@ deploy_to_backend() {
 
         # Set up environment and service
         sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$vm" "
-            sudo apt update && sudo apt install -y python3 python3-venv git &&
+            sudo apt update && sudo apt install -y python3 python3-venv git rsync &&
             python3 -m venv ~/agent/venv &&
             source ~/agent/venv/bin/activate &&
             pip install -r ~/agent/$REQUIREMENTS_FILE_BACKEND &&
