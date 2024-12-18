@@ -13,6 +13,10 @@ deploy_to_backend() {
     echo "Deploying agent to backend servers..."
     for vm in "${BACKEND_VMS[@]}"; do
         echo "Processing $vm..."
+        
+        # Extract username and host
+        USERNAME=$(echo "$vm" | cut -d '@' -f 1)
+        HOST=$(echo "$vm" | cut -d '@' -f 2)
 
         # Install dependencies and clone repository
         ssh -t "$vm" "sudo apt update && sudo apt install -y python3 python3-venv git"
@@ -28,9 +32,9 @@ Description=SmartBalancer Agent Service
 After=network.target
 
 [Service]
-User=$(whoami)
-WorkingDirectory=/home/$(whoami)/SmartBalancer/${AGENT_FOLDER}
-ExecStart=/home/$(whoami)/SmartBalancer/${AGENT_FOLDER}/venv/bin/python /home/$(whoami)/SmartBalancer/${AGENT_FOLDER}/agent_script.py
+User=$USERNAME
+WorkingDirectory=/home/$USERNAME/SmartBalancer/agent
+ExecStart=/home/$USERNAME/SmartBalancer/agent/venv/bin/python /home/$USERNAME/SmartBalancer/agent/agent_script.py
 Restart=always
 
 [Install]
