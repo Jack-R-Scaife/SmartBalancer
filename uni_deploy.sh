@@ -7,8 +7,6 @@ LB_VM="lb@192.168.1.2"
 AGENT_FOLDER="agent"
 REQUIREMENTS_FILE_BACKEND="requirements.txt"
 REQUIREMENTS_FILE_LB="requirements.txt"
-
-# Temporary local directory for deployment files
 TEMP_DIR="/tmp/smartbalancer"
 
 # Functions
@@ -20,8 +18,6 @@ prepare_files() {
     # Clone repo locally and extract the `agent` folder
     git clone "$GITHUB_REPO" "$TEMP_DIR/repo"
     cp -r "$TEMP_DIR/repo/$AGENT_FOLDER" "$TEMP_DIR/agent"
-    
-    # Clean up local clone of the repo
     rm -rf "$TEMP_DIR/repo"
 }
 
@@ -30,15 +26,13 @@ deploy_to_backend() {
     for vm in "${BACKEND_VMS[@]}"; do
         echo "Processing $vm..."
         
-        # Extract username and host
         USERNAME=$(echo "$vm" | cut -d '@' -f 1)
-        HOST=$(echo "$vm" | cut -d '@' -f 2)
-        PASSWORD=$USERNAME  # Password matches username in this controlled environment
+        PASSWORD=$USERNAME
 
-        # Copy the `agent` folder to the backend VM
+        # Copy the `agent` folder
         sshpass -p "$PASSWORD" rsync -avz "$TEMP_DIR/agent" "$vm:~/"
 
-        # Install dependencies, set up the environment, and configure the service
+        # Set up environment and service
         sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$vm" "
             sudo apt update && sudo apt install -y python3 python3-venv git &&
             python3 -m venv ~/agent/venv &&
@@ -70,15 +64,13 @@ EOF
 
 deploy_to_lb() {
     echo "Deploying to load balancer server..."
-    
     USERNAME=$(echo "$LB_VM" | cut -d '@' -f 1)
-    HOST=$(echo "$LB_VM" | cut -d '@' -f 2)
-    PASSWORD=$USERNAME  # Password matches username in this controlled environment
+    PASSWORD=$USERNAME
 
-    # Clone the entire repo locally and upload it to the LB server
+    # Copy repo to load balancer
     sshpass -p "$PASSWORD" rsync -avz --exclude "$AGENT_FOLDER" "$TEMP_DIR/agent" "$LB_VM:~/SmartBalancer"
 
-    # Install dependencies and set up the environment
+    # Set up environment
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
         sudo apt update && sudo apt install -y python3 python3-venv git &&
         python3 -m venv ~/SmartBalancer/venv &&
