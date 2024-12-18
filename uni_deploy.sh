@@ -44,7 +44,7 @@ copy_with_fallback() {
     local password="$4"
 
     echo "Attempting to copy using rsync..."
-    sshpass -p "$password" rsync -avz "$src" "$vm:$dest" 2>/dev/null
+    sshpass -p "$PASSWORD" rsync -avz -e "ssh -o StrictHostKeyChecking=no" "$src" "$vm:$dest" 2>/dev/null
     if [ $? -ne 0 ]; then
         echo "rsync failed. Falling back to scp..."
         sshpass -p "$password" scp -r "$src" "$vm:$dest"
