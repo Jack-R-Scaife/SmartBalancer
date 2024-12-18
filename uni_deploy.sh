@@ -63,6 +63,13 @@ deploy_to_backend() {
         USERNAME=$(echo "$vm" | cut -d '@' -f 1)
         PASSWORD=$USERNAME
 
+        # Clean up old directories and service
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$vm" "
+            sudo systemctl stop agent.service || true &&
+            sudo rm -f /etc/systemd/system/agent.service &&
+            rm -rf ~/agent
+        "
+
         # Copy the `agent` folder with fallback
         copy_with_fallback "$TEMP_DIR/agent/" "~/agent/" "$vm" "$PASSWORD"
 
@@ -101,12 +108,18 @@ deploy_to_lb() {
     USERNAME=$(echo "$LB_VM" | cut -d '@' -f 1)
     PASSWORD=$USERNAME
 
+    # Clean up old directories
+    sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
+        rm -rf ~/SmartBalancer
+    "
+
     # Copy repo to load balancer with fallback
     copy_with_fallback "$TEMP_DIR/agent/" "~/SmartBalancer/" "$LB_VM" "$PASSWORD"
 
     # Set up environment
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
         sudo apt update && sudo apt install -y python3 python3-venv git &&
+        python3 -m venv ~/SmartBalancer/venv &&
         source ~/SmartBalancer/venv/bin/activate &&
         pip install -r ~/SmartBalancer/$REQUIREMENTS_FILE_LB &&
         sudo chown -R $USERNAME:$USERNAME ~/SmartBalancer
