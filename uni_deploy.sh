@@ -24,14 +24,17 @@ chmod -R 755 "$CLONE_DIR"
 for VM in "${BACKEND_VMS[@]}"; do
     echo "Deploying agent to backend VM: $VM"
 
+    # Prepare directories on remote VM
     ssh -t "$VM" << EOF
         set -e
         mkdir -p ~/$TARGET_DIR/$AGENT_FOLDER
         chmod -R 755 ~/$TARGET_DIR
 EOF
 
+    # Copy agent files
     scp -r "$CLONE_DIR/$AGENT_FOLDER" "$VM:~/$TARGET_DIR/"
 
+    # Set up virtual environment and install requirements
     ssh -t "$VM" << EOF
         set -e
         cd ~/$TARGET_DIR/$AGENT_FOLDER
@@ -40,25 +43,32 @@ EOF
         pip install --upgrade pip
         pip install -r requirements.txt
         deactivate
+EOF
 
-        # Set up agent.py as a systemd service
-        echo "[Unit]
-        Description=Agent Service
-        After=network.target
+    # Create systemd service file
+    ssh -t "$VM" "sudo tee /etc/systemd/system/agent.service > /dev/null" << EOF
+[Unit]
+Description=Agent Service
+After=network.target
 
-        [Service]
-        User=$(whoami)
-        WorkingDirectory=~/$TARGET_DIR/$AGENT_FOLDER
-        ExecStart=~/$TARGET_DIR/$AGENT_FOLDER/venv/bin/python ~/$TARGET_DIR/$AGENT_FOLDER/agent.py
-        Restart=always
+[Service]
+User=$(whoami)
+WorkingDirectory=~/$TARGET_DIR/$AGENT_FOLDER
+ExecStart=~/$TARGET_DIR/$AGENT_FOLDER/venv/bin/python ~/$TARGET_DIR/$AGENT_FOLDER/agent.py
+Restart=always
 
-        [Install]
-        WantedBy=multi-user.target" | sudo tee /etc/systemd/system/agent.service > /dev/null
+[Install]
+WantedBy=multi-user.target
+EOF
 
+    # Enable and start the service
+    ssh -t "$VM" << EOF
+        set -e
         sudo systemctl daemon-reload
         sudo systemctl enable agent.service
         sudo systemctl start agent.service
 EOF
+
     echo "Agent deployed and service started on $VM"
 done
 
