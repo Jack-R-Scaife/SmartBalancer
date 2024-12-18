@@ -4,7 +4,7 @@
 GITHUB_REPO="https://github.com/Jack-R-Scaife/SmartBalancer.git"
 CLONE_DIR="/tmp/load_balancer_repo"
 AGENT_FOLDER="agent"
-BACKEND_VMS=("192.168.1.3" "192.168.1.4" "192.168.1.5" "192.168.1.6" "192.168.1.7" "192.168.1.8" "192.168.1.9" "192.168.1.10" "192.168.1.11" "192.168.1.12" "192.168.1.13" "192.168.1.14" "192.168.1.15")
+BACKEND_VMS=("ubs1@192.168.1.3" "ubs2@192.168.1.4" "ubs3@192.168.1.5" "ubs4@192.168.1.6" "ubs5@192.168.1.7")
 LB_VM="192.168.1.2"
 TARGET_DIR="/opt/load_balancer"  # Directory to SCP files
 
