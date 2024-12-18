@@ -24,7 +24,7 @@ chmod -R 755 "$CLONE_DIR"
 for VM in "${BACKEND_VMS[@]}"; do
     echo "Deploying agent to backend VM: $VM"
 
-    ssh "$VM" << EOF
+    ssh -t "$VM" << EOF
         set -e
         mkdir -p ~/$TARGET_DIR/$AGENT_FOLDER
         chmod -R 755 ~/$TARGET_DIR
@@ -32,7 +32,7 @@ EOF
 
     scp -r "$CLONE_DIR/$AGENT_FOLDER" "$VM:~/$TARGET_DIR/"
 
-    ssh "$VM" << EOF
+    ssh -t "$VM" << EOF
         set -e
         cd ~/$TARGET_DIR/$AGENT_FOLDER
         python3 -m venv venv
@@ -64,10 +64,10 @@ done
 
 # Deploy to Load Balancer or REST VM
 echo "Deploying to Load Balancer/REST VM: $LB_VM"
-ssh "$LB_VM" "mkdir -p ~/$TARGET_DIR && chmod -R 755 ~/$TARGET_DIR"
+ssh -t "$LB_VM" "mkdir -p ~/$TARGET_DIR && chmod -R 755 ~/$TARGET_DIR"
 scp -r "$CLONE_DIR"/* "$LB_VM:~/$TARGET_DIR/"
 
-ssh "$LB_VM" << EOF
+ssh -t "$LB_VM" << EOF
     set -e
     cd ~/$TARGET_DIR
     python3 -m venv venv
