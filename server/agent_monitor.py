@@ -1,5 +1,5 @@
 import time
-import datetime
+from datetime import datetime
 from app import db, create_app
 from app.models import Server
 import threading
@@ -199,9 +199,9 @@ class LoadBalancer:
                 # Default interval is 1 second unless otherwise specified
                 interval = agent_intervals.get(agent_ip, 1)
                 try:
-                    start_time = time()
+                    start_time = time.time()
                     response = self.send_tcp_request(agent_ip, 9000, "health")
-                    response_time = (time() - start_time) * 1000  # Convert to milliseconds
+                    response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
                     print(f"Raw response from agent {agent_ip}: {response}")
 
                     agent_status = "down"  # Default value for agent_status
@@ -389,7 +389,7 @@ class LoadBalancer:
             raise ValueError(f"Unsupported strategy: {self.active_strategy}")
         
         # Log which strategy was used and the selected target
-        traffic_log.info(f"Executing {self.active_strategy} strategy", extra={"server": target})
+        traffic_log.info(f"Strategy: {load_balancer.active_strategy}, Target Server: {target}")
         return target
 
     
