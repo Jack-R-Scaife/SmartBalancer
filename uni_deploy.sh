@@ -13,43 +13,46 @@ deploy_to_backend() {
     echo "Deploying agent to backend servers..."
     for vm in "${BACKEND_VMS[@]}"; do
         echo "Processing $vm..."
-        
-        ssh "$vm" "sudo apt update && sudo apt install -y python3 python3-venv git"
-        ssh "$vm" "rm -rf ~/SmartBalancer && git clone $GITHUB_REPO ~/SmartBalancer"
-        
-        # Copy agent folder and set up environment
-        ssh "$vm" "python3 -m venv ~/SmartBalancer/${AGENT_FOLDER}/venv && source ~/SmartBalancer/${AGENT_FOLDER}/venv/bin/activate && pip install -r ~/SmartBalancer/${AGENT_FOLDER}/${REQUIREMENTS_FILE_BACKEND}"
-        
-        # Set up agent as a systemd service
-        ssh "$vm" "cat << EOF | sudo tee /etc/systemd/system/agent.service
+
+        # Install dependencies and clone repository
+        ssh -t "$vm" "sudo apt update && sudo apt install -y python3 python3-venv git"
+        ssh -t "$vm" "rm -rf ~/SmartBalancer && git clone $GITHUB_REPO ~/SmartBalancer"
+
+        # Set up virtual environment and install dependencies
+        ssh -t "$vm" "python3 -m venv ~/SmartBalancer/${AGENT_FOLDER}/venv && source ~/SmartBalancer/${AGENT_FOLDER}/venv/bin/activate && pip install -r ~/SmartBalancer/${AGENT_FOLDER}/${REQUIREMENTS_FILE_BACKEND}"
+
+        # Set up and start the systemd service
+        ssh -t "$vm" "cat << EOF | sudo tee /etc/systemd/system/agent.service
 [Unit]
 Description=SmartBalancer Agent Service
 After=network.target
 
 [Service]
-User=$USER
-WorkingDirectory=/home/$USER/SmartBalancer/${AGENT_FOLDER}
-ExecStart=/home/$USER/SmartBalancer/${AGENT_FOLDER}/venv/bin/python /home/$USER/SmartBalancer/${AGENT_FOLDER}/agent_script.py
+User=$(whoami)
+WorkingDirectory=/home/$(whoami)/SmartBalancer/${AGENT_FOLDER}
+ExecStart=/home/$(whoami)/SmartBalancer/${AGENT_FOLDER}/venv/bin/python /home/$(whoami)/SmartBalancer/${AGENT_FOLDER}/agent_script.py
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 EOF"
-        ssh "$vm" "sudo systemctl daemon-reload && sudo systemctl enable agent.service && sudo systemctl start agent.service"
+        ssh -t "$vm" "sudo systemctl daemon-reload && sudo systemctl enable agent.service && sudo systemctl start agent.service"
+        ssh -t "$vm" "sudo systemctl status agent"
         echo "Deployment to $vm completed."
     done
 }
 
 deploy_to_lb() {
     echo "Deploying to load balancer server..."
-    
-    ssh "$LB_VM" "sudo apt update && sudo apt install -y python3 python3-venv git"
-    ssh "$LB_VM" "rm -rf ~/SmartBalancer && git clone $GITHUB_REPO ~/SmartBalancer"
-    
-    # Remove agent folder and set up environment
-    ssh "$LB_VM" "rm -rf ~/SmartBalancer/${AGENT_FOLDER}"
-    ssh "$LB_VM" "python3 -m venv ~/SmartBalancer/venv && source ~/SmartBalancer/venv/bin/activate && pip install -r ~/SmartBalancer/${REQUIREMENTS_FILE_LB}"
-    
+
+    # Install dependencies and clone repository
+    ssh -t "$LB_VM" "sudo apt update && sudo apt install -y python3 python3-venv git"
+    ssh -t "$LB_VM" "rm -rf ~/SmartBalancer && git clone $GITHUB_REPO ~/SmartBalancer"
+
+    # Remove agent folder and set up environment for load balancer
+    ssh -t "$LB_VM" "rm -rf ~/SmartBalancer/${AGENT_FOLDER}"
+    ssh -t "$LB_VM" "python3 -m venv ~/SmartBalancer/venv && source ~/SmartBalancer/venv/bin/activate && pip install -r ~/SmartBalancer/${REQUIREMENTS_FILE_LB}"
+
     echo "Deployment to load balancer completed."
 }
 
