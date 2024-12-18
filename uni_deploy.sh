@@ -15,9 +15,25 @@ prepare_files() {
     rm -rf "$TEMP_DIR"
     mkdir -p "$TEMP_DIR"
     
-    # Clone repo locally and extract the `agent` folder
+    # Clone repo locally
     git clone "$GITHUB_REPO" "$TEMP_DIR/repo"
+
+    # Ensure agent folder exists
+    if [ ! -d "$TEMP_DIR/repo/$AGENT_FOLDER" ]; then
+        echo "Error: '$AGENT_FOLDER' does not exist in the repository!"
+        exit 1
+    fi
+
+    # Copy agent folder to the temporary directory
     cp -r "$TEMP_DIR/repo/$AGENT_FOLDER" "$TEMP_DIR/agent"
+
+    # Verify the copy was successful
+    if [ ! "$(ls -A $TEMP_DIR/agent)" ]; then
+        echo "Error: Agent folder is empty after copying!"
+        exit 1
+    fi
+
+    # Clean up repository clone
     rm -rf "$TEMP_DIR/repo"
 }
 
