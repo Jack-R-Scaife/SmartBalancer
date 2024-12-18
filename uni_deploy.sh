@@ -8,7 +8,23 @@ AGENT_FOLDER="agent"
 REQUIREMENTS_FILE_BACKEND="requirements.txt"
 REQUIREMENTS_FILE_LB="requirements.txt"
 
+# Temporary local directory for deployment files
+TEMP_DIR="/tmp/smartbalancer"
+
 # Functions
+prepare_files() {
+    echo "Preparing deployment files..."
+    rm -rf "$TEMP_DIR"
+    mkdir -p "$TEMP_DIR"
+    
+    # Clone repo locally and extract the `agent` folder
+    git clone "$GITHUB_REPO" "$TEMP_DIR/repo"
+    cp -r "$TEMP_DIR/repo/$AGENT_FOLDER" "$TEMP_DIR/agent"
+    
+    # Clean up local clone of the repo
+    rm -rf "$TEMP_DIR/repo"
+}
+
 deploy_to_backend() {
     echo "Deploying agent to backend servers..."
     for vm in "${BACKEND_VMS[@]}"; do
@@ -17,51 +33,65 @@ deploy_to_backend() {
         # Extract username and host
         USERNAME=$(echo "$vm" | cut -d '@' -f 1)
         HOST=$(echo "$vm" | cut -d '@' -f 2)
+        PASSWORD=$USERNAME  # Password matches username in this controlled environment
 
-        # Install dependencies and clone repository
-        ssh -t "$vm" "sudo apt update && sudo apt install -y python3 python3-venv git"
-        ssh -t "$vm" "rm -rf ~/SmartBalancer && git clone $GITHUB_REPO ~/SmartBalancer"
+        # Copy the `agent` folder to the backend VM
+        sshpass -p "$PASSWORD" rsync -avz "$TEMP_DIR/agent" "$vm:~/"
 
-        # Set up virtual environment and install dependencies
-        ssh -t "$vm" "python3 -m venv ~/SmartBalancer/${AGENT_FOLDER}/venv && source ~/SmartBalancer/${AGENT_FOLDER}/venv/bin/activate && pip install -r ~/SmartBalancer/${AGENT_FOLDER}/${REQUIREMENTS_FILE_BACKEND}"
-
-        # Set up and start the systemd service
-        ssh -t "$vm" "cat << EOF | sudo tee /etc/systemd/system/agent.service
+        # Install dependencies, set up the environment, and configure the service
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$vm" "
+            sudo apt update && sudo apt install -y python3 python3-venv git &&
+            python3 -m venv ~/agent/venv &&
+            source ~/agent/venv/bin/activate &&
+            pip install -r ~/agent/$REQUIREMENTS_FILE_BACKEND &&
+            sudo chown -R $USERNAME:$USERNAME ~/agent &&
+            cat << EOF | sudo tee /etc/systemd/system/agent.service
 [Unit]
 Description=SmartBalancer Agent Service
 After=network.target
 
 [Service]
 User=$USERNAME
-WorkingDirectory=/home/$USERNAME/SmartBalancer/agent
-ExecStart=/home/$USERNAME/SmartBalancer/agent/venv/bin/python /home/$USERNAME/SmartBalancer/agent/agent_script.py
+WorkingDirectory=/home/$USERNAME/agent
+ExecStart=/home/$USERNAME/agent/venv/bin/python /home/$USERNAME/agent/agent_script.py
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
-EOF"
-        ssh -t "$vm" "sudo systemctl daemon-reload && sudo systemctl enable agent.service && sudo systemctl start agent.service"
-        ssh -t "$vm" "sudo systemctl status agent"
+EOF
+            sudo chmod o+rx /home/$USERNAME &&
+            sudo systemctl daemon-reload &&
+            sudo systemctl enable agent.service &&
+            sudo systemctl start agent.service
+        "
         echo "Deployment to $vm completed."
     done
 }
 
 deploy_to_lb() {
     echo "Deploying to load balancer server..."
+    
+    USERNAME=$(echo "$LB_VM" | cut -d '@' -f 1)
+    HOST=$(echo "$LB_VM" | cut -d '@' -f 2)
+    PASSWORD=$USERNAME  # Password matches username in this controlled environment
 
-    # Install dependencies and clone repository
-    ssh -t "$LB_VM" "sudo apt update && sudo apt install -y python3 python3-venv git"
-    ssh -t "$LB_VM" "rm -rf ~/SmartBalancer && git clone $GITHUB_REPO ~/SmartBalancer"
+    # Clone the entire repo locally and upload it to the LB server
+    sshpass -p "$PASSWORD" rsync -avz --exclude "$AGENT_FOLDER" "$TEMP_DIR/agent" "$LB_VM:~/SmartBalancer"
 
-    # Remove agent folder and set up environment for load balancer
-    ssh -t "$LB_VM" "rm -rf ~/SmartBalancer/${AGENT_FOLDER}"
-    ssh -t "$LB_VM" "python3 -m venv ~/SmartBalancer/venv && source ~/SmartBalancer/venv/bin/activate && pip install -r ~/SmartBalancer/${REQUIREMENTS_FILE_LB}"
-
+    # Install dependencies and set up the environment
+    sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
+        sudo apt update && sudo apt install -y python3 python3-venv git &&
+        python3 -m venv ~/SmartBalancer/venv &&
+        source ~/SmartBalancer/venv/bin/activate &&
+        pip install -r ~/SmartBalancer/$REQUIREMENTS_FILE_LB &&
+        sudo chown -R $USERNAME:$USERNAME ~/SmartBalancer
+    "
     echo "Deployment to load balancer completed."
 }
 
 # Main
 echo "Starting deployment process..."
+prepare_files
 deploy_to_backend
 deploy_to_lb
 echo "Deployment process completed successfully!"
