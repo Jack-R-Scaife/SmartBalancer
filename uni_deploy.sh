@@ -81,7 +81,7 @@ After=network.target
 [Service]
 User=$USERNAME
 WorkingDirectory=/home/$USERNAME/agent
-ExecStart=/home/$USERNAME/agent/venv/bin/python /home/$USERNAME/agent/agent_script.py
+ExecStart=/home/$USERNAME/agent/venv/bin/python /home/$USERNAME/agent/agent.py
 Restart=always
 
 [Install]
@@ -107,7 +107,6 @@ deploy_to_lb() {
     # Set up environment
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
         sudo apt update && sudo apt install -y python3 python3-venv git &&
-        python3 -m venv ~/SmartBalancer/venv &&
         source ~/SmartBalancer/venv/bin/activate &&
         pip install -r ~/SmartBalancer/$REQUIREMENTS_FILE_LB &&
         sudo chown -R $USERNAME:$USERNAME ~/SmartBalancer
