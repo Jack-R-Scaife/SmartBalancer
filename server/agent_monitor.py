@@ -1,5 +1,5 @@
-from time import time
-from datetime import datetime
+import time
+import datetime
 from app import db, create_app
 from app.models import Server
 import threading
