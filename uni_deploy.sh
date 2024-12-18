@@ -6,7 +6,7 @@ CLONE_DIR="/tmp/load_balancer_repo"
 AGENT_FOLDER="agent"
 BACKEND_VMS=("ubs1@192.168.1.3" "ubs2@192.168.1.4" "ubs3@192.168.1.5" "ubs4@192.168.1.6" "ubs5@192.168.1.7")
 LB_VM="192.168.1.2"
-TARGET_DIR="/opt/load_balancer"  # Directory to SCP files
+TARGET_DIR="/load_balancer"  # Directory to SCP files
 
 # Exit on error
 set -e
