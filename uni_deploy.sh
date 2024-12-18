@@ -37,6 +37,24 @@ prepare_files() {
     rm -rf "$TEMP_DIR/repo"
 }
 
+copy_with_fallback() {
+    local src="$1"
+    local dest="$2"
+    local vm="$3"
+    local password="$4"
+
+    echo "Attempting to copy using rsync..."
+    sshpass -p "$password" rsync -avz "$src" "$vm:$dest" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "rsync failed. Falling back to scp..."
+        sshpass -p "$password" scp -r "$src" "$vm:$dest"
+        if [ $? -ne 0 ]; then
+            echo "Error: Both rsync and scp failed for $vm."
+            exit 1
+        fi
+    fi
+}
+
 deploy_to_backend() {
     echo "Deploying agent to backend servers..."
     for vm in "${BACKEND_VMS[@]}"; do
@@ -45,8 +63,8 @@ deploy_to_backend() {
         USERNAME=$(echo "$vm" | cut -d '@' -f 1)
         PASSWORD=$USERNAME
 
-        # Copy the `agent` folder
-        sshpass -p "$PASSWORD" rsync -avz "$TEMP_DIR/agent" "$vm:~/"
+        # Copy the `agent` folder with fallback
+        copy_with_fallback "$TEMP_DIR/agent/" "~/agent/" "$vm" "$PASSWORD"
 
         # Set up environment and service
         sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$vm" "
@@ -83,8 +101,8 @@ deploy_to_lb() {
     USERNAME=$(echo "$LB_VM" | cut -d '@' -f 1)
     PASSWORD=$USERNAME
 
-    # Copy repo to load balancer
-    sshpass -p "$PASSWORD" rsync -avz --exclude "$AGENT_FOLDER" "$TEMP_DIR/agent" "$LB_VM:~/SmartBalancer"
+    # Copy repo to load balancer with fallback
+    copy_with_fallback "$TEMP_DIR/agent/" "~/SmartBalancer/" "$LB_VM" "$PASSWORD"
 
     # Set up environment
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
