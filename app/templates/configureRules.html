@@ -581,7 +581,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // Find the Apply Changes button
     const applyChangesButton = document.getElementById('tab2button');
 
-    // Add event listener
+    // Function to extract group_id from URL
+    function getGroupIdFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search); // Get URL parameters
+        return urlParams.get('group_id'); // Extract the group_id parameter
+    }
+
+    // Add event listener to Apply Changes button
     applyChangesButton.addEventListener('click', () => {
         // Gather selected strategies and methods
         const selectedMethods = [];
@@ -612,8 +618,16 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        // Get the group_id from the URL
+        const groupId = getGroupIdFromUrl();
+        if (!groupId) {
+            alert('Group ID is missing from the URL.');
+            return;
+        }
+
         // Prepare the payload for the backend
         const payload = {
+            group_id: groupId, // Include the group ID
             methods: selectedMethods,
             strategies: selectedStrategies
         };
@@ -621,6 +635,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Make the Axios POST request
         axios.post('/api/load_balancer/set_strategy', payload)
             .then(response => {
+                alert(response.data.message || 'Strategy applied successfully.');
             })
             .catch(error => {
                 console.error('Error activating strategy:', error);
@@ -628,7 +643,41 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     });
 });
+document.addEventListener('DOMContentLoaded', function () {
+    const groupId = new URLSearchParams(window.location.search).get('group_id');
+    if (!groupId) {
+        console.error('Group ID is missing in the URL.');
+        return;
+    }
 
+    // Fetch active strategy from the backend
+axios.get(`/api/load_balancer/active_strategy/${groupId}`)
+    .then(response => {
+        if (response.data.status === 'success') {
+            const { strategy_name, method_type } = response.data;
+
+            // Check the method checkboxes
+            if (method_type === 'static') {
+                document.getElementById('staticMethod').checked = true;
+            } else if (method_type === 'dynamic') {
+                document.getElementById('dynamicMethod').checked = true;
+            }
+
+            // Check the strategy checkbox
+            const strategyCheckbox = Array.from(document.querySelectorAll('.checkbox-group input[type="checkbox"]'))
+                .find(checkbox => checkbox.labels[0].textContent.trim() === strategy_name);
+
+            if (strategyCheckbox) {
+                strategyCheckbox.checked = true;
+            }
+        } else {
+            console.warn('No active strategy found for this group.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching active strategy:', error);
+    });
+});
   </script>
   <!-- Section 3: Applied Rules -->
   <div class="card-content" id="applied">

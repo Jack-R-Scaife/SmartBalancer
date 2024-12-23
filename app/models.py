@@ -50,10 +50,11 @@ class LoadBalancerSetting(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     active_strategy_id = db.Column(db.Integer, db.ForeignKey('Strategies.strategy_id'), nullable=False)
-    
-    # Relationship to Strategy
-    strategy = db.relationship('Strategy', backref='load_balancer_settings')
+    group_id = db.Column(db.Integer, db.ForeignKey('Server_Groups.group_id'), nullable=False)  # Add this line
 
+    # Relationships
+    strategy = db.relationship('Strategy', backref='load_balancer_settings')
+    group = db.relationship('ServerGroup', backref='load_balancer_settings') 
 class ServerGroupServer(db.Model):
     __tablename__ = 'Server_Group_Servers'
 

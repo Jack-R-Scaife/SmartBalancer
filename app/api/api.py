@@ -2,15 +2,17 @@
 from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers,get_servers_by_group
-from app.models import Server
-import json
+from app.models import Server,LoadBalancerSetting,Strategy
+import json,os
 import random,logging
 from server.traffic_store import TrafficStore
 from server.strategy_manager import StrategyManager
 # Define the blueprint for API routes
 api_blueprint = Blueprint('api', __name__)
 from server.agent_monitor import LoadBalancer
-
+from server.logs_manager import scan_logs
+from flask import render_template
+from flask import make_response
 status_mapping = {
     "healthy": 1,
     "overloaded": 2,
@@ -214,42 +216,227 @@ def fetch_servers(group_id):
 @api_blueprint.route('/load_balancer/set_strategy', methods=['POST'])
 def set_load_balancer_strategy():
     """
-    API endpoint to set the load balancing strategy.
+    API endpoint to set the load balancing strategy for a specific server group.
     """
     try:
         # Parse the request JSON
         data = request.json
-        selected_methods = data.get('methods', [])
-        selected_strategies = data.get('strategies', [])
+        group_id = data.get('group_id')  # Extract group_id
+        strategies = data.get('strategies')  # Extract strategies list
 
         # Validate input
-        if not selected_methods or not selected_strategies:
-            return jsonify({"status": "error", "message": "Methods and strategies are required."}), 400
+        if not group_id or not strategies:
+            return jsonify({"status": "error", "message": "Group ID and Strategy Name are required."}), 400
 
-        # Initialize the LoadBalancer singleton
-        load_balancer = LoadBalancer()
+        # Use the first strategy from the list (if multiple strategies are provided)
+        strategy_name = strategies[0]
 
-        # Handle strategy activation and setting
-        messages = []
-        for strategy_name in selected_strategies:
-            try:
-                # Activate the strategy in StrategyManager
-                message = StrategyManager.activate_strategy(strategy_name)
-                messages.append(message)
+        # Call the function to apply the strategy
+        result = StrategyManager.apply_strategy_to_group(strategy_name, group_id)
 
-                # Set the strategy in LoadBalancer for execution
-                load_balancer.set_active_strategy(strategy_name)
+        # Set the active strategy in the LoadBalancer
+        if result["status"] == "success":
+            load_balancer = LoadBalancer()
+            load_balancer.set_active_strategy(strategy_name)
 
-            except ValueError as e:
-                messages.append(str(e))
+        return jsonify(result), 200 if result["status"] == "success" else 400
 
-        # Response with aggregated results
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_blueprint.route('/load_balancer/active_strategy/<int:group_id>', methods=['GET'])
+def get_active_strategy(group_id):
+    try:
+        setting = LoadBalancerSetting.query.filter_by(active_strategy_id=group_id).first()
+        if not setting:
+            return jsonify({"status": "error", "message": "No active strategy found for this group."}), 404
+
+        strategy = Strategy.query.get(setting.active_strategy_id)
+        if not strategy:
+            return jsonify({"status": "error", "message": "Strategy not found."}), 404
+
         return jsonify({
             "status": "success",
-            "messages": messages,
-            "active_strategy": load_balancer.active_strategy
+            "strategy_name": strategy.name,
+            "method_type": strategy.method_type
         }), 200
 
     except Exception as e:
-        # General error handling
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+def scan_logs(directory='./logs'):
+    try:
+        logs = []
+        for root, _, files in os.walk(directory):
+            for file in files:
+                if file.endswith('.log'):
+                    full_path = os.path.join(root, file)
+                    logs.append({
+                        "name": file,
+                        "path": full_path,
+                        "size": os.path.getsize(full_path),
+                        "modified": os.path.getmtime(full_path)
+                    })
+        return logs
+    except Exception as e:
+        print(f"Error scanning logs: {e}")
+        return []
+
+@api_blueprint.route('/logs', methods=['GET'])
+def get_logs():
+    """
+    API endpoint to fetch .log files from the file system.
+    """
+    logs = scan_logs()  # Default directory is ./logs
+    return jsonify({"status": "success", "logs": logs}), 200
+
+@api_blueprint.route('/logs/content', methods=['GET'])
+def get_log_content():
+    """
+    API endpoint to fetch the content of a specific log file or its metadata.
+    """
+    log_path = request.args.get('path')
+    print(f"Requested log path: {log_path}")  # Debugging
+
+    try:
+        if log_path.endswith('.meta'):
+            print(f"Fetching metadata for: {log_path}")
+            if not os.path.exists(log_path):
+                return jsonify({"status": "success", "meta": {"system": {}, "user": {}}}), 200
+
+            with open(log_path, 'r') as file:
+                meta_data = json.load(file)
+            return jsonify({"status": "success", "meta": meta_data}), 200
+
+        if not os.path.exists(log_path):
+            raise FileNotFoundError(f"Log file not found: {log_path}")
+
+        with open(log_path, 'r') as file:
+            content = file.readlines()
+        return jsonify({"status": "success", "content": content}), 200
+
+    except Exception as e:
+        print(f"Error in get_log_content: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@api_blueprint.route('/logs/view', methods=['GET'])
+def view_log_page():
+    """
+    Render the detailed log view page.
+    """
+    log_path = request.args.get('path')
+    if not log_path:
+        return "Log path is required.", 400
+
+    # Optionally, validate the log path
+    if not os.path.exists(log_path) or not log_path.endswith('.log'):
+        return "Log file not found.", 404
+
+    # Render the log view template and pass the normalized log_path
+    return render_template('log_view.html', log_path=log_path.replace("\\", "/"))
+
+@api_blueprint.route('/logs/custom_rules', methods=['GET', 'POST'])
+def custom_rules():
+    """
+    GET: Fetch custom rules.
+    POST: Save user-defined custom rules.
+    """
+    if request.method == 'GET':
+        try:
+            with open('./custom_rules.json', 'r') as file:
+                rules = json.load(file)
+            return jsonify({"status": "success", "rules": rules}), 200
+        except FileNotFoundError:
+            # If no rules file exists, return an empty list
+            return jsonify({"status": "success", "rules": []}), 200
+        except Exception as e:
+            print(f"Error fetching custom rules: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+    elif request.method == 'POST':
+        data = request.json
+        rules = data.get("rules", [])
+        try:
+            with open('./custom_rules.json', 'w') as file:
+                json.dump(rules, file)
+            return jsonify({"status": "success", "message": "Custom rules saved."}), 200
+        except Exception as e:
+            print(f"Error saving custom rules: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+@api_blueprint.route('/logs/highlight', methods=['POST'])
+def save_highlight():
+    """
+    API endpoint to save user-defined highlights.
+    """
+    try:
+        data = request.json
+        log_path = data.get("path")
+        highlights = data.get("highlights", {})
+
+        if not log_path:
+            raise ValueError("Log path is required.")
+
+        meta_path = f"{log_path}.meta"
+
+        # Load existing metadata if it exists
+        try:
+            with open(meta_path, 'r') as meta_file:
+                meta_data = json.load(meta_file)
+        except FileNotFoundError:
+            meta_data = {"system": {}, "user": {}}  # Initialize structure if file doesn't exist
+
+        # Ensure `system` and `user` keys exist in the metadata
+        if "system" not in meta_data:
+            meta_data["system"] = {}
+        if "user" not in meta_data:
+            meta_data["user"] = {}
+
+        # Update user highlights
+        meta_data["user"].update(highlights)
+
+        # Save updated metadata
+        with open(meta_path, 'w') as meta_file:
+            json.dump(meta_data, meta_file)
+
+        return jsonify({"status": "success", "message": "Highlights saved."}), 200
+
+    except Exception as e:
+        print(f"Error saving highlights: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+@api_blueprint.route('/logs/highlight/clear', methods=['POST'])
+def clear_highlights():
+    """
+    API endpoint to clear user-defined highlights for a given log file's .meta.
+    """
+    try:
+        data = request.json
+        log_path = data.get("path")
+
+        if not log_path:
+            raise ValueError("Log path is required.")
+
+        meta_path = f"{log_path}.meta"
+
+        # If there's no .meta file, there's nothing to clear
+        if os.path.exists(meta_path):
+            with open(meta_path, 'r') as meta_file:
+                meta_data = json.load(meta_file)
+
+            # Just reset the "user" highlights
+            if "user" in meta_data:
+                meta_data["user"] = {}
+
+            # If you also want to clear system highlights, uncomment below:
+            # meta_data["system"] = {}
+
+            # Save updated metadata
+            with open(meta_path, 'w') as meta_file:
+                json.dump(meta_data, meta_file)
+
+        return jsonify({"status": "success", "message": "User highlights cleared."}), 200
+
+    except Exception as e:
+        print(f"Error clearing highlights: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500

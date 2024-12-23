@@ -66,6 +66,11 @@ def rules():
     session['sub_links_open'] = False
     return render_template('rules.html')
 
+@main_blueprint.route('/logs')
+def logs():
+    session['sub_links_open'] = False
+    return render_template('logs.html')
+
 @main_blueprint.route('/memory_storage')
 def memory_storage():
     session['sub_links_open'] = True
@@ -95,3 +100,4 @@ def toggle_sublinks():
     session['sub_links_open'] = True
     
     return jsonify({'message': 'Sub-links toggled successfully!'})
+

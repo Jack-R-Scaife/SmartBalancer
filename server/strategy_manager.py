@@ -1,6 +1,7 @@
 from app.models import Strategy, LoadBalancerSetting
 from server.static_algorithms import StaticAlgorithms
 from server.dynamic_algorithms import DynamicAlgorithms
+from server.servergroups import ServerGroup
 from app import db
 
 class StrategyManager:
@@ -51,3 +52,39 @@ class StrategyManager:
             raise ValueError(f"Unsupported strategy: {strategy_name}")
 
         return f"{strategy_name} strategy activated successfully."
+    
+    def apply_strategy_to_group(strategy_name, group_id):
+        """
+        Applies a load balancing strategy to a specific server group and saves it in the database.
+        """
+        try:
+            # Fetch the strategy
+            strategy = Strategy.query.filter_by(name=strategy_name).first()
+            if not strategy:
+                raise ValueError(f"Invalid strategy name: {strategy_name}")
+
+            # Fetch the group
+            group = ServerGroup.query.get(group_id)
+            if not group:
+                raise ValueError(f"Invalid group ID: {group_id}")
+
+            # Update or create the LoadBalancerSetting for the group
+            load_balancer_setting = LoadBalancerSetting.query.filter_by(active_strategy_id=group_id).first()
+            if not load_balancer_setting:
+                load_balancer_setting = LoadBalancerSetting(
+                    failover_priority="",
+                    predictive_enabled=False,
+                    active_strategy_id=strategy.strategy_id
+                )
+                db.session.add(load_balancer_setting)
+            else:
+                load_balancer_setting.active_strategy_id = strategy.strategy_id
+
+            db.session.commit()
+
+            # Return success message
+            return {"status": "success", "message": f"Strategy {strategy_name} applied to group {group.name} successfully."}
+
+        except Exception as e:
+            db.session.rollback()
+            return {"status": "error", "message": str(e)}

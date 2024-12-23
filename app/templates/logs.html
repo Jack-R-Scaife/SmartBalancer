@@ -1,0 +1,118 @@
+<!-- templates/dashboard.html -->
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+{% block content %}
+<link href="{{ url_for('static', filename='CSS/dashboard.css') }}" rel="stylesheet">
+<div class="container mt-4">
+    <!-- Search Bar -->
+    <div class="d-flex mb-3">
+        <input type="text" class="form-control search-bar me-2" placeholder="Search logs...">
+    </div>
+    <div class="d-flex mb-3">
+        <select class="form-select me-2" id="group-filter">
+            <option value="all" selected>All Groups</option>
+            <option value="group1">Group 1</option>
+            <option value="group2">Group 2</option>
+        </select>
+        <select class="form-select me-2" id="date-filter">
+            <option value="all" selected>All Dates</option>
+            <option value="2024-12-22">2024-12-22</option>
+            <option value="2024-12-23">2024-12-23</option>
+        </select>
+        <select class="form-select" id="log-type-filter">
+            <option value="all" selected>All Logs</option>
+            <option value="error">Errors</option>
+            <option value="info">Info</option>
+            <option value="warning">Warnings</option>
+        </select>
+    </div>
+
+    <!-- Logs Container -->
+    <div id="logs-container" class="list-group"></div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const groupFilter = document.getElementById("group-filter");
+    const dateFilter = document.getElementById("date-filter");
+    const logTypeFilter = document.getElementById("log-type-filter");
+
+    // Function to filter logs
+    function filterLogs() {
+        const groupValue = groupFilter.value;
+        const dateValue = dateFilter.value;
+        const logTypeValue = logTypeFilter.value;
+
+        document.querySelectorAll("#logs-container .list-group-item").forEach(log => {
+            const logGroup = log.getAttribute("data-group");
+            const logDate = log.getAttribute("data-date");
+            const logType = log.getAttribute("data-type");
+
+            // Show or hide based on filters
+            const matchesGroup = groupValue === "all" || logGroup === groupValue;
+            const matchesDate = dateValue === "all" || logDate === dateValue;
+            const matchesType = logTypeValue === "all" || logType === logTypeValue;
+
+            if (matchesGroup && matchesDate && matchesType) {
+                log.classList.remove("d-none");
+            } else {
+                log.classList.add("d-none");
+            }
+        });
+    }
+
+    // Event listeners for filters
+    groupFilter.addEventListener("change", filterLogs);
+    dateFilter.addEventListener("change", filterLogs);
+    logTypeFilter.addEventListener("change", filterLogs);
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    const logsContainer = document.getElementById("logs-container");
+
+    // Fetch log files from the backend
+    axios.get('/api/logs')
+        .then(response => {
+            if (response.data.status === "success") {
+                const logs = response.data.logs;
+                logsContainer.innerHTML = ""; // Clear existing logs
+                logs.forEach(log => {
+                    // Create a log item
+                    const logItem = document.createElement("div");
+                    logItem.className = "list-group-item";
+                    logItem.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">${log.name}</h6>
+                            <button class="btn btn-sm btn-info" onclick="location.href='/api/logs/view?path=${encodeURIComponent(log.path)}'">View</button>
+                        </div>
+                        <p class="mb-0 text-muted">Size: ${log.size} bytes | Modified: ${log.modified}</p>
+                    `;
+                    logsContainer.appendChild(logItem);
+                });
+            } else {
+                logsContainer.innerHTML = `<p class="text-danger">Failed to fetch logs.</p>`;
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching logs:", error);
+            logsContainer.innerHTML = `<p class="text-danger">An error occurred while fetching logs.</p>`;
+        });
+});
+
+// Fetch and display log content
+function fetchLogContent(logPath) {
+    axios.get(`/api/logs/content?path=${encodeURIComponent(logPath)}`)
+        .then(response => {
+            if (response.data.status === "success") {
+                alert(`Log Content for ${logPath}:\n\n${response.data.content}`);
+            } else {
+                console.error("Failed to fetch log content:", response.data.message);
+                alert("Failed to fetch log content.");
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching log content:", error);
+            alert("An error occurred while fetching log content.");
+        });
+}
+</script>
+{% endblock %}

@@ -1,29 +1,36 @@
 import time
 from datetime import datetime
 from app import db, create_app
-from app.models import Server
+from app.models import Server, LoadBalancerSetting,Strategy
 import threading
-import socket
+import socket, os
 import json
 import logging
 from server.traffic_store import TrafficStore
 from server.static_algorithms import StaticAlgorithms
 from server.dynamic_algorithms import DynamicAlgorithms
 # Configure logging
+LOGS_DIR = "./logs"
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+# Configure logging
 logging.basicConfig(
-    filename='agent_monitor.log',  # Log file name
-    level=logging.DEBUG,  # Log everything from DEBUG level upwards
-    format='%(asctime)s - %(levelname)s - %(message)s'  # Log format
+    filename=os.path.join(LOGS_DIR, 'agent_monitor.log'),
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
 traffic_logger = logging.getLogger("traffic_lb")
-traffic_handler = logging.FileHandler("traffic_lb.log")
+traffic_handler = logging.FileHandler(os.path.join(LOGS_DIR, "traffic_lb.log"))
 traffic_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 traffic_handler.setFormatter(traffic_formatter)
 traffic_logger.addHandler(traffic_handler)
 traffic_logger.setLevel(logging.INFO)
+
 traffic_log = logging.getLogger("traffic_log")
-traffic_handler = logging.FileHandler("traffic_logs.log")
-traffic_formatter = logging.Formatter("%(asctime)s - Strategy: %(message)s, Target Server: %(server)s")
+traffic_handler = logging.FileHandler(os.path.join(LOGS_DIR, "traffic_logs.log"))
+traffic_formatter = logging.Formatter("%(asctime)s - Strategy: %(message)s, Target Server:")
 traffic_handler.setFormatter(traffic_formatter)
 traffic_log.addHandler(traffic_handler)
 traffic_log.setLevel(logging.INFO)
@@ -46,6 +53,7 @@ class LoadBalancer:
             self.dynamic_executor = DynamicAlgorithms()
             self.active_strategy = None  # Track the active strategy
             self.load_agents_from_db()
+            self.load_saved_strategies()  # New step to load strategies
             self.initialized = True
 
     def load_agents_from_db(self):
@@ -319,9 +327,8 @@ class LoadBalancer:
         duration = traffic_config["duration"]
 
         # Access the LoadBalancer instance
-        load_balancer = LoadBalancer()
 
-        if not load_balancer.active_strategy:
+        if not self.active_strategy:
             logging.error("No active strategy set in LoadBalancer.")
             return {"status": "error", "message": "No active strategy set"}
 
@@ -332,11 +339,11 @@ class LoadBalancer:
             for _ in range(rate):
                 try:
                     # Determine the target agent using the active strategy
-                    target_agent = load_balancer.execute_strategy()
+                    target_agent = self.execute_strategy()
 
                     # Log the traffic event
                     traffic_log.info(
-                        f"{load_balancer.active_strategy}",
+                        f"{self.active_strategy}",
                         extra={"server": target_agent}
                     )
 
@@ -389,9 +396,20 @@ class LoadBalancer:
             raise ValueError(f"Unsupported strategy: {self.active_strategy}")
         
         # Log which strategy was used and the selected target
-        traffic_log.info(f"Strategy: {load_balancer.active_strategy}, Target Server: {target}")
+        traffic_log.info(f"Strategy: {self.active_strategy}, Target Server: {target}")
         return target
-
+    def load_saved_strategies(self):
+        """
+        Load saved strategies from the database and apply them to the LoadBalancer.
+        """
+        with self.app.app_context():
+            settings = LoadBalancerSetting.query.all()
+            for setting in settings:
+                strategy = Strategy.query.get(setting.active_strategy_id)
+                if strategy:
+                    self.active_strategy = strategy.name
+                    print(f"Loaded strategy '{strategy.name}' for group.")
+   
     
 if __name__ == "__main__":
     load_balancer = LoadBalancer()
