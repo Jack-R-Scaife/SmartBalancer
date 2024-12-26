@@ -3,20 +3,26 @@
 {% block content %}
 <div class="container mt-4">
     <!-- Highlight Similar Logs Toggle -->
-    <div class="form-check mb-3">
+      <div class="mb-3 categorytoggles">
+        <div class="form-check form-check-inline">
         <input class="form-check-input" type="checkbox" id="highlight-similar-toggle">
         <label class="form-check-label" for="highlight-similar-toggle">
             Highlight Similar Logs
         </label>
-        <button id="clear-highlights-btn" class="btn btn-secondary mb-3">
+      </div>
+      <div class="form-check form-check-inline">
+
+        <button id="clear-highlights-btn" class="cstmbutton">
             Clear All User Highlights
         </button>
-    </div>
+      </div>
+
+      </div>
 
     <!-- Filters -->
     <div class="d-flex flex-wrap mb-3">
-        <input type="text" class="form-control me-2 mb-2" id="log-search" placeholder="Search logs...">
-        <select class="form-select me-2 mb-2" id="log-filter">
+        <input type="text" class="search-bar" id="log-search" placeholder="Search logs...">
+        <select class="customselect" id="log-filter">
             <option value="all" selected>All Logs</option>
             <option value="critical">Critical</option>
             <option value="warning">Warning</option>
@@ -28,7 +34,7 @@
     </div>
 
     <!-- Category Toggles -->
-    <div class="mb-3">
+    <div class="mb-3 categorytoggles">
         <div class="form-check form-check-inline">
             <input class="form-check-input" type="checkbox" id="toggle-critical" checked>
             <label class="form-check-label" for="toggle-critical">Show Critical</label>
@@ -56,7 +62,7 @@
     </div>
 
     <!-- Log Viewer -->
-    <div id="log-content" class="bg-light p-3 rounded" style="max-height: 500px; overflow-y: auto; font-family: monospace;">
+    <div id="log-content" class=" cstContent rounded" style="max-height: 600px; overflow-y: auto; font-family: monospace;">
         <!-- Logs dynamically rendered here -->
     </div>
 
@@ -313,6 +319,61 @@ Object.values(toggles).forEach(toggle => toggle.addEventListener("change", filte
 /* Context menu styles */
 #highlight-menu {
     z-index: 1000;
+}
+
+.cstContent,.categorytoggles{
+  color: white;
+  background: transparent;
+}
+.cstmbutton{
+  background-color: #11721e;
+  border: solid 1px #408f58;
+  color: white;
+  max-width: 100%;
+  width: 100%;
+  height: 25px;
+  border-radius: 5px;
+  font-size: 16px;
+
+}
+.search-bar {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  height: 30px;
+  border: none;
+    border-bottom-width: medium;
+    border-bottom-style: none;
+    border-bottom-color: currentcolor;
+  border-bottom: white 1px solid;
+  border-radius: 4px;
+  background-color: #0F1011;
+  color: white;
+}
+
+.customselect {
+  border: none;
+   border-bottom: 2px solid #fff; 
+  outline: none;
+  padding: 5px 0;
+  background-color: transparent;
+  box-shadow: none;
+  font-size: 16px;
+  color: #fff;
+  width: 100%;
+
+  height: 36px;
+}
+
+.customselect option {
+  background-color: #ffffff;
+  color: black;
+}
+
+.customselect:focus {
+  border-bottom: 2px solid #fff; 
+  box-shadow: none;
 }
 </style>
 {% endblock %}

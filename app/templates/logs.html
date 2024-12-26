@@ -6,29 +6,21 @@
 <div class="container mt-4">
     <!-- Search Bar -->
     <div class="d-flex mb-3">
-        <input type="text" class="form-control search-bar me-2" placeholder="Search logs...">
+        <input type="text" class="search-bar" placeholder="Search logs...">
     </div>
     <div class="d-flex mb-3">
-        <select class="form-select me-2" id="group-filter">
+        <select class="customselect" id="group-filter">
             <option value="all" selected>All Groups</option>
             <option value="group1">Group 1</option>
             <option value="group2">Group 2</option>
         </select>
-        <select class="form-select me-2" id="date-filter">
+        <select class="customselect" id="date-filter">
             <option value="all" selected>All Dates</option>
-            <option value="2024-12-22">2024-12-22</option>
-            <option value="2024-12-23">2024-12-23</option>
-        </select>
-        <select class="form-select" id="log-type-filter">
-            <option value="all" selected>All Logs</option>
-            <option value="error">Errors</option>
-            <option value="info">Info</option>
-            <option value="warning">Warnings</option>
         </select>
     </div>
 
     <!-- Logs Container -->
-    <div id="logs-container" class="list-group"></div>
+    <div id="logs-container" class="list-group "></div>
 </div>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -42,7 +34,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const dateValue = dateFilter.value;
         const logTypeValue = logTypeFilter.value;
 
-        document.querySelectorAll("#logs-container .list-group-item").forEach(log => {
+        document.querySelectorAll("#logs-container .customlistgroup").forEach(log => {
             const logGroup = log.getAttribute("data-group");
             const logDate = log.getAttribute("data-date");
             const logType = log.getAttribute("data-type");
@@ -78,13 +70,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 logs.forEach(log => {
                     // Create a log item
                     const logItem = document.createElement("div");
-                    logItem.className = "list-group-item";
+                    logItem.className = "customlistgroup";
                     logItem.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">${log.name}</h6>
-                            <button class="btn btn-sm btn-info" onclick="location.href='/api/logs/view?path=${encodeURIComponent(log.path)}'">View</button>
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-0">${log.name} Size: ${log.size} bytes </h6>
+                            <button class="cstmbutton" onclick="location.href='/api/logs/view?path=${encodeURIComponent(log.path)}'">View</button>
                         </div>
-                        <p class="mb-0 text-muted">Size: ${log.size} bytes | Modified: ${log.modified}</p>
+                       
                     `;
                     logsContainer.appendChild(logItem);
                 });
@@ -115,4 +107,66 @@ function fetchLogContent(logPath) {
         });
 }
 </script>
+<style>
+    .search-bar {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  height: 30px;
+  border: none;
+    border-bottom-width: medium;
+    border-bottom-style: none;
+    border-bottom-color: currentcolor;
+  border-bottom: white 1px solid;
+  border-radius: 4px;
+  background-color: #0F1011;
+  color: white;
+}
+
+.customselect {
+  border: none;
+   border-bottom: 2px solid #fff; 
+  outline: none;
+  padding: 5px 0;
+  background-color: transparent;
+  box-shadow: none;
+  font-size: 16px;
+  color: #fff;
+  width: 20%;
+  height: 36px;
+  margin-right: 1rem;
+}
+
+.customselect option {
+  background-color: #ffffff;
+  color: black;
+}
+
+.customselect:focus {
+  border-bottom: 2px solid #fff; 
+  box-shadow: none;
+}
+
+.cstmbutton{
+    background-color: #055858;
+    border: solid 1px #2BB7DC;
+    color: white;
+    width: 25%;
+    height: 25px;
+    border-radius: 5px;
+    font-size: 16px;
+}
+.customlistgroup{
+    background: transparent;
+  color: white;
+  margin-bottom: 1rem;
+  width: 100%;
+  border: none;
+    border-bottom-width: medium;
+    border-bottom-style: none;
+    border-bottom-color: currentcolor;
+  border-bottom: solid 1px white;
+}
+</style>
 {% endblock %}
