@@ -6,34 +6,15 @@ import threading
 import socket, os
 import json
 import logging
-from server.traffic_store import TrafficStore
-from server.static_algorithms import StaticAlgorithms
+import binascii
+import zipfile
+from server.logging_config import main_logger, traffic_logger
 from server.dynamic_algorithms import DynamicAlgorithms
-# Configure logging
-LOGS_DIR = "./logs"
-if not os.path.exists(LOGS_DIR):
-    os.makedirs(LOGS_DIR)
+from server.static_algorithms import StaticAlgorithms
+from server.traffic_store import TrafficStore
 
-# Configure logging
-logging.basicConfig(
-    filename=os.path.join(LOGS_DIR, 'agent_monitor.log'),
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-traffic_logger = logging.getLogger("traffic_lb")
-traffic_handler = logging.FileHandler(os.path.join(LOGS_DIR, "traffic_lb.log"))
-traffic_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-traffic_handler.setFormatter(traffic_formatter)
-traffic_logger.addHandler(traffic_handler)
-traffic_logger.setLevel(logging.INFO)
-
-traffic_log = logging.getLogger("traffic_log")
-traffic_handler = logging.FileHandler(os.path.join(LOGS_DIR, "traffic_logs.log"))
-traffic_formatter = logging.Formatter("%(asctime)s - Strategy: %(message)s, Target Server:")
-traffic_handler.setFormatter(traffic_formatter)
-traffic_log.addHandler(traffic_handler)
-traffic_log.setLevel(logging.INFO)
+main_logger.info("Agent monitor starting")
+traffic_logger.debug("Traffic logger initialized")
 
 class LoadBalancer:
     _instance = None
@@ -47,6 +28,7 @@ class LoadBalancer:
 
     def __init__(self):
         if not hasattr(self, "initialized"):  
+            main_logger.info("Initializing LoadBalancer")
             self.app = create_app()
             self.known_agents = []  # List of known agent IP addresses
             self.strategy_executor = StaticAlgorithms()
@@ -61,66 +43,61 @@ class LoadBalancer:
         Load all agents' IP addresses from the database and add them to known_agents.
         This ensures that previously linked agents are tracked after a restart.
         """
-        with self.app.app_context():  # Ensure we're in an application context
-            servers = Server.query.all()  # Fetch all servers from the DB
-            for server in servers:
-                self.known_agents.append(server.ip_address)
-                print(f"Loaded agent with IP {server.ip_address} from database.")
+        main_logger.info("Loading agents from the database")
+        with self.app.app_context():
+            try:
+                servers = Server.query.all()
+                for server in servers:
+                    self.known_agents.append(server.ip_address)
+                    main_logger.debug(f"Loaded agent with IP {server.ip_address} from database")
+            except Exception as e:
+                main_logger.error(f"Error loading agents from database: {e}")
 
     def add_agent(self, agent_ip):
         """
         Add a new agent's IP address to the list of known agents.
         This method allows the load balancer to track which agents it should monitor.
         """
-        print(f"[DEBUG] Attempting to add agent with IP: {agent_ip}")
-    
+        main_logger.info(f"Attempting to add agent with IP: {agent_ip}")
         with self.app.app_context():
             if agent_ip not in self.known_agents:
                 self.known_agents.append(agent_ip)
-                print(f"[DEBUG] Agent {agent_ip} added to known agents")
+                main_logger.info(f"Agent {agent_ip} added to known agents")
             else:
-                print(f"[DEBUG] Agent {agent_ip} already exists in known agents")
+                main_logger.warning(f"Agent {agent_ip} already exists in known agents")
 
     def send_tcp_request(self, ip_address, port, command, payload=None):
         """
         Send a command to an agent over TCP and return the response.
         Logs all key steps and errors for debugging.
         """
+        main_logger.info(f"Preparing to send command '{command}' to {ip_address}:{port}")
         try:
             # Log the IP, port, and command
-            logging.info(f"[DEBUG] Preparing to send command '{command}' to {ip_address}:{port}")
-
             with socket.create_connection((ip_address, port), timeout=5) as sock:
                 # Prepare the request
                 request = {"command": command}
                 if payload:
                     request.update(payload)
-
-                # Log the outgoing request
-                logging.info(f"[DEBUG] Sending request: {request}")
+                main_logger.debug(f"Sending request: {request}")
                 sock.sendall(json.dumps(request).encode('utf-8'))
-
                 # Receive the response in chunks
                 data = b""
                 while True:
-                    chunk = sock.recv(65536)  # Read in chunks of 64 KB
+                    chunk = sock.recv(65536)  
                     if not chunk:
                         break
                     data += chunk
-
-                # Log the raw response
-                logging.info(f"[DEBUG] Raw response received: {data.decode('utf-8')}")
-
+                main_logger.debug(f"Raw response received: {data.decode('utf-8')}")
                 # Decode and parse the JSON response
                 response = json.loads(data.decode('utf-8'))
-                logging.info(f"[DEBUG] Parsed response: {response}")
+                main_logger.info(f"Parsed response: {response}")
                 return response
-
         except json.JSONDecodeError as e:
-            logging.error(f"[ERROR] Malformed JSON response from {ip_address}: {e}")
+            main_logger.error(f"Malformed JSON response from {ip_address}: {e}")
             return {"status": "error", "message": "Malformed JSON response"}
         except Exception as e:
-            logging.error(f"[ERROR] Communication error with {ip_address}: {e}")
+            main_logger.error(f"Communication error with {ip_address}: {e}")
             return {"status": "error", "message": str(e)}
 
     def fetch_metrics_from_all_agents(self):
@@ -129,21 +106,24 @@ class LoadBalancer:
         """
         metrics = []
         for ip in self.known_agents:
-            logging.info(f"[DEBUG] Current known agents: {self.known_agents}")
+            main_logger.info("Fetching metrics from all known agents")
             response = self.send_tcp_request(ip, 9000, "metrics")
             if response.get("status") == "success":
                 metrics.append({
                     "ip": response.get("ip"),
                     "metrics": response.get("metrics")
                 })
+                main_logger.debug(f"Metrics fetched from {ip}: {response.get('metrics')}")
             else:
                 metrics.append({"ip": ip, "error": response.get("message")})
+                main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
         return metrics
 
     def fetch_alerts_from_all_agents(self):
         """
         Fetch alerts from all known agents using TCP.
         """
+        main_logger.info("Fetching alerts from all known agents")
         alerts = []
         for ip in self.known_agents:
             try:
@@ -154,10 +134,12 @@ class LoadBalancer:
                         "ip": ip,
                         "alerts": response.get("alerts", [])
                     })
+                    main_logger.debug(f"Alerts fetched from {ip}: {response.get('alerts')}")
                 else:
                     alerts.append({"ip": ip, "error": response.get("message")})
+                    main_logger.warning(f"Failed to fetch alerts from {ip}: {response.get('message')}")
             except Exception as e:
-                alerts.append({"ip": ip, "error": f"Error communicating with agent: {str(e)}"})
+                main_logger.error(f"Error fetching alerts from {ip}: {e}")
         return alerts
     
     def ping_agents(self):
@@ -165,6 +147,7 @@ class LoadBalancer:
         Ping all known agents and update their status in the database.
         Adjusts the interval based on the agent's status.
         """
+        main_logger.info("Pinging all known agents")
         with self.app.app_context():
             status_mapping = {
                 1: "healthy",
@@ -181,25 +164,24 @@ class LoadBalancer:
             # Retry logic for when no agents are available
             while retry_count <= max_retries:
                 if not self.known_agents:
-                    logging.info(f"[DEBUG] Current known agents: {self.known_agents}")
-                    print("No agents are currently being monitored") 
+                    main_logger.info(f"[DEBUG] Current known agents: {self.known_agents}")
                     retry_count += 1
 
                     if retry_count > max_retries:
-                        print("No agents found after multiple attempts. Waiting for 20 seconds before trying again.")
+                        main_logger.info(f"No agents found after multiple attempts. Waiting for 20 seconds before trying again.")
                         time.sleep(20)
                         retry_count = 0  # Reset retry count after waiting
                     else:
-                        print(f"Retrying... Attempt {retry_count}/{max_retries}")
+                        main_logger.info(f"Retrying... Attempt {retry_count}/{max_retries}")
                         time.sleep(2)  # Small delay before next retry attempt
                 else:
                     # If agents are found, break the retry loop
-                    print(f"Currently monitoring agents: {self.known_agents}")
+                    main_logger.info(f"Currently monitoring agents: {self.known_agents}")
                     break
 
             # Reset retry count for other purposes
             retry_count = 0
-            print(f"Currently monitoring agents: {self.known_agents}")
+            main_logger.info(f"Currently monitoring agents: {self.known_agents}")
             
             agent_intervals = {}  # To store ping intervals for each agent
 
@@ -210,7 +192,7 @@ class LoadBalancer:
                     start_time = time.time()
                     response = self.send_tcp_request(agent_ip, 9000, "health")
                     response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
-                    print(f"Raw response from agent {agent_ip}: {response}")
+                    main_logger.info(f"Raw response from agent {agent_ip}: {response}")
 
                     agent_status = "down"  # Default value for agent_status
 
@@ -219,7 +201,7 @@ class LoadBalancer:
                         if agent_status_code is not None:
                             # Map numeric status to string
                             agent_status = status_mapping.get(agent_status_code, "down")
-                            print(f"Agent {agent_ip} status: {agent_status}")
+                            main_logger.info(f"Agent {agent_ip} status: {agent_status}")
 
                             # Update status in the database
                             server = Server.query.filter_by(ip_address=agent_ip).first()
@@ -238,18 +220,18 @@ class LoadBalancer:
                             # Update the interval for next time
                             agent_intervals[agent_ip] = interval
                         else:
-                            print(f"No status returned from agent {agent_ip}")
+                            main_logger.info(f"No status returned from agent {agent_ip}")
                             self.update_server_status(agent_ip, "offline")
                             self.dynamic_executor.response_times[agent_ip] = float('inf')
                             agent_intervals[agent_ip] = 30  # Default slower interval for offline agents
                     else:
-                        print(f"Agent {agent_ip} is not responding.")
+                        main_logger.info(f"Agent {agent_ip} is not responding.")
                         self.update_server_status(agent_ip, "offline")
                         self.dynamic_executor.response_times[agent_ip] = float('inf')
                         agent_intervals[agent_ip] = 10  # Slow interval for unresponsive agents
 
                 except Exception as e:
-                    print(f"Error with TCP connection to agent {agent_ip}: {e}")
+                    main_logger.error(f"Error with TCP connection to agent {agent_ip}: {e}")
                     self.update_server_status(agent_ip, "offline")
                     self.dynamic_executor.response_times[agent_ip] = float('inf')
                     agent_intervals[agent_ip] = 10  # Slow interval for agents that caused an error
@@ -264,7 +246,7 @@ class LoadBalancer:
         Adjust the interval based on the agent's current status.
         """
         agent_intervals = {}  # To store intervals per agent (IP-based)
-
+        main_logger.info("Starting agent monitoring loop")
         while True:
             # Ping all the known agents and get their intervals
             agent_intervals = self.ping_agents()
@@ -284,20 +266,20 @@ class LoadBalancer:
         """
         Fetch metrics from all known agents using TCP.
         """
+        main_logger.info("Fetching metrics from all known agents")
         metrics = []
         for ip in self.known_agents:
             try:
-                # Send the TCP request to fetch metrics
                 response = self.send_tcp_request(ip, 9000, "metrics")
                 if response.get("status") == "success":
-                    metrics.append({
-                        "ip": response.get("ip"),
-                        "metrics": response.get("metrics")
-                    })
+                    metrics.append({"ip": response.get("ip"), "metrics": response.get("metrics")})
+                    main_logger.debug(f"Metrics fetched successfully from {ip}: {response.get('metrics')}")
                 else:
                     metrics.append({"ip": ip, "error": response.get("message")})
+                    main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
             except Exception as e:
                 metrics.append({"ip": ip, "error": f"Error communicating with agent: {str(e)}"})
+                main_logger.error(f"Error fetching metrics from {ip}: {e}")
         return metrics
 
 
@@ -305,18 +287,18 @@ class LoadBalancer:
         """
         Simulate traffic and route requests based on the active strategy.
         """
-        logging.info(f"simulate_traffic invoked with: {traffic_config}")
+        traffic_logger.info(f"Simulate traffic invoked with config: {traffic_config}")
 
         # Validate traffic_config
         required_keys = ["url", "type", "rate", "duration"]
         for key in required_keys:
             if key not in traffic_config:
-                logging.error(f"Missing key '{key}' in traffic_config: {traffic_config}")
+                traffic_logger.error(f"Missing key '{key}' in traffic_config: {traffic_config}")
                 return {"status": "error", "message": f"Missing key '{key}' in traffic_config"}
 
         # Check if there are known agents
         if not self.known_agents:
-            logging.warning("No known agents available to send traffic.")
+            traffic_logger.warning("No known agents available for traffic simulation.")
             return {"status": "error", "message": "No agents available for traffic simulation"}
 
         # Get the TrafficStore instance for storing traffic data
@@ -329,7 +311,7 @@ class LoadBalancer:
         # Access the LoadBalancer instance
 
         if not self.active_strategy:
-            logging.error("No active strategy set in LoadBalancer.")
+            traffic_logger.error("No active strategy set for traffic simulation.")
             return {"status": "error", "message": "No active strategy set"}
 
         # Simulate traffic for the specified duration
@@ -342,24 +324,24 @@ class LoadBalancer:
                     target_agent = self.execute_strategy()
 
                     # Log the traffic event
-                    traffic_log.info(
+                    traffic_logger.info(
                         f"{self.active_strategy}",
                         extra={"server": target_agent}
                     )
 
                     if not target_agent:
-                        logging.warning("No agent selected by the strategy.")
+                        traffic_logger.warning("No agent selected by the strategy.")
                         continue
-
+                    traffic_logger.info(f"Traffic sent using strategy {self.active_strategy}", extra={"server": target_agent})
                     # Send traffic to the selected agent
                     response = self.send_tcp_request(target_agent, 9000, "simulate_traffic", payload=traffic_config)
-                    logging.info(f"Traffic sent to {target_agent}: {response}")
+                    traffic_logger.debug(f"Traffic sent to {target_agent}: {response}")
 
                     # Log traffic data for the selected agent
                     traffic_store.append_traffic_data(current_time, 1)  # Log 1 request for the current second
 
                 except Exception as e:
-                    logging.error(f"Error sending traffic simulation command: {str(e)}")
+                    traffic_logger.error(f"Error sending traffic simulation command: {str(e)}")
                     continue
 
             # Wait for 1 second before sending the next batch
@@ -373,10 +355,11 @@ class LoadBalancer:
         """
         self.active_strategy = strategy_name
         self.strategy_executor.set_active_strategy(strategy_name)
-        print(f"LoadBalancer: Active strategy set to {strategy_name}")
+        main_logger.info(f"LoadBalancer: Active strategy set to {strategy_name}")
 
     def execute_strategy(self):
         if not self.known_agents:
+            main_logger.error("No agents available to execute strategy.")
             raise ValueError("No agents available for routing.")
 
         self.strategy_executor.known_agents = self.known_agents
@@ -396,21 +379,88 @@ class LoadBalancer:
             raise ValueError(f"Unsupported strategy: {self.active_strategy}")
         
         # Log which strategy was used and the selected target
-        traffic_log.info(f"Strategy: {self.active_strategy}, Target Server: {target}")
+        traffic_logger.info(f"Strategy: {self.active_strategy}, Target Server: {target}")
         return target
+    
     def load_saved_strategies(self):
         """
         Load saved strategies from the database and apply them to the LoadBalancer.
         """
+        main_logger.info("Loading saved strategies from the database")
         with self.app.app_context():
             settings = LoadBalancerSetting.query.all()
             for setting in settings:
                 strategy = Strategy.query.get(setting.active_strategy_id)
                 if strategy:
+                    main_logger.info(f"Loaded strategy '{strategy.name}' from database")
                     self.active_strategy = strategy.name
                     print(f"Loaded strategy '{strategy.name}' for group.")
    
     
+    def fetch_logs_from_all_agents(self):
+        """
+        Fetch logs from all known agents using TCP (get_logs).
+        The agent returns 'zip_data' in hex. We unhex it, write the .zip to disk,
+        then extract it into /logs (or ./logs).
+        Return a list describing success/error for each agent.
+        """
+        logs_dir = "./logs"  # or "/logs" if you prefer absolute
+        os.makedirs(logs_dir, exist_ok=True)
+
+        results = []
+
+        for ip in self.known_agents:
+            agent_result = {"ip": ip}
+            try:
+                response = self.send_tcp_request(ip, 9000, "get_logs")
+
+                if response.get("status") == "success" and "zip_data" in response:
+                    # Convert hex back to raw bytes
+                    zip_data = binascii.unhexlify(response["zip_data"])
+
+                    # Write the zip to disk
+                    zip_path = os.path.join(logs_dir, f"{ip}_logs.zip")
+                    with open(zip_path, "wb") as f:
+                        f.write(zip_data)
+
+                    # Extract them into logs_dir
+                    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                        zip_ref.extractall(logs_dir)
+
+                    os.remove(zip_path)  # Clean up after extraction
+                    agent_result["status"] = "success"
+
+                else:
+                    # Either "status" wasn't success or no "zip_data"
+                    agent_result["status"] = "error"
+                    agent_result["message"] = response.get("message", "Unknown error")
+
+            except Exception as e:
+                agent_result["status"] = "error"
+                agent_result["message"] = str(e)
+
+            results.append(agent_result)
+
+        return results
+
+
+        
+    def fetch_all_metrics(self):
+        """
+        Fetch metrics from all known agents.
+        """
+        main_logger.info("Fetching all metrics from agents")
+        metrics = []
+        for ip in self.known_agents:
+            response = self.send_tcp_request(ip, 9000, "gather_metrics")
+            if response.get("status") != "error":
+                metrics.append({"ip": ip, "metrics": response})
+                main_logger.debug(f"Metrics fetched from {ip}: {response}")
+            else:
+                metrics.append({"ip": ip, "error": response.get("message")})
+                main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
+        return metrics
+
 if __name__ == "__main__":
     load_balancer = LoadBalancer()
     # Start monitoring the agents, pinging them every 10 seconds

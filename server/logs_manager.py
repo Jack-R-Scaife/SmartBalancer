@@ -23,3 +23,22 @@ def scan_logs(directory="./logs"):
     except Exception as e:
         print(f"Error scanning for logs: {e}")
     return log_files
+
+def get_log_content(log_path):
+    """
+    Fetches the content of a specific log file.
+    """
+    try:
+        if not os.path.exists(log_path):
+            return {"status": "error", "message": "Log file not found."}, 404
+
+        # Open the file and ensure the content is properly decoded
+        with open(log_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        
+        # Replace problematic escape sequences for rendering
+        processed_content = content.replace('\\', '')
+
+        return {"status": "success", "content": processed_content}, 200
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500

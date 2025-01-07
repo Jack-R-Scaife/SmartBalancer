@@ -1,23 +1,17 @@
 {% extends "base.html" %}
 {% block title %}View Log{% endblock %}
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 text-light">
     <!-- Highlight Similar Logs Toggle -->
-      <div class="mb-3 categorytoggles">
+    <div class="mb-3 categorytoggles">
         <div class="form-check form-check-inline">
-        <input class="form-check-input" type="checkbox" id="highlight-similar-toggle">
-        <label class="form-check-label" for="highlight-similar-toggle">
-            Highlight Similar Logs
-        </label>
-      </div>
-      <div class="form-check form-check-inline">
-
-        <button id="clear-highlights-btn" class="cstmbutton">
-            Clear All User Highlights
-        </button>
-      </div>
-
-      </div>
+            <input class="form-check-input" type="checkbox" id="highlight-similar-toggle">
+            <label class="form-check-label" for="highlight-similar-toggle">Highlight Similar Logs</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <button id="clear-highlights-btn" class="cstmbutton">Clear All User Highlights</button>
+        </div>
+    </div>
 
     <!-- Filters -->
     <div class="d-flex flex-wrap mb-3">
@@ -33,37 +27,11 @@
         </select>
     </div>
 
-    <!-- Category Toggles -->
-    <div class="mb-3 categorytoggles">
-        <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-critical" checked>
-            <label class="form-check-label" for="toggle-critical">Show Critical</label>
-        </div>
-        <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-warning" checked>
-            <label class="form-check-label" for="toggle-warning">Show Warning</label>
-        </div>
-        <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-info" checked>
-            <label class="form-check-label" for="toggle-info">Show Info</label>
-        </div>
-        <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-network" checked>
-            <label class="form-check-label" for="toggle-network">Show Network</label>
-        </div>
-        <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-server" checked>
-            <label class="form-check-label" for="toggle-server">Show Server</label>
-        </div>
-        <div class="form-check form-check-inline">
-            <input class="form-check-input" type="checkbox" id="toggle-metric" checked>
-            <label class="form-check-label" for="toggle-metric">Show Metric</label>
-        </div>
-    </div>
-
     <!-- Log Viewer -->
-    <div id="log-content" class=" cstContent rounded" style="max-height: 600px; overflow-y: auto; font-family: monospace;">
-        <!-- Logs dynamically rendered here -->
+    <div id="log-content" class="cstContent rounded text-light" style="max-height: 600px; overflow-y: auto; font-family: monospace;">
+        {% for line in log_content.split('\n') %}
+        <div class="log-line">{{ line | escape }}</div>
+        {% endfor %}
     </div>
 
     <!-- Context Menu -->
@@ -75,226 +43,142 @@
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const logPath = "{{ log_path }}";
-        const logContentContainer = document.getElementById("log-content");
-        const highlightMenu = document.getElementById("highlight-menu");
-        const highlightToggle = document.getElementById("highlight-similar-toggle");
-        const logSearch = document.getElementById("log-search");
-        const logFilter = document.getElementById("log-filter");
-        const clearBtn = document.getElementById("clear-highlights-btn");
-        const toggles = {
-            critical: document.getElementById("toggle-critical"),
-            warning: document.getElementById("toggle-warning"),
-            info: document.getElementById("toggle-info"),
-            network: document.getElementById("toggle-network"),
-            server: document.getElementById("toggle-server"),
-            metric: document.getElementById("toggle-metric"),
-        };
-    
-        let customRules = [];
-        let highlightedPatterns = {};
-        if (clearBtn) {
-        clearBtn.addEventListener("click", function () {
-            axios.post('/api/logs/highlight/clear', { path: logPath })
-                .then(response => {
-                    console.log(response.data.message || "User highlights cleared.");
-                    location.reload();
-                })
-                .catch(error => {
-                    console.error("Error clearing highlights:", error);
-                });
-        });
-        }
-        axios.get('/api/logs/custom_rules')
-          .then(response => {
-            if (response.data.status === "success") {
-              customRules = response.data.rules || [];
-            }
-          })
-          .catch(error => {
-            console.error("Error fetching custom rules:", error);
-          });
-    
-        axios.get(`/api/logs/content?path=${encodeURIComponent(logPath)}&ts=${Date.now()}`)
-          .then(logResponse => {
-            if (logResponse.data.status === "success") {
-              renderLogContent(logResponse.data.content);
-              return axios.get(`/api/logs/content?path=${encodeURIComponent(logPath)}.meta`);
-            } else {
-              console.error("Failed to fetch log content:", logResponse.data.message);
-            }
-          })
-          .then(metaResponse => {
-            if (metaResponse && metaResponse.data && metaResponse.data.status === "success") {
-              console.log("Metadata retrieved:", metaResponse.data.meta);
-              applyHighlightsFromMeta(metaResponse.data.meta);
-            }
-          })
-          .catch(error => {
-            console.error("Error fetching logs or metadata:", error);
-          });
-    
-        function renderLogContent(content) {
-            logContentContainer.innerHTML = content.map((line, index) => {
-                const category = categorizeLog(line);
-                const highlightClass = category ? `highlight-${category}` : "";
-                return `
-                <div class="log-line ${highlightClass}" 
-                    data-index="${index}" 
-                    style="position: relative;">
-                    ${line}
-                </div>`;
-            }).join('');
-    
-          document.querySelectorAll(".log-line").forEach(line => {
-            line.addEventListener("contextmenu", function (e) {
-              e.preventDefault();
-              showHighlightMenu(e, this);
-            });
-          });
-        }
-    
-        function categorizeLog(line) {
-          const text = line.toLowerCase();
-    
-          for (const rule of customRules) {
-            if (new RegExp(rule.pattern, "i").test(text)) {
-              return rule.category;
-            }
-          }
-    
-          if (text.includes("error") || text.includes("critical")) return "critical";
-          if (text.includes("warn")) return "warning";
-          if (text.includes("info")) return "info";
-          if (text.includes("network")) return "network";
-          if (text.includes("server") || text.includes("agent")) return "server";
-          if (text.includes("metric")) return "metric";
-          return null; 
-        }
-    
-        function showHighlightMenu(event, logLine) {
-            event.preventDefault(); 
-            highlightMenu.style.top = `${event.clientY}px`;
-            highlightMenu.style.left = `${event.clientX}px`;
-            highlightMenu.classList.remove("d-none");
+document.addEventListener("DOMContentLoaded", function () {
+    const logContentContainer = document.getElementById("log-content");
+    const highlightMenu = document.getElementById("highlight-menu");
+    const highlightToggle = document.getElementById("highlight-similar-toggle");
+    const logSearch = document.getElementById("log-search");
+    const logFilter = document.getElementById("log-filter");
+    const clearBtn = document.getElementById("clear-highlights-btn");
+    const logPath = "{{ log_path }}";
+    let highlightedPatterns = {};
+    autoHighlightLogs(); 
 
-            highlightMenu.dataset.targetText = logLine.textContent.trim();
-            highlightMenu.dataset.targetIndex = logLine.dataset.index;
-        }
-    
-        document.addEventListener("click", function () {
-          highlightMenu.classList.add("d-none");
-        });
-    
-        highlightMenu.addEventListener("click", function (e) {
-  if (e.target.tagName === "BUTTON") {
-    const highlightType = e.target.dataset.highlight;    
-    const applyToSimilar = highlightToggle.checked;    
-    const clickedIndex = highlightMenu.dataset.targetIndex; 
-    const pattern = normalizeLogLine(highlightMenu.dataset.targetText);
-
-    document.querySelectorAll(".log-line").forEach(line => {
-      const lineIndex = line.dataset.index;
-      const text = normalizeLogLine(line.textContent.trim());
-
-      if (applyToSimilar) {
-        if (text.includes(pattern)) {
-          applyHighlight(line, highlightType);
-        }
-      } else {
-        if (lineIndex === clickedIndex) {
-          applyHighlight(line, highlightType);
-        }
-      }
-    });
-    highlightedPatterns[pattern] = highlightType;
-    saveHighlights();
-  }
-});
-function saveHighlights() {
-    axios.post('/api/logs/highlight', {
-    path: logPath,
-    highlights: highlightedPatterns
-    })
+    // Fetch or create meta file
+    axios.get(`/api/logs/content?path=./logs/${encodeURIComponent(logPath)}.meta`)
     .then(response => {
-    console.log(response.data.message || "Highlights saved successfully.");
+        if (response.data.status === "success") {
+            applyHighlightsFromMeta(response.data.meta);
+        } else {
+            console.warn("Meta file not found. Creating a new one.");
+        }
     })
-    .catch(error => {
-    console.error("Error saving highlights:", error);
+    .catch(error => console.error("Error fetching meta file:", error));
+
+    // Clear all highlights
+    clearBtn.addEventListener("click", function () {
+        axios.post('/api/logs/highlight/clear', { path: logPath })
+            .then(() => {
+                document.querySelectorAll(".log-line").forEach(line => {
+                    line.className = "log-line";
+                });
+                highlightedPatterns = {};
+                autoHighlightLogs(); 
+            })
+            .catch(error => console.error("Error clearing highlights:", error));
+    });
+
+    function autoHighlightLogs() {
+    document.querySelectorAll(".log-line").forEach(line => {
+        const category = categorizeLog(line.textContent);
+        if (category) {
+            line.classList.add(`highlight-${category}`);
+        }
     });
 }
+
+    // Context menu for highlighting
+    document.querySelectorAll(".log-line").forEach(line => {
+        line.addEventListener("contextmenu", function (e) {
+            e.preventDefault();
+            highlightMenu.style.top = `${e.clientY}px`;
+            highlightMenu.style.left = `${e.clientX}px`;
+            highlightMenu.classList.remove("d-none");
+            highlightMenu.dataset.targetText = line.textContent.trim();
+        });
+    });
+
+    document.addEventListener("click", () => highlightMenu.classList.add("d-none"));
+
+    highlightMenu.addEventListener("click", function (e) {
+        if (e.target.tagName === "BUTTON") {
+            const highlightType = e.target.dataset.highlight;
+            const pattern = highlightMenu.dataset.targetText;
+
+            document.querySelectorAll(".log-line").forEach(line => {
+                if (highlightToggle.checked && line.textContent.includes(pattern)) {
+                    applyHighlight(line, highlightType);
+                } else if (!highlightToggle.checked && line.textContent === pattern) {
+                    applyHighlight(line, highlightType);
+                }
+            });
+
+            highlightedPatterns[pattern] = highlightType;
+            saveHighlights();
+        }
+    });
+
+    function applyHighlight(line, highlightType) {
+        line.className = "log-line";
+        line.classList.add(`highlight-${highlightType}`);
+    }
+
+    function categorizeLog(line) {
+        const text = line.toLowerCase();
+        if (text.includes("error") || text.includes("critical")) return "critical";
+        if (text.includes("warn")) return "warning";
+        if (text.includes("info")) return "info";
+        if (text.includes("network")) return "network";
+        if (text.includes("server") || text.includes("agent")) return "server";
+        if (text.includes("metric")) return "metric";
+        return null;
+    }
+
+    function saveHighlights() {
+    if (!logPath) {
+        console.error("Log path is not defined.");
+        return;
+    }
+
+    axios.post('/api/logs/highlight', {
+        path:  logPath,
+        highlights: highlightedPatterns
+    }).then(() => console.log("Highlights saved."))
+      .catch(error => console.error("Error saving highlights:", error));
+}
+
 
 function applyHighlightsFromMeta(metaData) {
-    if (!metaData) {
-    console.warn("No metadata available to apply highlights.");
-    return;
-    }
-    const { system = {}, user = {} } = metaData;
+  if (!metaData) return;
+  const { user = {} } = metaData;
 
-    Object.keys(user).forEach(pattern => {
+  Object.entries(user).forEach(([pattern, highlightType]) => {
     document.querySelectorAll(".log-line").forEach(line => {
-        const lineNormalized = normalizeLogLine(line.textContent.trim());
-        if (lineNormalized.toLowerCase().includes(pattern.toLowerCase())) {
-        line.classList.remove(
-            'highlight-critical',
-            'highlight-warning',
-            'highlight-info',
-            'highlight-network',
-            'highlight-server',
-            'highlight-metric'
-        );
-        line.classList.add(`highlight-${user[pattern]}`);
-        }
+      if (line.textContent.includes(pattern)) {
+        applyHighlight(line, highlightType);
+      }
     });
-    });
-}
-function applyHighlight(lineElem, highlightType) {
-  lineElem.classList.remove(
-    'highlight-critical',
-    'highlight-warning',
-    'highlight-info',
-    'highlight-network',
-    'highlight-server',
-    'highlight-metric'
-  );
-  lineElem.classList.add(`highlight-${highlightType}`);
-}
-function normalizeLogLine(logLine) {
-    return logLine.replace(/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d{3}\s*-\s*/, "").trim();
+  });
 }
 
-function filterLogs() {
-    const searchQuery = logSearch.value.toLowerCase();
-    const filterType = logFilter.value;
+    // Filter logs based on search and categories
+    logSearch.addEventListener("input", filterLogs);
+    logFilter.addEventListener("change", filterLogs);
 
-    document.querySelectorAll("#log-content .log-line").forEach(line => {
-    const text = line.textContent.toLowerCase();
+    function filterLogs() {
+        const searchQuery = logSearch.value.toLowerCase();
+        const filterType = logFilter.value;
 
-    const isHighlighted = Object.keys(toggles).some(cat => {
-        return toggles[cat].checked && line.classList.contains(`highlight-${cat}`);
-    });
-
-    const matchesSearch = searchQuery === "" || text.includes(searchQuery);
-    const matchesFilter = filterType === "all" || line.classList.contains(`highlight-${filterType}`);
-    const matchesCategory = isHighlighted;
-
-    if (matchesSearch && matchesFilter && matchesCategory) {
-        line.style.display = "block";
-    } else {
-        line.style.display = "none";
+        document.querySelectorAll(".log-line").forEach(line => {
+            const text = line.textContent.toLowerCase();
+            const matchesSearch = !searchQuery || text.includes(searchQuery);
+            const matchesFilter = filterType === "all" || line.classList.contains(`highlight-${filterType}`);
+            line.style.display = matchesSearch && matchesFilter ? "block" : "none";
+        });
     }
-    });
-}
-
-logSearch.addEventListener("input", filterLogs);
-logFilter.addEventListener("change", filterLogs);
-Object.values(toggles).forEach(toggle => toggle.addEventListener("change", filterLogs));
 });
 </script>
-    
-    
-    
+
 <style>
 /* Highlight styles */
 .highlight-critical {
@@ -314,66 +198,6 @@ Object.values(toggles).forEach(toggle => toggle.addEventListener("change", filte
 }
 .highlight-metric {
     background-color: rgba(123, 0, 255, 0.1);
-}
-
-/* Context menu styles */
-#highlight-menu {
-    z-index: 1000;
-}
-
-.cstContent,.categorytoggles{
-  color: white;
-  background: transparent;
-}
-.cstmbutton{
-  background-color: #11721e;
-  border: solid 1px #408f58;
-  color: white;
-  max-width: 100%;
-  width: 100%;
-  height: 25px;
-  border-radius: 5px;
-  font-size: 16px;
-
-}
-.search-bar {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 20px;
-  font-size: 16px;
-  height: 30px;
-  border: none;
-    border-bottom-width: medium;
-    border-bottom-style: none;
-    border-bottom-color: currentcolor;
-  border-bottom: white 1px solid;
-  border-radius: 4px;
-  background-color: #0F1011;
-  color: white;
-}
-
-.customselect {
-  border: none;
-   border-bottom: 2px solid #fff; 
-  outline: none;
-  padding: 5px 0;
-  background-color: transparent;
-  box-shadow: none;
-  font-size: 16px;
-  color: #fff;
-  width: 100%;
-
-  height: 36px;
-}
-
-.customselect option {
-  background-color: #ffffff;
-  color: black;
-}
-
-.customselect:focus {
-  border-bottom: 2px solid #fff; 
-  box-shadow: none;
 }
 </style>
 {% endblock %}

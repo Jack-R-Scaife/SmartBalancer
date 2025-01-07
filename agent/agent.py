@@ -1,6 +1,4 @@
-import threading
-import socket
-import time
+import time,os,socket,threading
 from alert_manager import AlertManager
 from handlers import LinkHandler
 from health_check import HealthCheck
@@ -10,10 +8,10 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from flask import Flask, jsonify, request
 from flask_compress import Compress
-import json,requests
-import traceback  
-import logging
+import json,requests,traceback,logging 
 from response_factory import ResponseFactory
+import zipfile
+import io,binascii
 # Initialize Flask app
 app = Flask(__name__)
 resource_monitor = ResourceMonitor()
@@ -22,7 +20,7 @@ compress = Compress()
 compress.init_app(app)
 
 logging.basicConfig(
-    filename="agent.log",  # Dedicated log file for the agent
+    filename="agent.log",  # Use logs directory
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
@@ -38,10 +36,10 @@ class Agent:
         self.alert_manager_thread = None
         self.start_alert_manager()
         logging.info(f"Agent initialized with server_id: {self.server_id}")
+  
 
-
-        self.logger = logging.getLogger(f"Agent-{server_id}")
-        handler = logging.FileHandler(f"agent_{server_id}.log")
+        self.logger = logging.getLogger(f"Agent")
+        handler = logging.FileHandler(f"agent.log")
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
@@ -222,14 +220,32 @@ class Agent:
             # Handle different commands
             if command == "link":
                 response = self.handle_link(client_socket)
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
+
             elif command == "health":
                 response = self.health_check()
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
+
             elif command == "delink":
                 response = self.delink_server()
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
+
             elif command == "metrics":
                 response = self.get_metrics()
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
+
+            elif command == "get_logs":
+                response = self.get_logs()
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
+
+            elif command == "gather_metrics":
+                response = self.gather_metrics()
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
+
             elif command == "alerts":
                 response = self.get_alerts()
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
+
             elif command == "simulate_traffic":
                 # Extract the traffic configuration
                 if "payload" in request:
@@ -248,23 +264,25 @@ class Agent:
                     logging.info(f"Executing traffic simulation with config: {traffic_config}")
                     threading.Thread(target=self.simulate_traffic, args=(traffic_config,), daemon=True).start()
                     response = {"status": "success", "message": "Traffic simulation started."}
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
+
             else:
                 response = {"status": "error", "message": "Unknown command"}
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
 
-            logging.info(f"[DEBUG] Sending response: {response}")
-
-            # Send the JSON response
-            client_socket.sendall(json.dumps(response).encode('utf-8'))
         except json.JSONDecodeError as e:
             logging.error(f"[ERROR] Failed to parse JSON: {e}")
             error_response = {"status": "error", "message": "Invalid JSON format"}
             client_socket.sendall(json.dumps(error_response).encode('utf-8'))
+        except BrokenPipeError as e:
+            logging.error(f"[ERROR] Broken pipe error: {e}")
         except Exception as e:
             logging.error(f"[ERROR] Error handling client: {e}")
             error_response = {"status": "error", "message": str(e)}
             client_socket.sendall(json.dumps(error_response).encode('utf-8'))
         finally:
             client_socket.close()
+
 
 
     def start_alert_manager(self):
@@ -387,6 +405,90 @@ class Agent:
             self.logger.error(f"Error in simulate_traffic: {str(e)}")
             return {"status": "error", "message": str(e)}
 
+    def get_logs(self):
+        """
+        Fetch log files, compress them into a zip archive, and return as a binary response.
+        """
+        log_dir = "."  # Root directory
+        zip_buffer = io.BytesIO()  # In-memory buffer for the zip file
+
+        try:
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                for root, _, files in os.walk(log_dir):
+                    for file in files:
+                        if file.endswith(".log"):
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, log_dir)
+                            zip_file.write(file_path, arcname)
+
+            if zip_buffer.getbuffer().nbytes == 0:
+                # No logs were added to the zip
+                return {"status": "error", "message": "No logs found"}
+
+            zip_buffer.seek(0)
+            return {
+                "status": "success",
+                "zip_data": zip_buffer.read().hex(),  # Convert binary to hex for JSON
+            }
+        except Exception as e:
+            logging.error(f"Error compressing logs: {e}")
+            return {"status": "error", "message": str(e)}
+
+        
+    def gather_metrics(self):
+        """
+        Collect comprehensive metrics including system resources, health, alerts, and logs.
+        """
+        try:
+            # Initialize result dictionary
+            metrics = {
+                "server_id": self.server_id,
+                "timestamp": time.time(),
+                "system": {},
+                "health": {},
+                "alerts": [],
+                "logs": [],
+                "ping": {}
+            }
+
+            # System Resource Metrics
+            system_metrics = resource_monitor.monitor(interval=1)
+            metrics["system"] = {
+                "cpu_usage": system_metrics["cpu_total"],
+                "memory_usage": system_metrics["memory"],
+                "disk_read_speed": system_metrics["disk_read_MBps"],
+                "disk_write_speed": system_metrics["disk_write_MBps"],
+                "network_send_speed": system_metrics["net_send_MBps"],
+                "network_receive_speed": system_metrics["net_recv_MBps"]
+            }
+
+            # Health Metrics
+            if self.load_balancer_ip:
+                health_status = health_check_instance.determine_status(self.load_balancer_ip)
+                metrics["health"] = {"status_code": health_status}
+            else:
+                metrics["health"] = {"status_code": "unknown"}
+
+            # Alerts
+            alerts = AlertManager.get_cached_alerts()
+            metrics["alerts"] = alerts.get("alerts", [])
+
+            # Logs
+            logs_response = self.get_logs()
+            if logs_response.get("status") == "success":
+                metrics["logs"] = logs_response.get("logs", [])
+
+            # Ping Metrics
+            if self.load_balancer_ip:
+                latency = health_check_instance.check_ping(self.load_balancer_ip)
+                metrics["ping"] = {"latency_ms": latency}
+
+            logging.info(f"Gathered metrics: {metrics}")
+            return metrics
+        except Exception as e:
+            logging.error(f"Error gathering metrics: {e}")
+            logging.debug(traceback.format_exc())
+            return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     # Create the agent instance without hardcoding the load balancer IP

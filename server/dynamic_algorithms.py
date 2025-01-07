@@ -1,3 +1,7 @@
+from server.logging_config import main_logger, traffic_logger
+from server.logging_config import dynamic_logger
+dynamic_logger.info("Dynamic algorithms initialized")
+dynamic_logger.warning("No known agents available")
 class DynamicAlgorithms:
     def __init__(self):
         # Initialize server data

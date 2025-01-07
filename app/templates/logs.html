@@ -9,10 +9,9 @@
         <input type="text" class="search-bar" placeholder="Search logs...">
     </div>
     <div class="d-flex mb-3">
-        <select class="customselect" id="group-filter">
-            <option value="all" selected>All Groups</option>
-            <option value="group1">Group 1</option>
-            <option value="group2">Group 2</option>
+        <select class="customselect" id="server-filter">
+            <option value="all" selected>All Servers</option>
+            <!-- We'll dynamically add IP addresses + "Load Balancer" later -->
         </select>
         <select class="customselect" id="date-filter">
             <option value="all" selected>All Dates</option>
@@ -23,90 +22,156 @@
     <div id="logs-container" class="list-group "></div>
 </div>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const groupFilter = document.getElementById("group-filter");
+ document.addEventListener("DOMContentLoaded", function () {
+    const serverFilter = document.getElementById("server-filter");
     const dateFilter = document.getElementById("date-filter");
-    const logTypeFilter = document.getElementById("log-type-filter");
+    const logsContainer = document.getElementById("logs-container");
+    const searchBar = document.querySelector(".search-bar");
 
-    // Function to filter logs
-    function filterLogs() {
-        const groupValue = groupFilter.value;
-        const dateValue = dateFilter.value;
-        const logTypeValue = logTypeFilter.value;
 
-        document.querySelectorAll("#logs-container .customlistgroup").forEach(log => {
-            const logGroup = log.getAttribute("data-group");
-            const logDate = log.getAttribute("data-date");
-            const logType = log.getAttribute("data-type");
-
-            // Show or hide based on filters
-            const matchesGroup = groupValue === "all" || logGroup === groupValue;
-            const matchesDate = dateValue === "all" || logDate === dateValue;
-            const matchesType = logTypeValue === "all" || logType === logTypeValue;
-
-            if (matchesGroup && matchesDate && matchesType) {
-                log.classList.remove("d-none");
+    // Automatically download logs on page load and fetch logs
+    axios.post('/api/logs/download_agents')
+        .then(response => {
+            if (response.data.status === "success") {
+                console.log("Agent logs downloaded successfully!");
+                fetchLogs(); // Fetch logs after successful download
             } else {
-                log.classList.add("d-none");
+                console.error("Failed to download agent logs:", response.data.message);
             }
+        })
+        .catch(error => {
+            console.error("Error downloading agent logs:", error);
+        });
+
+    // Fetch logs and display them
+    function fetchLogs() {
+        axios.get('/api/logs')
+            .then(response => {
+                if (response.data.status === "success") {
+                    displayLogs(response.data.logs);
+                } else {
+                    console.error("Failed to fetch logs:", response.data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching logs:", error);
+            });
+    }
+
+    // Display logs in the container
+    function displayLogs(logs) {
+        logsContainer.innerHTML = ""; // Clear existing logs
+
+        // We'll gather distinct "dates" if you want to populate date dropdown
+        const uniqueDates = new Set();
+
+        logs.forEach(log => {
+            const logItem = document.createElement("div");
+            logItem.className = "customlistgroup";
+
+            // For example, we can guess the group name from the log name,
+            // or we can keep them all in "group1" for now:
+            const groupName = "group1"; // or "group2" or something dynamic
+
+            // We'll pretend the date is derived from the 'modified' field,
+            // converting to YYYY-MM-DD format:
+            const modifiedDate = new Date(log.modified * 1000);
+            const dateStr = modifiedDate.toISOString().split("T")[0]; // "YYYY-MM-DD"
+
+            // Attach data attributes for filtering
+            logItem.setAttribute("data-group", groupName);
+            logItem.setAttribute("data-date", dateStr);
+
+            logItem.innerHTML = `
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="mb-0">Log: ${log.name}</h6>
+                        <small>
+                            Size: ${log.size} bytes | 
+                            Modified: ${modifiedDate.toLocaleString()}
+                        </small>
+                    </div>
+                    <button class="cstmbutton" data-name="${log.name}">
+                        View
+                    </button>
+                </div>
+            `;
+
+            logItem.querySelector("button").addEventListener("click", function () {
+                const logName = this.getAttribute("data-name");
+                // The route in your code is "/api/logs/view?name=..."
+                window.location.href = `/api/logs/view?name=${encodeURIComponent(logName)}`;
+            });
+
+            logsContainer.appendChild(logItem);
+
+            // Track the date so we can add it to the date dropdown
+            uniqueDates.add(dateStr);
+        });
+
+        // 3b) Populate your date dropdown with actual dates
+        populateDateDropdown([...uniqueDates]);
+
+        // 3c) Finally, apply filters so the logs appear or not
+        applyFilters();
+    }
+
+    /**
+     * 4) Populate the date dropdown with the distinct dates from the logs
+     */
+    function populateDateDropdown(dateArray) {
+        // Clear out existing <option>s except the first "All Dates"
+        while (dateFilter.options.length > 1) {
+            dateFilter.remove(1);
+        }
+
+        dateArray.forEach(dateStr => {
+            const option = document.createElement("option");
+            option.value = dateStr;
+            option.textContent = dateStr;
+            dateFilter.appendChild(option);
         });
     }
 
-    // Event listeners for filters
-    groupFilter.addEventListener("change", filterLogs);
-    dateFilter.addEventListener("change", filterLogs);
-    logTypeFilter.addEventListener("change", filterLogs);
+    /**
+     * 5) The filtering logic
+     *    - Filter by group (from dropdown)
+     *    - Filter by date (from dropdown)
+     *    - Filter by search text (from input)
+     */
+    function applyFilters() {
+        const groupValue = groupFilter.value;       // e.g. "all", "group1"
+        const dateValue = dateFilter.value;         // e.g. "all", "2023-10-05"
+        const searchQuery = searchBar.value.toLowerCase().trim();
+
+        document.querySelectorAll("#logs-container .customlistgroup").forEach(logItem => {
+            const itemGroup = logItem.getAttribute("data-group");
+            const itemDate = logItem.getAttribute("data-date");
+            const logTitle = logItem.querySelector("h6").textContent.toLowerCase();
+
+            // Group check
+            const matchesGroup = (groupValue === "all" || itemGroup === groupValue);
+            // Date check
+            const matchesDate = (dateValue === "all" || itemDate === dateValue);
+            // Search check
+            const matchesSearch = !searchQuery || logTitle.includes(searchQuery);
+
+            // All conditions must be true to show
+            const isVisible = (matchesGroup && matchesDate && matchesSearch);
+            logItem.style.display = isVisible ? "block" : "none";
+        });
+    }
+
+    // 6) Listen to changes on group, date, and search
+    groupFilter.addEventListener("change", applyFilters);
+    dateFilter.addEventListener("change", applyFilters);
+
+    // For the search bar, do "input" so it filters as you type
+    searchBar.addEventListener("input", applyFilters);
 });
 
-document.addEventListener("DOMContentLoaded", function () {
-    const logsContainer = document.getElementById("logs-container");
-
-    // Fetch log files from the backend
-    axios.get('/api/logs')
-        .then(response => {
-            if (response.data.status === "success") {
-                const logs = response.data.logs;
-                logsContainer.innerHTML = ""; // Clear existing logs
-                logs.forEach(log => {
-                    // Create a log item
-                    const logItem = document.createElement("div");
-                    logItem.className = "customlistgroup";
-                    logItem.innerHTML = `
-                        <div class="d-flex justify-content-between">
-                            <h6 class="mb-0">${log.name} Size: ${log.size} bytes </h6>
-                            <button class="cstmbutton" onclick="location.href='/api/logs/view?path=${encodeURIComponent(log.path)}'">View</button>
-                        </div>
-                       
-                    `;
-                    logsContainer.appendChild(logItem);
-                });
-            } else {
-                logsContainer.innerHTML = `<p class="text-danger">Failed to fetch logs.</p>`;
-            }
-        })
-        .catch(error => {
-            console.error("Error fetching logs:", error);
-            logsContainer.innerHTML = `<p class="text-danger">An error occurred while fetching logs.</p>`;
-        });
-});
-
-// Fetch and display log content
-function fetchLogContent(logPath) {
-    axios.get(`/api/logs/content?path=${encodeURIComponent(logPath)}`)
-        .then(response => {
-            if (response.data.status === "success") {
-                alert(`Log Content for ${logPath}:\n\n${response.data.content}`);
-            } else {
-                console.error("Failed to fetch log content:", response.data.message);
-                alert("Failed to fetch log content.");
-            }
-        })
-        .catch(error => {
-            console.error("Error fetching log content:", error);
-            alert("An error occurred while fetching log content.");
-        });
-}
-</script>
+    </script>
+    
 <style>
     .search-bar {
   width: 100%;
