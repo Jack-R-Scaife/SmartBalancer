@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 from app import db, create_app
-from app.models import Server, LoadBalancerSetting,Strategy
+from app.models import Server, LoadBalancerSetting,Strategy,PredictiveLog
 import threading
 import socket, os
 import json
@@ -102,21 +102,37 @@ class LoadBalancer:
 
     def fetch_metrics_from_all_agents(self):
         """
-        Fetch metrics from all known agents using TCP.
+        Fetch metrics from all known agents using TCP and log predictive data.
         """
+        main_logger.info("Fetching metrics from all known agents")
         metrics = []
         for ip in self.known_agents:
-            main_logger.info("Fetching metrics from all known agents")
-            response = self.send_tcp_request(ip, 9000, "metrics")
-            if response.get("status") == "success":
-                metrics.append({
-                    "ip": response.get("ip"),
-                    "metrics": response.get("metrics")
-                })
-                main_logger.debug(f"Metrics fetched from {ip}: {response.get('metrics')}")
-            else:
-                metrics.append({"ip": ip, "error": response.get("message")})
-                main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
+            try:
+                response = self.send_tcp_request(ip, 9000, "metrics")
+                if response.get("status") == "success":
+                    metrics_data = response.get("metrics")
+                    metrics.append({"ip": ip, "metrics": metrics_data})
+
+                    # Log predictive data
+                    traffic_logger.info(
+                        "Predictive data logged",
+                        extra={
+                            "timestamp": int(time.time()),
+                            "server_ip": ip,
+                            "response_time": metrics_data.get("response_time", 0),
+                            "cpu_usage": metrics_data.get("cpu_usage", 0),
+                            "memory_usage": metrics_data.get("memory_usage", 0),
+                            "connections": metrics_data.get("connections", 0),
+                        }
+                    )
+
+                    main_logger.debug(f"Metrics fetched from {ip}: {metrics_data}")
+                else:
+                    metrics.append({"ip": ip, "error": response.get("message")})
+                    main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
+            except Exception as e:
+                metrics.append({"ip": ip, "error": f"Error communicating with agent: {str(e)}"})
+                main_logger.error(f"Error fetching metrics from {ip}: {e}")
         return metrics
 
     def fetch_alerts_from_all_agents(self):
@@ -130,11 +146,12 @@ class LoadBalancer:
                 # Send the TCP request to fetch alerts
                 response = self.send_tcp_request(ip, 9000, "alerts")
                 if response.get("status") == "success":
-                    alerts.append({
-                        "ip": ip,
-                        "alerts": response.get("alerts", [])
-                    })
-                    main_logger.debug(f"Alerts fetched from {ip}: {response.get('alerts')}")
+                    agent_alerts = response.get("alerts", [])
+                    for alert in agent_alerts:
+                        if "timestamp" not in alert:
+                            main_logger.warning(f"Missing 'timestamp' in alert from {ip}: {alert}")
+                    alerts.extend(agent_alerts)  # Append alerts directly
+                    main_logger.debug(f"Alerts fetched from {ip}: {agent_alerts}")
                 else:
                     alerts.append({"ip": ip, "error": response.get("message")})
                     main_logger.warning(f"Failed to fetch alerts from {ip}: {response.get('message')}")
@@ -264,7 +281,7 @@ class LoadBalancer:
         
     def fetch_metrics_from_all_agents(self):
         """
-        Fetch metrics from all known agents using TCP.
+        Fetch metrics from all known agents using TCP and log predictive data to the database.
         """
         main_logger.info("Fetching metrics from all known agents")
         metrics = []
@@ -272,8 +289,21 @@ class LoadBalancer:
             try:
                 response = self.send_tcp_request(ip, 9000, "metrics")
                 if response.get("status") == "success":
-                    metrics.append({"ip": response.get("ip"), "metrics": response.get("metrics")})
-                    main_logger.debug(f"Metrics fetched successfully from {ip}: {response.get('metrics')}")
+                    metrics_data = response.get("metrics")
+                    metrics.append({"ip": ip, "metrics": metrics_data})
+                    main_logger.debug(f"Metrics fetched successfully from {ip}: {metrics_data}")
+
+                    # Log predictive data to the database
+                    log_entry = PredictiveLog(
+                        server_ip=ip,
+                        response_time=metrics_data.get("response_time"),
+                        cpu_usage=metrics_data.get("cpu_usage"),
+                        memory_usage=metrics_data.get("memory_usage"),
+                        connections=metrics_data.get("connections")
+                    )
+                    db.session.add(log_entry)
+                    db.session.commit()
+
                 else:
                     metrics.append({"ip": ip, "error": response.get("message")})
                     main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
@@ -315,36 +345,36 @@ class LoadBalancer:
             return {"status": "error", "message": "No active strategy set"}
 
         # Simulate traffic for the specified duration
+         # Simulate traffic for the specified duration
         for second in range(duration):
-            current_time = int(time.time())  # Current time in seconds
-
+            current_time = int(time.time())
             for _ in range(rate):
                 try:
-                    # Determine the target agent using the active strategy
                     target_agent = self.execute_strategy()
-
-                    # Log the traffic event
-                    traffic_logger.info(
-                        f"{self.active_strategy}",
-                        extra={"server": target_agent}
-                    )
-
                     if not target_agent:
                         traffic_logger.warning("No agent selected by the strategy.")
                         continue
-                    traffic_logger.info(f"Traffic sent using strategy {self.active_strategy}", extra={"server": target_agent})
-                    # Send traffic to the selected agent
+
+                    # Log predictive traffic data
+                    traffic_logger.info(
+                        "Traffic predictive data logged",
+                        extra={
+                            "timestamp": current_time,
+                            "target_agent": target_agent,
+                            "rate": rate,
+                            "duration": duration,
+                        }
+                    )
+
                     response = self.send_tcp_request(target_agent, 9000, "simulate_traffic", payload=traffic_config)
                     traffic_logger.debug(f"Traffic sent to {target_agent}: {response}")
-
-                    # Log traffic data for the selected agent
-                    traffic_store.append_traffic_data(current_time, 1)  # Log 1 request for the current second
-
                 except Exception as e:
                     traffic_logger.error(f"Error sending traffic simulation command: {str(e)}")
                     continue
 
-            # Wait for 1 second before sending the next batch
+                # Log traffic data for current second
+                traffic_store.append_traffic_data(current_time, 1)
+
             time.sleep(1)
 
         return {"status": "success", "message": "Traffic simulation completed"}
@@ -355,8 +385,8 @@ class LoadBalancer:
         """
         self.active_strategy = strategy_name
         self.strategy_executor.set_active_strategy(strategy_name)
+        self.load_saved_strategies()  # Ensure updated strategies are loaded
         main_logger.info(f"LoadBalancer: Active strategy set to {strategy_name}")
-
     def execute_strategy(self):
         if not self.known_agents:
             main_logger.error("No agents available to execute strategy.")

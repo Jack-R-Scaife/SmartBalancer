@@ -18,6 +18,12 @@ async function fetchAllAgentMetrics() {
         const currentTime = new Date(); // Use the current time for x-axis
 
         metrics.forEach(metric => {
+            // Validate the structure of each metric object
+            if (!metric || !metric.metrics) {
+                console.warn("Invalid metric object:", metric);
+                return; // Skip this metric
+            }
+
             const serverIp = metric.ip;
             const cpuUsage = parseFloat(metric.metrics.cpu_total); // CPU percentage
             const memoryUsage = parseFloat(metric.metrics.memory); // Memory usage
@@ -63,7 +69,7 @@ async function fetchAllAgentMetrics() {
             // Add data to the server's dataset
             memoryUsageDatasets[serverIp].data.push({ x: currentTime, y: memoryUsage });
             if (memoryUsageDatasets[serverIp].data.length > 50) {
-                memoryUsageDatasets[serverIp].data.shift(); // Keep the latest 100 points
+                memoryUsageDatasets[serverIp].data.shift(); // Keep the latest 50 points
             }
         });
 

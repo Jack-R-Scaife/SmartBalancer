@@ -259,12 +259,18 @@ function fetchTrafficData() {
     fetch('/api/traffic')
         .then(response => response.json())
         .then(data => {
-            const timestamps = data.map(point => new Date(point.timestamp));
+
+            const timestamps = data.map(point => {
+                const timestamp = point.timestamp * 1000; // Convert to milliseconds
+                return new Date(timestamp).toISOString(); // Use ISO format for Chart.js
+            });
+
             const values = data.map(point => point.value);
 
-            trafficChart.data.labels = timestamps;
+            trafficChart.data.labels = timestamps; // ISO format for time-based chart
             trafficChart.data.datasets[0].data = values;
-            trafficChart.update();
+
+            trafficChart.update(); // Refresh the chart
         })
         .catch(error => console.error('Error fetching traffic data:', error));
 }
@@ -331,78 +337,104 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     };
 
-function fetchAlerts() {
-axios.get('/api/alerts')
-    .then(response => {
-        if (response.status === 200 && response.data.status === "success") {
-            // Extract alerts from the nested structure
-            const alerts = response.data.data[0]?.alerts || [];
-            updateAlertTable(alerts);
-        } else {
-            console.error("Unexpected response structure:", response);
-        }
-    })
-    .catch(error => {
-        console.error("Error fetching alerts:", error);
+    function fetchAlerts() {
+    axios.get('/api/alerts')
+        .then(response => {
+            if (response.status === 200 && response.data.status === "success") {
+                // Extract alerts
+                const alerts = response.data.data[0]?.alerts || [];
+                updateAlertTable(alerts);
+
+                // Schedule removal of alerts after 3 minutes
+                setTimeout(() => {
+                    clearAlerts(alerts);
+                }, 180000); // 3 minutes
+            } else {
+                console.error("Unexpected response structure:", response);
+                displayNoAlertsRow(); // Show "No Alerts" if response is invalid
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching alerts:", error);
+            displayNoAlertsRow(); // Show "No Alerts" if there's an error
+        });
+}
+
+function clearAlerts(alerts) {
+    alerts.forEach(alert => {
+        const uniqueId = `${alert.source}-${alert.type}-${alert.condition}`;
+        alertCache.delete(uniqueId); // Clear from cache
+    });
+
+    // Re-check alerts and update the table
+    fetchAlerts();
+}
+
+function updateAlertTable(alerts) {
+    // Clear existing rows
+    tableBody.innerHTML = "";
+
+    if (!Array.isArray(alerts) || alerts.length === 0) {
+        // If no alerts, display the "No Alerts" row
+        displayNoAlertsRow();
+        return;
+    }
+
+    // Loop through alerts and populate the table
+    alerts.forEach(alert => {
+        processAndAddAlert(alert);
     });
 }
 
-    function updateAlertTable(alerts) {
-        // Clear existing rows
-        tableBody.innerHTML = "";
+function displayNoAlertsRow() {
+    // Clear the table before displaying "No Alerts"
+    tableBody.innerHTML = "";
 
-        if (!Array.isArray(alerts) || alerts.length === 0) {
-            displayNoAlertsRow();
-            return;
-        }
+    // Create the "No Alerts" row
+    const row = document.createElement("tr");
+    row.innerHTML = `
+        <td colspan="5" style="padding: 8px; border: 1px solid; text-align: center;">
+            No alerts, everything is running fine.
+        </td>
+    `;
+    tableBody.appendChild(row);
+}
 
-        alerts.forEach(alert => {
-            processAndAddAlert(alert);
-        });
-    }
+function processAndAddAlert(alert) {
+  if (!alert.type || !alert.condition || !alert.source) {
+      console.warn("Skipping incomplete alert:", alert);
+      return;
+  }
 
-    function displayNoAlertsRow() {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td colspan="5" style="padding: 8px; border: 1px solid; text-align: center;">
-                No alerts, everything is running fine.
-            </td>
-        `;
-        tableBody.appendChild(row);
-    }
+  const conditions = alert.condition.split(",");
+  conditions.forEach(condition => {
+      const [key, value] = condition.split(":");
+      const metric = mapping.conditions[key.trim()] || key.trim(); // Map or use raw key
+      const normalizedValue = value.trim().endsWith("%") ? value.trim() : `${value.trim()}%`;
+      const descriptionPrefix = mapping.descriptionPrefix[alert.type] || "Alert detected";
+      const fullDescription = `${descriptionPrefix}: ${metric} at ${normalizedValue}`;
 
-    function processAndAddAlert(alert) {
-        if (!alert.type || !alert.condition || !alert.source) {
-            console.warn("Skipping incomplete alert:", alert);
-            return;
-        }
+      const uniqueId = `${alert.source}-${alert.type}-${metric}-${normalizedValue}`;
+      if (alertCache.has(uniqueId)) return; // Skip duplicates
 
-        const conditions = alert.condition.split(",");
-        conditions.forEach(condition => {
-            const [key, value] = condition.split(":");
-            const metric = mapping.conditions[key.trim()] || key.trim(); // Map or use raw key
-            const normalizedValue = value.trim().endsWith("%") ? value.trim() : `${value.trim()}%`;
-            const descriptionPrefix = mapping.descriptionPrefix[alert.type] || "Alert detected";
-            const fullDescription = `${descriptionPrefix}: ${metric} at ${normalizedValue}`;
+      alertCache.add(uniqueId);
 
-            const uniqueId = `${alert.source}-${alert.type}-${metric}-${normalizedValue}`;
-            if (alertCache.has(uniqueId)) return; // Skip duplicates
+      // Handle missing or invalid timestamp
+      const ukTimestamp = alert.timestamp
+          ? formatToUKDate(alert.timestamp)
+          : "N/A"; // Fallback to "N/A" if timestamp is missing
 
-            alertCache.add(uniqueId);
-
-            const ukTimestamp = formatToUKDate(alert.timestamp || "N/A");
-
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td style="padding: 8px; border: 1px solid;">${ukTimestamp}</td>
-                <td style="padding: 8px; border: 1px solid;">${mapping.types[alert.type] || alert.type}</td>
-                <td style="padding: 8px; border: 1px solid;">${metric}: ${normalizedValue}</td>
-                <td style="padding: 8px; border: 1px solid;">${alert.source}</td>
-                <td style="padding: 8px; border: 1px solid;">${fullDescription}</td>
-            `;
-            tableBody.appendChild(row);
-        });
-    }
+      const row = document.createElement("tr");
+      row.innerHTML = `
+          <td style="padding: 8px; border: 1px solid;">${ukTimestamp}</td>
+          <td style="padding: 8px; border: 1px solid;">${mapping.types[alert.type] || alert.type}</td>
+          <td style="padding: 8px; border: 1px solid;">${metric}: ${normalizedValue}</td>
+          <td style="padding: 8px; border: 1px solid;">${alert.source}</td>
+          <td style="padding: 8px; border: 1px solid;">${fullDescription}</td>
+      `;
+      tableBody.appendChild(row);
+  });
+}
 
     function formatToUKDate(timestamp) {
         if (!timestamp || timestamp === "N/A") return "N/A";
