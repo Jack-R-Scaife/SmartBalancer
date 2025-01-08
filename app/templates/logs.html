@@ -139,31 +139,31 @@
      *    - Filter by date (from dropdown)
      *    - Filter by search text (from input)
      */
-    function applyFilters() {
-        const groupValue = groupFilter.value;       // e.g. "all", "group1"
-        const dateValue = dateFilter.value;         // e.g. "all", "2023-10-05"
-        const searchQuery = searchBar.value.toLowerCase().trim();
+     function applyFilters() {
+    const groupValue = serverFilter.value; // Use the existing serverFilter variable
+    const dateValue = dateFilter.value;
+    const searchQuery = searchBar.value.toLowerCase().trim();
 
-        document.querySelectorAll("#logs-container .customlistgroup").forEach(logItem => {
-            const itemGroup = logItem.getAttribute("data-group");
-            const itemDate = logItem.getAttribute("data-date");
-            const logTitle = logItem.querySelector("h6").textContent.toLowerCase();
+    document.querySelectorAll("#logs-container .customlistgroup").forEach(logItem => {
+        const itemGroup = logItem.getAttribute("data-group");
+        const itemDate = logItem.getAttribute("data-date");
+        const logTitle = logItem.querySelector("h6").textContent.toLowerCase();
 
-            // Group check
-            const matchesGroup = (groupValue === "all" || itemGroup === groupValue);
-            // Date check
-            const matchesDate = (dateValue === "all" || itemDate === dateValue);
-            // Search check
-            const matchesSearch = !searchQuery || logTitle.includes(searchQuery);
+        // Group check
+        const matchesGroup = (groupValue === "all" || itemGroup === groupValue);
+        // Date check
+        const matchesDate = (dateValue === "all" || itemDate === dateValue);
+        // Search check
+        const matchesSearch = !searchQuery || logTitle.includes(searchQuery);
 
-            // All conditions must be true to show
-            const isVisible = (matchesGroup && matchesDate && matchesSearch);
-            logItem.style.display = isVisible ? "block" : "none";
-        });
-    }
+        // All conditions must be true to show
+        const isVisible = (matchesGroup && matchesDate && matchesSearch);
+        logItem.style.display = isVisible ? "block" : "none";
+    });
+}
 
     // 6) Listen to changes on group, date, and search
-    groupFilter.addEventListener("change", applyFilters);
+    serverFilter.addEventListener("change", applyFilters);
     dateFilter.addEventListener("change", applyFilters);
 
     // For the search bar, do "input" so it filters as you type
