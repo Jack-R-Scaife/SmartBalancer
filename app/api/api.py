@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers,get_servers_by_group
-from app.models import Server,LoadBalancerSetting,Strategy
+from app.models import Server,LoadBalancerSetting,Strategy,Rule
 import json,os
 import random,logging
 from server.traffic_store import TrafficStore
@@ -15,8 +15,8 @@ from flask import render_template
 from flask import make_response
 from server.logging_config import api_logger
 from server.logging_config import main_logger, traffic_logger
-
-
+from server.rules_manager import create_rule
+import time
 
 status_mapping = {
     "healthy": 1,
@@ -146,24 +146,33 @@ def api_remove_groups():
     API endpoint to delete multiple groups.
     """
     try:
+        # Parse the incoming JSON payload
         data = request.json
         group_ids = data.get('group_ids', [])
+
+        # Validate input
         if not group_ids:
             api_logger.warning("No group IDs provided for deletion")
             return jsonify({"status": "error", "message": "No group IDs provided"}), 400
 
+        # Attempt to remove groups
         api_logger.info(f"Removing groups with IDs: {group_ids}")
         response_data = remove_groups(group_ids)
-        if response_data['status']:
+
+        # Return a response based on the operation's success
+        if response_data.get('status'):
             api_logger.info(f"Groups removed successfully: {group_ids}")
+            return jsonify({"status": "success", "message": response_data['message']}), 200
         else:
-            api_logger.error(f"Failed to remove groups: {response_data['message']}")
-        return jsonify(response_data), 200 if response_data['status'] else 500
+            api_logger.warning(f"Some groups could not be removed: {response_data['message']}")
+            return jsonify({"status": "partial", "message": response_data['message']}), 400
     except Exception as e:
+        # Handle unexpected errors
         api_logger.error(f"Error in api_remove_groups: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-api_blueprint.route('/groups/create', methods=['POST'])
+
+@api_blueprint.route('/groups/create', methods=['POST'])
 def api_create_group():
     """
     API endpoint to create a new group with servers.
@@ -215,11 +224,31 @@ def api_get_alerts():
     try:
         load_balancer = LoadBalancer()
         alerts = load_balancer.fetch_alerts_from_all_agents()
-        api_logger.debug(f"Alerts fetched: {alerts}")
-        return jsonify({'status': 'success', 'data': alerts}), 200
+
+        # Log the raw alerts
+        api_logger.debug(f"Raw alerts fetched: {alerts}")
+
+        # Validate and filter alerts
+        current_time = time.time()
+        filtered_alerts = []
+        for alert in alerts:
+            try:
+                # Check for 'timestamp' in the alert
+                if "timestamp" in alert and isinstance(alert["timestamp"], (int, float)):
+                    if current_time - alert["timestamp"] <= 180:  # 3-minute filter
+                        filtered_alerts.append(alert)
+                else:
+                    api_logger.warning(f"Invalid or missing 'timestamp' in alert: {alert}")
+            except Exception as e:
+                api_logger.error(f"Error processing alert: {alert}, error: {e}")
+
+        api_logger.debug(f"Filtered alerts: {filtered_alerts}")
+        return jsonify({'status': 'success', 'data': filtered_alerts}), 200
+
     except Exception as e:
         api_logger.error(f"Error fetching alerts: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
     
 @api_blueprint.route('/simulate_traffic', methods=['POST'])
 def simulate_traffic():
@@ -228,7 +257,7 @@ def simulate_traffic():
         load_balancer = LoadBalancer()
 
         traffic_config = request.json
-        logging.info(f"Received traffic_config: {traffic_config}")
+        api_logger.info(f"Received traffic_config: {traffic_config}")
 
         if not traffic_config:
             return jsonify({"error": "Missing traffic configuration"}), 400
@@ -263,6 +292,7 @@ def fetch_servers(group_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     
+
 @api_blueprint.route('/load_balancer/set_strategy', methods=['POST'])
 def set_load_balancer_strategy():
     """
@@ -271,27 +301,38 @@ def set_load_balancer_strategy():
     try:
         # Parse the request JSON
         data = request.json
-        group_id = data.get('group_id')  # Extract group_id
-        strategies = data.get('strategies')  # Extract strategies list
 
-        # Validate input
-        if not group_id or not strategies:
-            return jsonify({"status": "error", "message": "Group ID and Strategy Name are required."}), 400
+        # Extract group_id
+        group_id = data.get('group_id')
+        if not group_id:
+            return jsonify({"status": "error", "message": "Group ID is required."}), 400
 
-        # Use the first strategy from the list (if multiple strategies are provided)
+        # Validate and convert group_id to an integer
+        try:
+            group_id = int(group_id)  # Convert to integer
+        except ValueError:
+            return jsonify({"status": "error", "message": "Invalid group ID. Must be an integer."}), 400
+
+        # Extract strategies from payload
+        strategies = data.get('strategies')
+        if not strategies:
+            return jsonify({"status": "error", "message": "Strategy Name is required."}), 400
+
+        # Use the first strategy from the list
         strategy_name = strategies[0]
 
-        # Call the function to apply the strategy
+        # Apply the strategy
         result = StrategyManager.apply_strategy_to_group(strategy_name, group_id)
 
-        # Set the active strategy in the LoadBalancer
         if result["status"] == "success":
             load_balancer = LoadBalancer()
-            load_balancer.set_active_strategy(strategy_name)
+            load_balancer.load_saved_strategies()
 
         return jsonify(result), 200 if result["status"] == "success" else 400
 
     except Exception as e:
+        # Log the exception and return an error response
+        logging.error(f"Error in set_load_balancer_strategy: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -592,5 +633,29 @@ def download_agent_logs():
             "message": "Agent logs downloaded and extracted.", 
             "results": agent_logs
         }), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+@api_blueprint.route('/rules/create', methods=['POST'])
+def api_create_rule():
+    """
+    API endpoint to create a new rule.
+    """
+    try:
+        # Parse request data
+        data = request.json
+
+        # Validate common fields
+        if not data.get('name') or not data.get('action') or not data.get('rule_type'):
+            return jsonify({"status": "error", "message": "Name, action, and rule type are required."}), 400
+
+        # Delegate rule creation to rules_manager
+        result = create_rule(data)
+
+        if result["status"] == "success":
+            return jsonify(result), 201
+        else:
+            return jsonify(result), 400
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500

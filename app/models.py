@@ -125,13 +125,12 @@ class PortForwarding(db.Model):
     # Relationship to Server
     server = db.relationship('Server', backref='port_forwardings')
 
-class Template(db.Model):
-    __tablename__ = 'Template'
 
-    template_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    settings = db.Column(db.JSON, nullable=True)
+RuleServerGroup = db.Table(
+    'Rule_ServerGroup',
+    db.Column('rule_id', db.Integer, db.ForeignKey('Rules.rule_id'), primary_key=True),
+    db.Column('group_id', db.Integer, db.ForeignKey('Server_Groups.group_id'), primary_key=True)
+)
 
 class Rule(db.Model):
     __tablename__ = 'Rules'
@@ -139,14 +138,40 @@ class Rule(db.Model):
     rule_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(50), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    rule_type = db.Column(db.Enum('geo', 'traffic', 'resource'), nullable=False)
-    priority = db.Column(db.Integer, nullable=False)
+    rule_type = db.Column(db.Enum('traffic', 'geo', 'load', 'custom'), nullable=False)
+    priority = db.Column(db.Integer, nullable=False, default=1)
+    action = db.Column(db.Enum('allow', 'block', 'redirect'), nullable=False)
+    status = db.Column(db.Boolean, default=True)
+
+    # Traffic-Based Rule Fields
+    source_ip_range = db.Column(db.String(100), nullable=True)
+    protocol = db.Column(db.Enum('http', 'https', 'tcp', 'udp'), nullable=True)
+    port = db.Column(db.String(20), nullable=True)
+    traffic_limit = db.Column(db.Integer, nullable=True)
+    redirect_target_type = db.Column(db.Enum('group', 'server'), nullable=True)
+    redirect_target = db.Column(db.String(50), nullable=True)
+
+    # Schedule
+    schedule = db.Column(db.JSON, nullable=True)  # JSON for days, start_time, end_time
+
+    # Relationships
+    server_groups = db.relationship(
+        'ServerGroup',
+        secondary=RuleServerGroup,  # Explicitly use RuleServerGroup
+        backref=db.backref('rules', lazy='dynamic')
+    )
+
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    Strategies_strategy_id = db.Column(db.Integer, db.ForeignKey('Strategies.strategy_id'), nullable=False)
-    
-    # Relationship to Strategy
-    strategy = db.relationship('Strategy', backref='rules')
+
+
+class Template(db.Model):
+    __tablename__ = 'Template'
+
+    template_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    settings = db.Column(db.JSON, nullable=True)
 
 class AccessLog(db.Model):
     __tablename__ = 'Access_Logs'
@@ -182,6 +207,17 @@ class Alert(db.Model):
     severity = db.Column(db.Enum('info', 'warning', 'critical'), nullable=False)
     description = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+class PredictiveLog(db.Model):
+    __tablename__ = 'Predictive_Logs'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+    server_ip = db.Column(db.String(45), nullable=False)
+    response_time = db.Column(db.Float, nullable=True)
+    cpu_usage = db.Column(db.Float, nullable=True)
+    memory_usage = db.Column(db.Float, nullable=True)
+    connections = db.Column(db.Integer, nullable=True)
 
 def initialize_strategies():
     from app import db

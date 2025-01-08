@@ -627,7 +627,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Prepare the payload for the backend
         const payload = {
-            group_id: groupId, // Include the group ID
+            group_id: groupId,
             methods: selectedMethods,
             strategies: selectedStrategies
         };
@@ -716,205 +716,66 @@ axios.get(`/api/load_balancer/active_strategy/${groupId}`)
     </div>
   </div>
 
-  <div class="card-content" id="create">
-    <form>
-      <div class="row mb-3">
-        <div class="col-md-4" >
-          <label for="ruleName" class="">Rule Name</label>
-          <input type="text" class="customselect" id="ruleName" placeholder="Enter rule name">
+    <div class="card-content" id="create">
+      <form id="createRuleForm">
+        <!-- Basic Rule Details -->
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label for="ruleName">Rule Name</label>
+            <input type="text" class="customselect" id="ruleName" placeholder="Enter rule name">
+          </div>
+          <div class="col-md-4">
+            <label for="ruleDescription">Description</label>
+            <input type="text" class="customselect" id="ruleDescription" placeholder="Enter rule description">
+          </div>
+          <div class="col-md-4">
+            <label for="ruleType">Rule Type</label>
+            <select id="ruleType" class="customselect">
+              <option value="traffic">Traffic-Based</option>
+              <option value="geo">Geo-Based</option>
+              <option value="time">Time-Based</option>
+              <option value="load">Load-Based</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
         </div>
-        <div class="col-md-4">
-          <label for="ruleDescription" class="">Description</label>
-          <input type="text" class="customselect" id="ruleDescription" placeholder="Enter rule description">
-        </div>
-        <div class="col-md-4">
-          <label for="ruleType" class="">Rule Type</label>
-          <select id="ruleType" class="customselect">
-            <option value="geo">Geo-Based</option>
-            <option value="time">Time-Based</option>
-            <option value="load">Load-Based</option>
-            <!-- More rule types can be added here -->
-          </select>
-        </div>
-      </div>
     
-      <div class="row mb-3">
-        <h4> Apply rules to groups</h4>
-        <div class="col-md-1">
-          <label for="g1" class="labelcst">Group 1</label>
-          <input type="checkbox" id="g1" >
+        <!-- Dynamic Sections (Rule-Specific Inputs) -->
+        <div id="ruleInputsContainer">
+          
+          <!-- Placeholder for dynamically inserted rule-specific inputs -->
         </div>
-        <div class="col-md-1">
-          <label for="g1" class="labelcst">Group 1</label>
-          <input type="checkbox" id="g1" >
+    
+        <!-- Priority and Action -->
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label for="rulePriority">Priority</label>
+            <input type="number" class="customselect" id="rulePriority" min="1" value="1">
+          </div>
+          <div class="col-md-4">
+            <label for="ruleAction">Action</label>
+            <select id="ruleAction" class="customselect">
+              <option value="allow">Allow</option>
+              <option value="block">Block</option>
+              <option value="redirect">Redirect</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="ruleStatus">Status</label>
+            <select id="ruleStatus" class="customselect">
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
         </div>
-        <div class="col-md-1">
-          <label for="g1" class="labelcst">Group 1</label>
-          <input type="checkbox" id="g1" >
-        </div>
-      </div>
-      <div class="row mb-3" id="conditionContainer">
-        <div class="col-md-4">
-          <label for="geoDirection" style="width: 200px;">If traffic originates from</label>
-          <select id="geoDirection" class="customselect">
-            <option value="outside">Outside</option>
-            <option value="inside">Inside</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label for="geoDirection" style="width: 200px;">of</label>
-          <select id="geoDirection" class="customselect">
-            <option value="" selected>Country or Region</option>
-            <option value="">Uk</option>
-            <option value=""></option>
-          </select>
-        </div>
-
-        <div class="col-md-4">
-          <label for="action" style="width: 200px;">Action</label>
-          <select id="action" class="customselect">
-            <option value="allow">Allow Traffic</option>
-            <option value="block">Block Traffic</option>
-            <option value="redirect">Redirect Traffic</option>
-            <!-- More actions can be added here -->
-          </select>
-        </div>
-      </div>
-      <div class="row mb-3" id="conditionContainer">
-
-      <div class="col-md-4 customcol4">
-        <label for="ruleSchedule" style="width: 200px;">Rule Scheduling</label>
-        <select id="ruleSchedule" class="customselect">
-          <option value="always">Always</option>
-          <option value="specific">Specific Days</option>
-        </select>
-      </div>
-      <div class="col-md-4 customcol4" id="specificDaysContainer" style="display: none;">
-        <label for="scheduleDays" style="width: 200px;">Days</label>
-        <select id="scheduleDays" class="customselect "style="height: 190px;" multiple>
-          <option value="monday">Monday</option>
-          <option value="tuesday">Tuesday</option>
-          <option value="wednesday">Wednesday</option>
-          <option value="thursday">Thursday</option>
-          <option value="friday">Friday</option>
-          <option value="saturday">Saturday</option>
-          <option value="sunday">Sunday</option>
-        </select>
-      </div>
-      <div class="col-md-4" id="specificHoursContainer">
-        <label for="scheduleStart" style="width: 200px;">Start Time</label>
-        <select id="scheduleStart" class="customselect">
-          <option value="12:00 AM">12:00 AM</option>
-          <option value="12:30 AM">12:30 AM</option>
-          <option value="1:00 AM">1:00 AM</option>
-          <option value="1:30 AM">1:30 AM</option>
-          <option value="2:00 AM">2:00 AM</option>
-          <option value="2:30 AM">2:30 AM</option>
-          <option value="3:00 AM">3:00 AM</option>
-          <option value="3:30 AM">3:30 AM</option>
-          <option value="4:00 AM">4:00 AM</option>
-          <option value="4:30 AM">4:30 AM</option>
-          <option value="5:00 AM">5:00 AM</option>
-          <option value="5:30 AM">5:30 AM</option>
-          <option value="6:00 AM">6:00 AM</option>
-          <option value="6:30 AM">6:30 AM</option>
-          <option value="7:00 AM">7:00 AM</option>
-          <option value="7:30 AM">7:30 AM</option>
-          <option value="8:00 AM">8:00 AM</option>
-          <option value="8:30 AM">8:30 AM</option>
-          <option value="9:00 AM">9:00 AM</option>
-          <option value="9:30 AM">9:30 AM</option>
-          <option value="10:00 AM">10:00 AM</option>
-          <option value="10:30 AM">10:30 AM</option>
-          <option value="11:00 AM">11:00 AM</option>
-          <option value="11:30 AM">11:30 AM</option>
-          <option value="12:00 PM">12:00 PM</option>
-          <option value="12:30 PM">12:30 PM</option>
-          <option value="1:00 PM">1:00 PM</option>
-          <option value="1:30 PM">1:30 PM</option>
-          <option value="2:00 PM">2:00 PM</option>
-          <option value="2:30 PM">2:30 PM</option>
-          <option value="3:00 PM">3:00 PM</option>
-          <option value="3:30 PM">3:30 PM</option>
-          <option value="4:00 PM">4:00 PM</option>
-          <option value="4:30 PM">4:30 PM</option>
-          <option value="5:00 PM">5:00 PM</option>
-          <option value="5:30 PM">5:30 PM</option>
-          <option value="6:00 PM">6:00 PM</option>
-          <option value="6:30 PM">6:30 PM</option>
-          <option value="7:00 PM">7:00 PM</option>
-          <option value="7:30 PM">7:30 PM</option>
-          <option value="8:00 PM">8:00 PM</option>
-          <option value="8:30 PM">8:30 PM</option>
-          <option value="9:00 PM">9:00 PM</option>
-          <option value="9:30 PM">9:30 PM</option>
-          <option value="10:00 PM">10:00 PM</option>
-          <option value="10:30 PM">10:30 PM</option>
-          <option value="11:00 PM">11:00 PM</option>
-          <option value="11:30 PM">11:30 PM</option>
-        </select>
-      </div>
-        <div class="col-md-4 customcol4" id="specificHoursContainer">
-        <label for="scheduleEnd" style="width: 200px;">End Time</label>
-        <select id="scheduleEnd" class="customselect">
-          <option value="12:00 AM">12:00 AM</option>
-          <option value="12:30 AM">12:30 AM</option>
-          <option value="1:00 AM">1:00 AM</option>
-          <option value="1:30 AM">1:30 AM</option>
-          <option value="2:00 AM">2:00 AM</option>
-          <option value="2:30 AM">2:30 AM</option>
-          <option value="3:00 AM">3:00 AM</option>
-          <option value="3:30 AM">3:30 AM</option>
-          <option value="4:00 AM">4:00 AM</option>
-          <option value="4:30 AM">4:30 AM</option>
-          <option value="5:00 AM">5:00 AM</option>
-          <option value="5:30 AM">5:30 AM</option>
-          <option value="6:00 AM">6:00 AM</option>
-          <option value="6:30 AM">6:30 AM</option>
-          <option value="7:00 AM">7:00 AM</option>
-          <option value="7:30 AM">7:30 AM</option>
-          <option value="8:00 AM">8:00 AM</option>
-          <option value="8:30 AM">8:30 AM</option>
-          <option value="9:00 AM">9:00 AM</option>
-          <option value="9:30 AM">9:30 AM</option>
-          <option value="10:00 AM">10:00 AM</option>
-          <option value="10:30 AM">10:30 AM</option>
-          <option value="11:00 AM">11:00 AM</option>
-          <option value="11:30 AM">11:30 AM</option>
-          <option value="12:00 PM">12:00 PM</option>
-          <option value="12:30 PM">12:30 PM</option>
-          <option value="1:00 PM">1:00 PM</option>
-          <option value="1:30 PM">1:30 PM</option>
-          <option value="2:00 PM">2:00 PM</option>
-          <option value="2:30 PM">2:30 PM</option>
-          <option value="3:00 PM">3:00 PM</option>
-          <option value="3:30 PM">3:30 PM</option>
-          <option value="4:00 PM">4:00 PM</option>
-          <option value="4:30 PM">4:30 PM</option>
-          <option value="5:00 PM">5:00 PM</option>
-          <option value="5:30 PM">5:30 PM</option>
-          <option value="6:00 PM">6:00 PM</option>
-          <option value="6:30 PM">6:30 PM</option>
-          <option value="7:00 PM">7:00 PM</option>
-          <option value="7:30 PM">7:30 PM</option>
-          <option value="8:00 PM">8:00 PM</option>
-          <option value="8:30 PM">8:30 PM</option>
-          <option value="9:00 PM">9:00 PM</option>
-          <option value="9:30 PM">9:30 PM</option>
-          <option value="10:00 PM">10:00 PM</option>
-          <option value="10:30 PM">10:30 PM</option>
-          <option value="11:00 PM">11:00 PM</option>
-          <option value="11:30 PM">11:30 PM</option>
-        </select>
-      </div>
+    
+        <!-- Submit Button -->
+        <button type="button" class="customView buttonstyle" id="createRuleButton">Create Rule</button>
+      </form>
     </div>
-      <button type="submit" class="customView buttonstyle">Create Rule</button>
-    </form>
-</div>
+    
 
 
-
-</div>
 
 <script>
   document.querySelectorAll('.tab').forEach(tab => {
@@ -929,26 +790,15 @@ axios.get(`/api/load_balancer/active_strategy/${groupId}`)
     });
   });
 
-  document.getElementById('ruleSchedule').addEventListener('change', function() {
-    const specificDaysContainer = document.getElementById('specificDaysContainer');
-    if (this.value === 'specific') {
-      specificDaysContainer.style.display = 'block';
-    } else {
-      specificDaysContainer.style.display = 'none';
-    }
-  });
-
-
-
-
-
-
-
-
-
-
-
-
+  const ruleSchedule = document.getElementById("ruleSchedule");
+if (ruleSchedule) {
+    ruleSchedule.addEventListener("change", function () {
+        const specificDaysContainer = document.getElementById("specificDaysContainer");
+        specificDaysContainer.style.display = this.value === "specific" ? "block" : "none";
+    });
+}
 
 </script>
+<script src="{{ url_for('static', filename='JS/rules.js') }}"></script>
+
 {% endblock %}
