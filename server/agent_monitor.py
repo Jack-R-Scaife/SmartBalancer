@@ -100,41 +100,6 @@ class LoadBalancer:
             main_logger.error(f"Communication error with {ip_address}: {e}")
             return {"status": "error", "message": str(e)}
 
-    def fetch_metrics_from_all_agents(self):
-        """
-        Fetch metrics from all known agents using TCP and log predictive data.
-        """
-        main_logger.info("Fetching metrics from all known agents")
-        metrics = []
-        for ip in self.known_agents:
-            try:
-                response = self.send_tcp_request(ip, 9000, "metrics")
-                if response.get("status") == "success":
-                    metrics_data = response.get("metrics")
-                    metrics.append({"ip": ip, "metrics": metrics_data})
-
-                    # Log predictive data
-                    traffic_logger.info(
-                        "Predictive data logged",
-                        extra={
-                            "timestamp": int(time.time()),
-                            "server_ip": ip,
-                            "response_time": metrics_data.get("response_time", 0),
-                            "cpu_usage": metrics_data.get("cpu_usage", 0),
-                            "memory_usage": metrics_data.get("memory_usage", 0),
-                            "connections": metrics_data.get("connections", 0),
-                        }
-                    )
-
-                    main_logger.debug(f"Metrics fetched from {ip}: {metrics_data}")
-                else:
-                    metrics.append({"ip": ip, "error": response.get("message")})
-                    main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
-            except Exception as e:
-                metrics.append({"ip": ip, "error": f"Error communicating with agent: {str(e)}"})
-                main_logger.error(f"Error fetching metrics from {ip}: {e}")
-        return metrics
-
     def fetch_alerts_from_all_agents(self):
         """
         Fetch alerts from all known agents using TCP.
@@ -279,44 +244,91 @@ class LoadBalancer:
             server.status = status  # Update the status in the database
             db.session.commit()
         
-    def fetch_metrics_from_all_agents(self):
+    def fetch_metrics_from_all_agents(self, scenario=None, group_id=None):
         """
-        Fetch metrics from all known agents using TCP and log predictive data to the database.
+        Fetch system metrics + a 30-second rolling traffic rate/volume per agent.
+        Only insert into PredictiveLog if there's actual traffic in that time window.
+        scenario: optional string label (e.g. "baseline_low", "scaleup_medium")
+        group_id: optional integer for linking to ServerGroup
         """
         main_logger.info("Fetching metrics from all known agents")
         metrics = []
+        traffic_store = TrafficStore.get_instance()
+
+        window_size = 30
+        now = time.time()
+
         for ip in self.known_agents:
             try:
+                # Optionally measure round-trip time for 'metrics' call
+                start_time = time.time()
                 response = self.send_tcp_request(ip, 9000, "metrics")
+                round_trip_ms = (time.time() - start_time) * 1000
+
                 if response.get("status") == "success":
-                    metrics_data = response.get("metrics")
-                    metrics.append({"ip": ip, "metrics": metrics_data})
-                    main_logger.debug(f"Metrics fetched successfully from {ip}: {metrics_data}")
+                    system_metrics = response.get("metrics", {})
+                    main_logger.debug(f"System metrics from {ip}: {system_metrics}")
 
-                    # Log predictive data to the database
-                    log_entry = PredictiveLog(
-                        server_ip=ip,
-                        response_time=metrics_data.get("response_time"),
-                        cpu_usage=metrics_data.get("cpu_usage"),
-                        memory_usage=metrics_data.get("memory_usage"),
-                        connections=metrics_data.get("connections")
+                    # Retrieve traffic data for this agent in the last 30s
+                    agent_traffic = traffic_store.get_traffic_data(agent_ip=ip)
+                    recent_traffic = [
+                        entry for entry in agent_traffic
+                        if (now - entry["timestamp"]) <= window_size
+                    ]
+
+                    traffic_rate = sum(e["value"] for e in recent_traffic)
+                    traffic_volume = len(recent_traffic)
+
+                    main_logger.info(
+                        f"For agent {ip}, traffic_rate={traffic_rate}, volume={traffic_volume}"
                     )
-                    db.session.add(log_entry)
-                    db.session.commit()
 
+                    # Only log if there's traffic in last 30 seconds
+                    if traffic_rate > 0:
+                        # If your agent returns 'connections':
+                        connections_count = system_metrics.get("connections", 0)
+
+                        # Insert the row into PredictiveLog, including scenario & strategy
+                        log_entry = PredictiveLog(
+                            server_ip=ip,
+                            response_time=round_trip_ms,
+                            cpu_usage=system_metrics.get("cpu_total", 0),
+                            memory_usage=system_metrics.get("memory", 0),
+                            connections=connections_count,
+                            traffic_rate=traffic_rate,
+                            traffic_volume=traffic_volume,
+
+                            scenario=scenario,               # <--- new
+                            strategy=self.active_strategy,    # <--- new
+                            group_id=group_id                # <--- new (FK to Server_Groups)
+                        )
+                        db.session.add(log_entry)
+                        db.session.commit()
+
+                        main_logger.info(
+                            f"PredictiveLog inserted for {ip} with traffic_rate={traffic_rate}, "
+                            f"scenario={scenario}, strategy={self.active_strategy}, group_id={group_id}"
+                        )
+                    else:
+                        main_logger.info(f"No traffic for {ip} in last {window_size} seconds; skipping DB insert.")
+
+                    metrics.append({"ip": ip, "metrics": system_metrics})
                 else:
-                    metrics.append({"ip": ip, "error": response.get("message")})
-                    main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
-            except Exception as e:
-                metrics.append({"ip": ip, "error": f"Error communicating with agent: {str(e)}"})
-                main_logger.error(f"Error fetching metrics from {ip}: {e}")
-        return metrics
+                    error_msg = response.get("message", "Unknown error")
+                    metrics.append({"ip": ip, "error": error_msg})
+                    main_logger.warning(f"Failed to fetch metrics from {ip}: {error_msg}")
 
+            except Exception as e:
+                metrics.append({"ip": ip, "error": str(e)})
+                main_logger.error(f"Error fetching metrics from {ip}: {e}")
+
+        return metrics
 
     def simulate_traffic(self, traffic_config):
         """
         Simulate traffic and route requests based on the active strategy.
         """
+        
         traffic_logger.info(f"Simulate traffic invoked with config: {traffic_config}")
 
         # Validate traffic_config
@@ -325,7 +337,8 @@ class LoadBalancer:
             if key not in traffic_config:
                 traffic_logger.error(f"Missing key '{key}' in traffic_config: {traffic_config}")
                 return {"status": "error", "message": f"Missing key '{key}' in traffic_config"}
-
+            
+        scenario = traffic_config.get("scenario", "default_scenario")
         # Check if there are known agents
         if not self.known_agents:
             traffic_logger.warning("No known agents available for traffic simulation.")
@@ -345,8 +358,7 @@ class LoadBalancer:
             return {"status": "error", "message": "No active strategy set"}
 
         # Simulate traffic for the specified duration
-         # Simulate traffic for the specified duration
-        for second in range(duration):
+        for _  in range(duration):
             current_time = int(time.time())
             for _ in range(rate):
                 try:
@@ -354,6 +366,8 @@ class LoadBalancer:
                     if not target_agent:
                         traffic_logger.warning("No agent selected by the strategy.")
                         continue
+
+                    group_id = self.lookup_group_id_for_agent(target_agent)
 
                     # Log predictive traffic data
                     traffic_logger.info(
@@ -373,11 +387,31 @@ class LoadBalancer:
                     continue
 
                 # Log traffic data for current second
-                traffic_store.append_traffic_data(current_time, 1)
-
+                traffic_store.append_traffic_data(target_agent, current_time, 1)
+                self.fetch_metrics_from_all_agents(scenario=scenario, group_id=group_id)
             time.sleep(1)
 
         return {"status": "success", "message": "Traffic simulation completed"}
+    
+
+    def lookup_group_id_for_agent(self, ip_address):
+        """
+        Given an agent's IP address, return the group_id of the group this server belongs to.
+        If server or group association is not found, return None.
+        """
+        with self.app.app_context():
+            # 1) Find the server row
+            server = Server.query.filter_by(ip_address=ip_address).first()
+            if not server:
+                return None
+
+            # 2) Check the linking table (ServerGroupServer)
+            from app.models import ServerGroupServer
+            association = ServerGroupServer.query.filter_by(server_id=server.server_id).first()
+            if association:
+                return association.group_id
+            else:
+                return None
     
     def set_active_strategy(self, strategy_name):
         """

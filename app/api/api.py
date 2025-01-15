@@ -272,12 +272,15 @@ def simulate_traffic():
 @api_blueprint.route('/traffic', methods=['GET'])
 def get_traffic_data():
     """
-    API endpoint to fetch real-time traffic data for the dashboard.
+    API endpoint to fetch real-time traffic data.
     """
     traffic_store = TrafficStore.get_instance()
     traffic_data = traffic_store.get_traffic_data()
-    api_logger.info(f"Serving traffic_data: {traffic_data}")
-    return jsonify(traffic_data)
+
+    # Debugging
+    api_logger.info(f"Traffic data fetched: {traffic_data}")
+
+    return jsonify(traffic_data), 200
 
 @api_blueprint.route('/servers/<int:group_id>', methods=['GET'])
 def fetch_servers(group_id):

@@ -218,6 +218,15 @@ class PredictiveLog(db.Model):
     cpu_usage = db.Column(db.Float, nullable=True)
     memory_usage = db.Column(db.Float, nullable=True)
     connections = db.Column(db.Integer, nullable=True)
+    traffic_rate = db.Column(db.Float, nullable=True)
+    traffic_volume = db.Column(db.Integer, nullable=True)
+    scenario = db.Column(db.String(50), nullable=True)  
+    strategy = db.Column(db.String(50), nullable=True)
+
+    #link to the ServerGroup table
+    group_id = db.Column(db.Integer, db.ForeignKey('Server_Groups.group_id'), nullable=True)
+    server_group = db.relationship('ServerGroup', backref='predictive_logs')
+
 
 def initialize_strategies():
     from app import db

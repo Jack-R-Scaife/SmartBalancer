@@ -1,8 +1,15 @@
 import psutil
 import subprocess
-import random
+import random,logging
 from resource_monitor import ResourceMonitor
+ping_logger = logging.getLogger("ping_logger")
+ping_logger.setLevel(logging.DEBUG)
 
+# File handler for logging to ping.log
+ping_handler = logging.FileHandler("ping.log")
+ping_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+ping_handler.setFormatter(ping_formatter)
+ping_logger.addHandler(ping_handler)
 class HealthCheck:
     """
     Performs health checks on the server and determines its status.
@@ -26,17 +33,25 @@ class HealthCheck:
         try:
             # Determine platform-specific ping command
             ping_command = ['ping', '-c', '1', ip_address]
-            result = subprocess.run(ping_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            ping_logger.debug(f"Executing ping command: {' '.join(ping_command)}")
+            
+            result = subprocess.run(ping_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
             if result.returncode == 0:
                 # Extract latency from the output
                 output = result.stdout.decode('utf-8')
+                ping_logger.debug(f"Ping output: {output}")
+                
                 latency = float(output.split('time=')[1].split('ms')[0].strip())
+                ping_logger.info(f"Ping to {ip_address} successful, latency: {latency} ms")
                 return latency
             else:
-                print(f"Ping failed: {result.stderr.decode('utf-8')}")
+                ping_logger.error(f"Ping to {ip_address} failed: {result.stderr.decode('utf-8')}")
                 return -1
+        except subprocess.TimeoutExpired:
+            ping_logger.error(f"Ping to {ip_address} timed out.")
+            return -1
         except Exception as e:
-            print(f"Error pinging {ip_address}: {e}")
+            ping_logger.error(f"Error pinging {ip_address}: {e}")
             return -1
 
     def check_resources(self):

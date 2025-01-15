@@ -35,6 +35,7 @@ class Agent:
         self.tcp_server_socket = None
         self.alert_manager_thread = None
         self.start_alert_manager()
+        self.connection_count = 0  
         logging.info(f"Agent initialized with server_id: {self.server_id}")
   
 
@@ -202,6 +203,7 @@ class Agent:
         """
         Handle incoming TCP requests from the load balancer.
         """
+        self.connection_count += 1 
         try:
             # Get the IP of the client (load balancer)
             ip_address = client_socket.getpeername()[0]
@@ -281,6 +283,7 @@ class Agent:
             error_response = {"status": "error", "message": str(e)}
             client_socket.sendall(json.dumps(error_response).encode('utf-8'))
         finally:
+            self.connection_count -= 1
             client_socket.close()
 
 
@@ -356,6 +359,7 @@ class Agent:
         """
         try:
             metrics = resource_monitor.monitor(interval=20)
+            metrics["connections"] = self.connection_count
             return {"status": "success", "ip": self.get_ip_address(), "metrics": metrics}
         except Exception as e:
             print(f"Error generating metrics: {e}")

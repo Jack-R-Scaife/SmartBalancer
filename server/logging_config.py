@@ -23,7 +23,8 @@ def setup_logger(name, log_file, level=logging.INFO):
     handler = RotatingFileHandler(
         os.path.join(LOGS_DIR, log_file),
         maxBytes=5 * 1024 * 1024,  # 5 MB
-        backupCount=3
+        backupCount=3,
+        delay=True
     )
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s - Server: %(server)s')
     handler.setFormatter(formatter)
