@@ -298,9 +298,9 @@ class LoadBalancer:
                             traffic_rate=traffic_rate,
                             traffic_volume=traffic_volume,
 
-                            scenario=scenario,               # <--- new
-                            strategy=self.active_strategy,    # <--- new
-                            group_id=group_id                # <--- new (FK to Server_Groups)
+                            scenario=scenario,             
+                            strategy=self.active_strategy,   
+                            group_id=group_id                
                         )
                         db.session.add(log_entry)
                         db.session.commit()
