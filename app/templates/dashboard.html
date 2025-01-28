@@ -192,22 +192,31 @@ h5 {
 <script src="{{ url_for('static', filename='JS/server_status.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/dashboardchart.js') }}"></script>
 <script>
-// Get the canvas context
+
 const ctx = document.getElementById('trafficChart').getContext('2d');
 
 // Initialize the chart
 const trafficChart = new Chart(ctx, {
     type: 'line',
     data: {
-        labels: [], 
+        labels: [],
         datasets: [
             {
                 label: 'Incoming Traffic',
-                data: [], // Dynamic data
+                data: [], // Dynamic real-time data
                 borderColor: 'rgba(75, 192, 192, 1)',
-                fill: false, 
-                tension: 0.4, 
-                borderWidth: 1 
+                fill: false,
+                tension: 0.4,
+                borderWidth: 1
+            },
+            {
+                label: 'Predicted Traffic',
+                data: [], // Dynamic predicted data
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderDash: [5, 5], // Dashed line for predictions
+                fill: false,
+                tension: 0.4,
+                borderWidth: 1
             }
         ]
     },
@@ -238,7 +247,7 @@ const trafficChart = new Chart(ctx, {
             zoom: {
                 pan: {
                     enabled: true,
-                    mode: 'x', // Allow panning horizontally
+                    mode: 'x' // Allow panning horizontally
                 },
                 zoom: {
                     wheel: {
@@ -247,42 +256,70 @@ const trafficChart = new Chart(ctx, {
                     pinch: {
                         enabled: true // Zoom with pinch gestures
                     },
-                    mode: 'x', // Only zoom horizontally
+                    mode: 'x' // Only zoom horizontally
                 }
             }
         }
     }
 });
 
-// Fetch data dynamically
-function fetchTrafficData() {
-    fetch('/api/traffic')
-        .then(response => response.json())
-        .then(data => {
-            // Group data points by timestamp and sum the values
-            const groupedData = data.reduce((acc, point) => {
-                const timestamp = new Date(point.timestamp * 1000).toISOString(); // Convert to ISO for Chart.js
-                if (!acc[timestamp]) {
-                    acc[timestamp] = 0;
-                }
-                acc[timestamp] += point.value;
-                return acc;
-            }, {});
 
-            // Extract labels and values
-            const labels = Object.keys(groupedData);
-            const values = Object.values(groupedData);
+function fetchAndUpdateTrafficChart() {
+    const MAX_TIME_WINDOW = 60 * 1000; // 1 minute in milliseconds
 
-            // Update the chart
-            trafficChart.data.labels = labels;
-            trafficChart.data.datasets[0].data = values;
-            trafficChart.update(); // Refresh the chart
-        })
-        .catch(error => console.error('Error fetching traffic data:', error));
+    Promise.all([
+        fetch('/api/traffic').then(response => response.json()),
+        fetch('/api/predicted_traffic').then(response => response.json())
+    ])
+    .then(([realTimeData, predictedData]) => {
+        const now = new Date();
+
+        // Group and aggregate real-time traffic data
+        const groupedRealTimeData = realTimeData.reduce((acc, point) => {
+            const timestamp = new Date(point.timestamp * 1000).toISOString();
+            if (!acc[timestamp]) {
+                acc[timestamp] = 0;
+            }
+            acc[timestamp] += point.value; // Aggregate traffic
+            return acc;
+        }, {});
+
+        const realTimeLabels = Object.keys(groupedRealTimeData);
+        const realTimeValues = Object.values(groupedRealTimeData);
+
+        // Extract predicted timestamps and values
+        const predictedLabels = predictedData.map(point => new Date(point.timestamp * 1000).toISOString());
+        const predictedValues = predictedData.map(point => point.value);
+
+        // Combine labels and ensure continuity
+        const combinedLabels = [...new Set([...realTimeLabels, ...predictedLabels])].sort();
+
+        // Map real-time and predicted values to combined labels
+        const combinedRealTimeValues = combinedLabels.map(label =>
+            realTimeLabels.includes(label) ? realTimeValues[realTimeLabels.indexOf(label)] : null
+        );
+        const combinedPredictedValues = combinedLabels.map(label =>
+            predictedLabels.includes(label) ? predictedValues[predictedLabels.indexOf(label)] : null
+        );
+
+        // Remove points older than 1 minute
+        const recentLabels = combinedLabels.filter(label => new Date(label) >= now - MAX_TIME_WINDOW);
+        const recentRealTimeValues = combinedRealTimeValues.slice(-recentLabels.length);
+        const recentPredictedValues = combinedPredictedValues.slice(-recentLabels.length);
+
+        // Update the chart
+        trafficChart.data.labels = recentLabels;
+        trafficChart.data.datasets[0].data = recentRealTimeValues; // Incoming Traffic
+        trafficChart.data.datasets[1].data = recentPredictedValues; // Predicted Traffic
+        trafficChart.update();
+    })
+    .catch(error => console.error('Error fetching traffic data:', error));
 }
 
-// Fetch data every second
-setInterval(fetchTrafficData, 1000);
+// Periodically fetch data
+setInterval(fetchAndUpdateTrafficChart, 1000);
+
+
 
 // Add Reset Zoom functionality
 document.getElementById('resetTrafficZoomButton').addEventListener('click', () => {

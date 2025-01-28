@@ -29,7 +29,9 @@ traffic_metrics = []
 events = []
 url = "http://127.0.0.1:5000/api/simulate_traffic"  # Hardcoded load balancer endpoint
 
-# Track the absolute time (time.time()) when traffic started
+# Variables to dynamically adjust traffic
+current_baseline_rate = 10  # Default to "low"
+current_scenario = "baseline_low"
 traffic_start_time = None
 
 @app.route('/')
@@ -43,9 +45,6 @@ def serve_index():
 def add_scaling_event():
     """
     Dynamically add a scaling event during traffic simulation.
-    If traffic is running, offset the user-supplied 'start_time'
-    so it becomes (current_sim_time + start_time).
-    Treat duration=0 as indefinite.
     """
     global events, traffic_running, traffic_start_time
     try:
@@ -53,26 +52,19 @@ def add_scaling_event():
         if "scale" not in event or "start_time" not in event or "duration" not in event:
             return jsonify({"error": "Invalid event data. Must have scale, start_time, duration."}), 400
 
-        # Convert the incoming data to float/int just to be safe
         event_scale = float(event["scale"])
         event_start = float(event["start_time"])
         event_duration = float(event["duration"])
 
-        # If traffic is running, offset the user-specified start_time by the current simulation time
         if traffic_running and traffic_start_time is not None:
             current_sim_time = time.time() - traffic_start_time
-            # So that "start_time": 5 means "5 seconds from now"
             event_start = current_sim_time + event_start
 
-        # Update the event dictionary
-        # (If you *don't* want indefinite events, remove the logic below for duration=0.)
-        event = {
+        events.append({
             "scale": event_scale,
             "start_time": event_start,
             "duration": event_duration,
-        }
-
-        events.append(event)
+        })
         traffic_logger.info(f"Added scaling event: {event}")
         return jsonify({"message": "Scaling event added."}), 200
 
@@ -83,31 +75,38 @@ def add_scaling_event():
 @app.route('/start_traffic', methods=['POST'])
 def start_traffic():
     """
-    Start continuous traffic simulation with the selected baseline
-    and any existing network events.
+    Start or dynamically update traffic simulation.
     """
-    global traffic_thread, traffic_running, traffic_start_time
-    if traffic_running:
-        return jsonify({"error": "Traffic simulation is already running"}), 400
+    global traffic_running, current_baseline_rate, current_scenario
 
     data = request.json
     baseline = data.get("baseline", "low")  # "low", "medium", "high"
     scenario = data.get("scenario", "baseline_low")
+
     # Map baseline to requests per second
-    baseline_rate = {"low": 10, "medium": 50, "high": 100}.get(baseline, 10)
-    global_current_scenario = scenario
-    # Record the absolute time when traffic starts
-    traffic_start_time = time.time()
-    traffic_running = True
+    new_baseline_rate = {"low": 10, "medium": 50, "high": 100}.get(baseline, 10)
 
-    # Start traffic thread
-    traffic_thread = threading.Thread(
-        target=simulate_traffic,
-        args=(baseline_rate, traffic_start_time,scenario)
-    )
-    traffic_thread.start()
+    if traffic_running:
+        # Update the baseline rate and scenario dynamically
+        current_baseline_rate = new_baseline_rate
+        current_scenario = scenario
+        traffic_logger.info(f"Updated traffic: baseline={baseline}, scenario={scenario}")
+        return jsonify({"message": "Traffic simulation updated."}), 200
+    else:
+        # Start the traffic simulation
+        global traffic_thread, traffic_start_time
+        traffic_start_time = time.time()
+        traffic_running = True
+        current_baseline_rate = new_baseline_rate
+        current_scenario = scenario
 
-    return jsonify({"message": "Traffic simulation started"}), 200
+        traffic_thread = threading.Thread(
+            target=simulate_traffic,
+            args=(traffic_start_time,)
+        )
+        traffic_thread.start()
+
+        return jsonify({"message": "Traffic simulation started."}), 200
 
 @app.route('/stop_traffic', methods=['POST'])
 def stop_traffic():
@@ -126,55 +125,36 @@ def get_traffic_metrics():
     """
     return jsonify({"metrics": traffic_metrics[-100:]}), 200  # Return the last 100 metrics
 
-def simulate_traffic(baseline_rate, start_time,scenario):
+def simulate_traffic(start_time):
     """
-    Simulate continuous traffic with adjustable baseline and
-    real-time scaling events.
-    :param baseline_rate: (int) baseline requests per second
-    :param start_time: (float) the absolute timestamp when traffic started
+    Simulate continuous traffic with adjustable baseline and real-time scaling events.
     """
-    global traffic_running, traffic_metrics, events
-
-    traffic_logger.info("Starting continuous traffic simulation.")
+    global traffic_running, traffic_metrics, events, current_baseline_rate, current_scenario
 
     while traffic_running:
-        # current simulation time in seconds since we started
         current_time = time.time() - start_time
-        rate = baseline_rate
+        rate = current_baseline_rate
 
-        # Apply any scaling events that are active
+        # Apply any active scaling events
         for event in events:
-            e_start = event["start_time"]
-            e_scale = event["scale"]
-            e_duration = event["duration"]
-
-            # If duration=0, treat as indefinite
-            if e_duration == 0:
-                # indefinite event: if we've passed e_start, keep applying
-                if current_time >= e_start:
-                    rate = int(baseline_rate * e_scale)
-            else:
-                # normal finite-duration event
-                if e_start <= current_time < e_start + e_duration:
-                    rate = int(baseline_rate * e_scale)
-
+            if event["start_time"] <= current_time < event["start_time"] + event["duration"]:
+                rate = int(current_baseline_rate * event["scale"])
 
         for _ in range(rate):
             try:
                 response = requests.post(url, json={
-                    "url": url,     
-                    "type": "GET",   
+                    "url": url,
+                    "type": "GET",
                     "rate": rate,
                     "duration": 1,
-                    "scenario": scenario  
+                    "scenario": current_scenario
                 })
                 traffic_logger.debug(f"Traffic sent: {response.status_code} {response.text}")
             except Exception as e:
                 traffic_logger.error(f"Error sending traffic: {e}")
 
-        # **Append one metric entry per second** (after all requests)
+        # Log traffic metrics
         traffic_metrics.append({"timestamp": time.time(), "rate": rate})
-        traffic_logger.info(f"Appended metric: time={time.time()}, rate={rate}")
         time.sleep(1)
 
     traffic_logger.info("Traffic simulation stopped.")

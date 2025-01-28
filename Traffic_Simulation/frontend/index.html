@@ -22,10 +22,7 @@
                 <option value="high">High</option>
             </select>
         </div>
-        <div class="mb-3">
-            <label for="scenario" class="form-label">Scenario:</label>
-            <input type="text" id="scenario" class="form-control" value="baseline">
-        </div>
+
         <!-- Start/Stop Buttons -->
         <div class="mb-3">
             <button id="startButton" class="btn btn-success me-2">Start Traffic</button>
@@ -53,6 +50,7 @@
             <h5>Current Scaling Events:</h5>
             <ul class="list-group" id="eventsList"></ul>
         </div>
+        
         <!-- Real-Time Chart -->
         <h2 class="mt-5">Real-Time Traffic Chart</h2>
         <canvas id="trafficChart"></canvas>
@@ -64,43 +62,42 @@
     const scalingEvents = [];
 
     scalingEventForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
+        e.preventDefault();
 
-    const scale = parseFloat(document.getElementById("scaleFactor").value);
-    const startTime = parseInt(document.getElementById("triggerTime").value);
-    const duration = parseInt(document.getElementById("duration").value || 0);
+        const scale = parseFloat(document.getElementById("scaleFactor").value);
+        const startTime = parseInt(document.getElementById("triggerTime").value);
+        const duration = parseInt(document.getElementById("duration").value || 0);
 
-    try {
-        const response = await axios.post("/add_scaling_event", {
-            scale,
-            start_time: startTime,
-            duration
-        });
+        try {
+            const response = await axios.post("/add_scaling_event", {
+                scale,
+                start_time: startTime,
+                duration
+            });
 
-        if (response.status === 200) {
-            scalingEvents.push({ scale, start_time: startTime, duration });
-            eventsList.innerHTML = scalingEvents.map(event =>
-                `<li class="list-group-item">Scale: ${event.scale}, Start: ${event.start_time}s, Duration: ${event.duration || 'Indefinite'}</li>`
-            ).join("");
-            alert("Scaling event added!");
+            if (response.status === 200) {
+                scalingEvents.push({ scale, start_time: startTime, duration });
+                eventsList.innerHTML = scalingEvents.map(event =>
+                    `<li class="list-group-item">Scale: ${event.scale}, Start: ${event.start_time}s, Duration: ${event.duration || 'Indefinite'}</li>`
+                ).join("");
+                alert("Scaling event added!");
+            }
+        } catch (error) {
+            console.error("Error adding scaling event:", error);
+            alert("Failed to add scaling event.");
         }
-    } catch (error) {
-        console.error("Error adding scaling event:", error);
-        alert("Failed to add scaling event.");
-    }
-});
+    });
 
     document.getElementById("startButton").addEventListener("click", async () => {
-    const baseline = document.getElementById("baseline").value;
-    const scenario = document.getElementById("scenario").value;  // <-- read scenario here
+        const baseline = document.getElementById("baseline").value;
+        const scenario = `baseline_${baseline}`;  // Automatically derive scenario
 
         await fetch("/start_traffic", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ baseline, events: scalingEvents, scenario })
+            body: JSON.stringify({ baseline, scenario, events: scalingEvents })
         });
     });
-        const trafficChartCtx = document.getElementById("trafficChart").getContext("2d");
 
     document.getElementById("stopButton").addEventListener("click", async () => {
         try {
@@ -114,76 +111,72 @@
         }
     });
 
-
-
-// Initialize the Chart.js instance
-const trafficChart = new Chart(trafficChartCtx, {
-    type: 'line',
-    data: {
-        labels: [], // Timestamps for traffic data
-        datasets: [{
-            label: 'Traffic Rate',
-            data: [], // Traffic rates
-            borderColor: 'rgba(75, 192, 192, 1)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            borderWidth: 1,
-            tension: 0.4
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                display: true,
-                position: 'top',
-            }
+    // Initialize the Chart.js instance
+    const trafficChartCtx = document.getElementById("trafficChart").getContext("2d");
+    const trafficChart = new Chart(trafficChartCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Traffic Rate',
+                data: [],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderWidth: 1,
+                tension: 0.4
+            }]
         },
-        scales: {
-            x: {
-                type: 'time',
-                time: {
-                    parser: 'ISO',
-                    unit: 'second',
-                    displayFormats: {
-                        second: 'HH:mm:ss'
-                    }
-                },
-                title: {
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
                     display: true,
-                    text: 'Time'
+                    position: 'top',
                 }
             },
-            y: {
-                title: {
-                    display: true,
-                    text: 'Traffic Rate (requests/second)'
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        parser: 'ISO',
+                        unit: 'second',
+                        displayFormats: {
+                            second: 'HH:mm:ss'
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
                 },
-                beginAtZero: true
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Traffic Rate (requests/second)'
+                    },
+                    beginAtZero: true
+                }
             }
         }
+    });
+
+    async function updateTrafficChart() {
+        try {
+            const response = await fetch("/traffic_metrics");
+            const result = await response.json();
+
+            const timestamps = result.metrics.map(m => new Date(m.timestamp * 1000));
+            const trafficRates = result.metrics.map(m => m.rate);
+
+            trafficChart.data.labels = timestamps;
+            trafficChart.data.datasets[0].data = trafficRates;
+            trafficChart.update();
+        } catch (error) {
+            console.error("Error updating traffic chart:", error);
+        }
     }
-});
 
-// Function to update the chart
-async function updateTrafficChart() {
-    try {
-        const response = await fetch("/traffic_metrics");
-        const result = await response.json();
-
-        const timestamps = result.metrics.map(m => new Date(m.timestamp * 1000));
-        const trafficRates = result.metrics.map(m => m.rate);
-
-        trafficChart.data.labels = timestamps;
-        trafficChart.data.datasets[0].data = trafficRates;
-        trafficChart.update();
-    } catch (error) {
-        console.error("Error updating traffic chart:", error);
-    }
-}
-
-// Poll the server every 2 seconds for updated metrics
-setInterval(updateTrafficChart, 500);
-
+    setInterval(updateTrafficChart, 500);
     </script>
 </body>
 </html>

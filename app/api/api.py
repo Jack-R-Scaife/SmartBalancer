@@ -1,5 +1,7 @@
 # app/api/api.py
 from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
+import joblib
+import pandas as pd
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers,get_servers_by_group
 from app.models import Server,LoadBalancerSetting,Strategy,Rule
@@ -16,7 +18,11 @@ from flask import make_response
 from server.logging_config import api_logger
 from server.logging_config import main_logger, traffic_logger
 from server.rules_manager import create_rule
-import time
+import time,os
+from datetime import datetime, timezone, timedelta
+# Load the trained Random Forest model
+model_path = os.path.join( 'Predictive_Model', 'lightgbm_model.pkl')
+model = joblib.load(model_path)
 
 status_mapping = {
     "healthy": 1,
@@ -25,6 +31,57 @@ status_mapping = {
     "down": 4,
     "idle": 5
 }
+# Threshold for significant prediction error (e.g., 10%)
+threshold_error = 0.1
+
+@api_blueprint.route('/predicted_traffic', methods=['GET'])
+def get_predicted_traffic():
+    """
+    Predict overall traffic rate based on aggregated real-time metrics from all agents.
+    """
+    try:
+        # Fetch metrics from all agents
+        load_balancer = LoadBalancer()
+        agent_metrics = load_balancer.fetch_metrics_from_all_agents()
+
+        if not agent_metrics:
+            api_logger.error("No metrics available from agents.")
+            return jsonify({'error': 'No metrics available from agents'}), 500
+
+        # Aggregate metrics across all agents
+        num_agents = len(agent_metrics)
+        aggregated_metrics = {
+            'cpu_usage': sum(agent['metrics'].get('cpu_total', 0) for agent in agent_metrics) / num_agents,
+            'memory_usage': sum(agent['metrics'].get('memory', 0) for agent in agent_metrics) / num_agents,
+            'connections': sum(agent['metrics'].get('connections', 0) for agent in agent_metrics),
+            'traffic_rate': sum(agent['metrics'].get('traffic_rate', 0) for agent in agent_metrics),
+            'scenario': 'baseline_high',  # Replace with dynamic logic if needed
+            'strategy': 'Round Robin' 
+        }
+
+        # Prepare the feature set for prediction
+        feature_df = pd.DataFrame([aggregated_metrics])
+
+        # Handle one-hot encoding for `scenario` and `strategy`
+        feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'], dummy_na=False)
+        expected_features = model.feature_names_in_
+        feature_df = feature_df.reindex(columns=expected_features, fill_value=0)
+
+        # Predict future traffic for the next 10 seconds
+        predictions = []
+        current_time = datetime.now()
+        for i in range(10):  # Generate predictions for the next 10 seconds
+            prediction = model.predict(feature_df)[0]
+            future_timestamp = (current_time + timedelta(seconds=i)).timestamp()
+            predictions.append({'timestamp': future_timestamp, 'value': prediction})
+
+        api_logger.info("Traffic prediction successful.")
+        return jsonify(predictions), 200
+
+    except Exception as e:
+        api_logger.error(f"Error in traffic prediction: {e}")
+        return jsonify({'error': f"An error occurred: {str(e)}"}), 500
+
 
 # Route to link a server
 @api_blueprint.route('/servers/link', methods=['POST'])
