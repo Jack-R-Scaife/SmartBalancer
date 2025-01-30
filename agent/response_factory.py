@@ -8,58 +8,72 @@ class ResponseFactory:
     @staticmethod
     def generate_alerts():
         """
-        Generate a list of alerts based on the HealthCheck class.
-        Each alert includes: type, condition, source, and description.
+        Generate alerts when the agent's health status is NOT healthy.
         """
         logging.info("Generating alerts...")
 
-        # Initialize the HealthCheck instance
+        # Initialize health check
         health_check = HealthCheck()
+        ip_address = "192.168.1.2"  # Update to dynamic fetching if needed
+
+        # Get health status
+        health_status = health_check.determine_status(ip_address)
         resource_status = health_check.check_resources()
 
-        # Pre-fetch thresholds to minimize repeated dictionary lookups
-        thresholds = {
-            'cpu': health_check.cpu_thresholds,
-            'memory': health_check.memory_thresholds,
-            'disk': health_check.disk_thresholds
+        # Define alert messages
+        status_mapping = {
+            1: "Healthy",
+            2: "Overloaded",
+            3: "Critical",
+            4: "Down",
+            5: "Idle",
+            6: "Maintenance"
         }
 
-        # Prepare alerts list
         alerts = []
 
-        # Helper function to determine type based on thresholds
-        def determine_type(value, metric):
-            if value >= thresholds[metric]['overloaded']:
-                return "O"  # Overload
-            return "H"  # Healthy
+        if health_status != 1:  # If not Healthy, generate an alert
+            alert_message = f"Server status: {status_mapping.get(health_status, 'Unknown')}"
+            logging.warning(f"ALERT: {alert_message}")
 
-        # Generate alerts for each resource
-        for metric, usage in resource_status.items():
-            if metric not in thresholds:
-                continue  # Skip unknown metrics
-
-            type_key = determine_type(usage, metric)
-            if type_key == "O":  # Only log overloaded conditions
-                alerts.append({
-                    "type": type_key, 
-                    "condition": f"{metric.upper()}:{usage}%",  
-                    "source": f"{metric.capitalize()} Monitor",
-                    "description": f"{metric.capitalize()} usage at {usage}% exceeds threshold."
-                })
-                logging.warning(f"Overloaded condition detected: {metric.capitalize()} usage at {usage}% exceeds threshold.")
-
-        # Check if the server is down based on resource and ping checks
-        ip_address = "192.168.1.2"
-        if health_check.check_ping(ip_address) == -1:
-            logging.error(f"Server is down. Unable to reach IP: {ip_address}")
             alerts.append({
-                "type": "D",
-                "condition": "Ping: Unreachable",
-                "source": "Network Monitor",
-                "description": f"Unable to reach server at IP: {ip_address}. Server might be down."
+                "type": "ALERT",
+                "condition": f"Status: {status_mapping.get(health_status, 'Unknown')}",
+                "source": "Health Monitor",
+                "description": alert_message
             })
 
-        # No need to add a healthy alert if no issues are found, frontend will handle "No alerts" display
+            # Add detailed problem breakdown
+            if health_status == 2:  # Overloaded
+                if resource_status['cpu'] >= health_check.cpu_thresholds['overloaded']:
+                    alerts.append({
+                        "type": "O",
+                        "condition": f"CPU:{resource_status['cpu']}%",
+                        "source": "CPU Monitor",
+                        "description": f"CPU usage at {resource_status['cpu']}% exceeds threshold."
+                    })
+                if resource_status['memory'] >= health_check.memory_thresholds['overloaded']:
+                    alerts.append({
+                        "type": "O",
+                        "condition": f"Memory:{resource_status['memory']}%",
+                        "source": "Memory Monitor",
+                        "description": f"Memory usage at {resource_status['memory']}% exceeds threshold."
+                    })
+                if resource_status['disk'] >= health_check.disk_thresholds['overloaded']:
+                    alerts.append({
+                        "type": "O",
+                        "condition": f"Disk:{resource_status['disk']}%",
+                        "source": "Disk Monitor",
+                        "description": f"Disk usage at {resource_status['disk']}% exceeds threshold."
+                    })
+
+            if health_status == 4:  # Server Down
+                alerts.append({
+                    "type": "D",
+                    "condition": "Ping: Unreachable",
+                    "source": "Network Monitor",
+                    "description": f"Server is unreachable at IP: {ip_address}"
+                })
 
         logging.info(f"Generated alerts: {alerts}")
         return alerts

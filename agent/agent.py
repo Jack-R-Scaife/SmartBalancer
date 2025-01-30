@@ -310,12 +310,13 @@ class Agent:
         """
         try:
             alerts = AlertManager.get_cached_alerts()
-            logging.info(f"Returning cached alerts: {alerts}")
+            logging.info(f"Sending cached alerts: {alerts}")
             return alerts
         except Exception as e:
-            logging.error(f"Error fetching cached alerts: {e}")
-            logging.debug(traceback.format_exc())
+            logging.error(f"Error fetching alerts: {e}")
             return {"status": "error", "message": str(e)}
+
+
 
     def handle_link(self,client_socket):
         """

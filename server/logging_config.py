@@ -19,7 +19,7 @@ def record_factory(*args, **kwargs):
 # Apply the custom factory globally
 logging.setLogRecordFactory(record_factory)
 
-def setup_logger(name, log_file, level=logging.INFO):
+def setup_logger(name, log_file, level=logging.DEBUG):
     handler = RotatingFileHandler(
         os.path.join(LOGS_DIR, log_file),
         maxBytes=5 * 1024 * 1024,  # 5 MB
@@ -35,7 +35,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     return logger
 
 # Pre-configured loggers for different modules
-main_logger = setup_logger("agent_monitor", "agent_monitor.log")
+main_logger = setup_logger("agent_monitor", "agent_monitor.log", level=logging.DEBUG) 
 traffic_logger = setup_logger("traffic", "traffic.log")
 dynamic_logger = setup_logger("dynamic_algorithms", "dynamic_algorithms.log")
 api_logger = setup_logger("api", "api.log")

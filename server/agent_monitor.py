@@ -33,7 +33,6 @@ class LoadBalancer:
             self.known_agents = []  # List of known agent IP addresses
             self.strategy_executor = StaticAlgorithms()
             self.dynamic_executor = DynamicAlgorithms()
-            self.active_strategy = None  # Track the active strategy
             self.load_agents_from_db()
             self.load_saved_strategies()  # New step to load strategies
             self.initialized = True
@@ -247,19 +246,22 @@ class LoadBalancer:
     def fetch_metrics_from_all_agents(self, scenario=None, group_id=None):
         """
         Fetch system metrics + a 30-second rolling traffic rate/volume per agent.
-        Only insert into PredictiveLog if there's actual traffic in that time window.
-        scenario: optional string label (e.g. "baseline_low", "scaleup_medium")
-        group_id: optional integer for linking to ServerGroup
+        Dynamically fetch strategies for each group.
         """
         main_logger.info("Fetching metrics from all known agents")
         metrics = []
         traffic_store = TrafficStore.get_instance()
-
         window_size = 30
         now = time.time()
 
         for ip in self.known_agents:
             try:
+                # Fetch group_id dynamically for each agent
+                group_id = self.lookup_group_id_for_agent(ip)
+
+                # Dynamically fetch the strategy for the group
+                strategy = self.get_group_strategy(group_id)
+
                 # Optionally measure round-trip time for 'metrics' call
                 start_time = time.time()
                 response = self.send_tcp_request(ip, 9000, "metrics")
@@ -285,7 +287,6 @@ class LoadBalancer:
 
                     # Only log if there's traffic in last 30 seconds
                     if traffic_rate > 0:
-                        # If your agent returns 'connections':
                         connections_count = system_metrics.get("connections", 0)
 
                         # Insert the row into PredictiveLog, including scenario & strategy
@@ -297,17 +298,16 @@ class LoadBalancer:
                             connections=connections_count,
                             traffic_rate=traffic_rate,
                             traffic_volume=traffic_volume,
-
-                            scenario=scenario,             
-                            strategy=self.active_strategy,   
-                            group_id=group_id                
+                            scenario=scenario or "default_scenario",
+                            strategy=strategy,
+                            group_id=group_id
                         )
                         db.session.add(log_entry)
                         db.session.commit()
 
                         main_logger.info(
                             f"PredictiveLog inserted for {ip} with traffic_rate={traffic_rate}, "
-                            f"scenario={scenario}, strategy={self.active_strategy}, group_id={group_id}"
+                            f"scenario={scenario}, strategy={strategy}, group_id={group_id}"
                         )
                     else:
                         main_logger.info(f"No traffic for {ip} in last {window_size} seconds; skipping DB insert.")
@@ -323,12 +323,20 @@ class LoadBalancer:
                 main_logger.error(f"Error fetching metrics from {ip}: {e}")
 
         return metrics
+    def get_group_strategy(self, group_id):
+        """
+        Retrieve the strategy for a specific group dynamically.
+        """
+        with self.app.app_context():
+            setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
+            if not setting:
+                main_logger.warning(f"No strategy found for group {group_id}")
+                return None
+            strategy = Strategy.query.get(setting.active_strategy_id)
+            return strategy.name if strategy else None
 
     def simulate_traffic(self, traffic_config):
-        """
-        Simulate traffic and route requests based on the active strategy.
-        """
-        
+        """Simulate traffic and route requests based on group-specific strategies."""
         traffic_logger.info(f"Simulate traffic invoked with config: {traffic_config}")
 
         # Validate traffic_config
@@ -337,39 +345,44 @@ class LoadBalancer:
             if key not in traffic_config:
                 traffic_logger.error(f"Missing key '{key}' in traffic_config: {traffic_config}")
                 return {"status": "error", "message": f"Missing key '{key}' in traffic_config"}
-            
+        
         scenario = traffic_config.get("scenario", "default_scenario")
-        # Check if there are known agents
+        
         if not self.known_agents:
             traffic_logger.warning("No known agents available for traffic simulation.")
             return {"status": "error", "message": "No agents available for traffic simulation"}
 
-        # Get the TrafficStore instance for storing traffic data
         traffic_store = TrafficStore.get_instance()
-
-        # Extract rate and duration
         rate = traffic_config["rate"]
         duration = traffic_config["duration"]
 
-        # Access the LoadBalancer instance
-
-        if not self.active_strategy:
-            traffic_logger.error("No active strategy set for traffic simulation.")
-            return {"status": "error", "message": "No active strategy set"}
-
-        # Simulate traffic for the specified duration
-        for _  in range(duration):
+        for _ in range(duration):
             current_time = int(time.time())
             for _ in range(rate):
                 try:
-                    target_agent = self.execute_strategy()
+                    # Get target agent and its group
+                    target_agent = None
+                    group_id = None
+                    
+                    # Find first agent with valid group association
+                    for agent_ip in self.known_agents:
+                        group_id = self.lookup_group_id_for_agent(agent_ip)
+                        if group_id:
+                            target_agent = agent_ip
+                            break
+                    
+                    if not target_agent or not group_id:
+                        traffic_logger.error("No agents with valid group association found")
+                        return {"status": "error", "message": "No agents with valid group configuration"}
+
+                    # Execute group-specific strategy
+                    target_agent = self.execute_strategy(group_id)
+                    
                     if not target_agent:
                         traffic_logger.warning("No agent selected by the strategy.")
                         continue
 
-                    group_id = self.lookup_group_id_for_agent(target_agent)
-
-                    # Log predictive traffic data
+                    # Log and send traffic
                     traffic_logger.info(
                         "Traffic predictive data logged",
                         extra={
@@ -379,16 +392,17 @@ class LoadBalancer:
                             "duration": duration,
                         }
                     )
-
                     response = self.send_tcp_request(target_agent, 9000, "simulate_traffic", payload=traffic_config)
                     traffic_logger.debug(f"Traffic sent to {target_agent}: {response}")
+
+                    # Store traffic data
+                    traffic_store.append_traffic_data(target_agent, current_time, 1)
+                    self.fetch_metrics_from_all_agents(scenario=scenario, group_id=group_id)
+
                 except Exception as e:
                     traffic_logger.error(f"Error sending traffic simulation command: {str(e)}")
                     continue
 
-                # Log traffic data for current second
-                traffic_store.append_traffic_data(target_agent, current_time, 1)
-                self.fetch_metrics_from_all_agents(scenario=scenario, group_id=group_id)
             time.sleep(1)
 
         return {"status": "success", "message": "Traffic simulation completed"}
@@ -413,52 +427,89 @@ class LoadBalancer:
             else:
                 return None
     
-    def set_active_strategy(self, strategy_name):
+    def set_active_strategy(self, strategy_name, group_id):
         """
-        Set the active strategy for the load balancer.
+        Set the active strategy for a specific group.
         """
-        self.active_strategy = strategy_name
-        self.strategy_executor.set_active_strategy(strategy_name)
-        self.load_saved_strategies()  # Ensure updated strategies are loaded
-        main_logger.info(f"LoadBalancer: Active strategy set to {strategy_name}")
-    def execute_strategy(self):
+        with self.app.app_context():
+            # Fetch the LoadBalancerSetting for the group
+            setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
+            if not setting:
+                main_logger.error(f"No LoadBalancerSetting found for group {group_id}")
+                return
+
+            # Fetch the Strategy by name
+            strategy = Strategy.query.filter_by(name=strategy_name).first()
+            if not strategy:
+                main_logger.error(f"Strategy {strategy_name} not found in the database")
+                return
+
+            # Update the active strategy for the group
+            setting.active_strategy_id = strategy.strategy_id
+            db.session.commit()
+            main_logger.info(f"Active strategy for group {group_id} set to {strategy_name}")
+
+
+    def execute_strategy(self, group_id):
+        """
+        Execute the strategy for the specified group.
+        """
         if not self.known_agents:
-            main_logger.error("No agents available to execute strategy.")
             raise ValueError("No agents available for routing.")
+
+        # Fetch the strategy for the group dynamically
+        strategy = self.get_group_strategy(group_id)
+        main_logger.debug(f"Executing strategy for group {group_id}: {strategy}")
 
         self.strategy_executor.known_agents = self.known_agents
         self.dynamic_executor.known_agents = self.known_agents
 
-        if self.active_strategy == "Round Robin":
-            target = self.strategy_executor.round_robin()
-        elif self.active_strategy == "Weighted Round Robin":
-            target = self.strategy_executor.weighted_round_robin()
-        elif self.active_strategy == "Least Connections":
-            target = self.dynamic_executor.least_connections()
-        elif self.active_strategy == "Least Response Time":
-            target = self.dynamic_executor.response_time()
-        elif self.active_strategy == "Resource-Based":
-            target = self.dynamic_executor.resource_based()
-        else:
-            raise ValueError(f"Unsupported strategy: {self.active_strategy}")
+        # Fetch settings for the target group
+        with self.app.app_context():
+            setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
         
-        # Log which strategy was used and the selected target
-        traffic_logger.info(f"Strategy: {self.active_strategy}, Target Server: {target}")
-        return target
+        strategies = []
+        if setting:
+            # Parse failover_priority correctly
+            strategies = [strategy]
+            if setting.failover_priority:
+                strategies += [s.strip() for s in setting.failover_priority.split(",")]  # Split by comma without space
+
+        main_logger.debug(f"Strategies to evaluate: {strategies}")
+        
+        for strat in strategies:
+            main_logger.debug(f"Evaluating strategy: {strat}")
+            try:
+                if strat == "Round Robin":
+                    return self.strategy_executor.round_robin()
+                elif strat == "Weighted Round Robin":
+                    return self.strategy_executor.weighted_round_robin()
+                elif strat == "Least Connections":
+                    return self.dynamic_executor.least_connections()
+                elif strat == "Least Response Time":
+                    return self.dynamic_executor.least_response_time()
+                elif strat.strip() == "Resource-Based":  # Handle whitespace
+                    return self.dynamic_executor.resource_based()
+                else:
+                    raise ValueError(f"Unsupported strategy: {strat}")
+            except Exception as e:
+                main_logger.error(f"Strategy {strat} failed: {e}", exc_info=True)
+
+        raise ValueError(f"No valid strategy found for group {group_id}.")
+
+
     
     def load_saved_strategies(self):
         """
-        Load saved strategies from the database and apply them to the LoadBalancer.
+        Load saved strategies for all groups from the database.
         """
-        main_logger.info("Loading saved strategies from the database")
+        main_logger.info("Loading saved strategies for all groups")
         with self.app.app_context():
             settings = LoadBalancerSetting.query.all()
             for setting in settings:
                 strategy = Strategy.query.get(setting.active_strategy_id)
                 if strategy:
-                    main_logger.info(f"Loaded strategy '{strategy.name}' from database")
-                    self.active_strategy = strategy.name
-                    print(f"Loaded strategy '{strategy.name}' for group.")
+                    main_logger.info(f"Loaded strategy '{strategy.name}' for group {setting.group_id}")
    
     
     def fetch_logs_from_all_agents(self):

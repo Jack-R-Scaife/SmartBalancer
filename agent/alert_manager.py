@@ -9,7 +9,7 @@ class AlertManager:
     @staticmethod
     def update_alerts(ip_address):
         """
-        Periodically update the cached alerts.
+        Periodically update the cached alerts if the agent's status is NOT healthy.
         """
         while True:
             try:
@@ -21,15 +21,13 @@ class AlertManager:
                         "alerts": alerts
                     }
             except Exception as e:
-                # Log error and reset the cached alerts
                 AlertManager._cached_alerts = {
                     "status": "error",
                     "message": str(e),
                     "ip": ip_address,
                     "alerts": []
                 }
-            time.sleep(2)  # Adjust the interval for periodic updates
-
+            time.sleep(2)  # Update every 2 seconds
     @staticmethod
     def get_cached_alerts():
         """

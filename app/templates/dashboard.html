@@ -383,6 +383,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function fetchAlerts() {
     axios.get('/api/alerts')
         .then(response => {
+            console.log("Alerts Response:", response.data); // Debugging: Inspect API response
             if (response.status === 200 && response.data.status === "success") {
                 // Extract alerts
                 const alerts = response.data.data[0]?.alerts || [];
@@ -405,11 +406,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function clearAlerts(alerts) {
     alerts.forEach(alert => {
-        const uniqueId = `${alert.source}-${alert.type}-${alert.condition}`;
+        const uniqueId = `${alert.source}-${alert.type}-${alert.condition}-${alert.timestamp}`;
         alertCache.delete(uniqueId); // Clear from cache
     });
 
-    // Re-check alerts and update the table
+    // Re-fetch alerts to refresh the table
     fetchAlerts();
 }
 
@@ -429,6 +430,7 @@ function updateAlertTable(alerts) {
     });
 }
 
+
 function displayNoAlertsRow() {
     // Clear the table before displaying "No Alerts"
     tableBody.innerHTML = "";
@@ -443,53 +445,55 @@ function displayNoAlertsRow() {
     tableBody.appendChild(row);
 }
 
+
 function processAndAddAlert(alert) {
-  if (!alert.type || !alert.condition || !alert.source) {
-      console.warn("Skipping incomplete alert:", alert);
-      return;
-  }
+    if (!alert.type || !alert.condition || !alert.source) {
+        console.warn("Skipping incomplete alert:", alert);
+        return;
+    }
 
-  const conditions = alert.condition.split(",");
-  conditions.forEach(condition => {
-      const [key, value] = condition.split(":");
-      const metric = mapping.conditions[key.trim()] || key.trim(); // Map or use raw key
-      const normalizedValue = value.trim().endsWith("%") ? value.trim() : `${value.trim()}%`;
-      const descriptionPrefix = mapping.descriptionPrefix[alert.type] || "Alert detected";
-      const fullDescription = `${descriptionPrefix}: ${metric} at ${normalizedValue}`;
+    const conditions = alert.condition.split(",");
+    conditions.forEach(condition => {
+        const [key, value] = condition.split(":");
+        const metric = mapping.conditions[key.trim()] || key.trim(); // Map or use raw key
+        const normalizedValue = value.trim().endsWith("%") ? value.trim() : `${value.trim()}%`;
+        const descriptionPrefix = mapping.descriptionPrefix[alert.type] || "Alert detected";
+        const fullDescription = `${descriptionPrefix}: ${metric} at ${normalizedValue}`;
 
-      const uniqueId = `${alert.source}-${alert.type}-${metric}-${normalizedValue}`;
-      if (alertCache.has(uniqueId)) return; // Skip duplicates
+        const uniqueId = `${alert.source}-${alert.type}-${metric}-${normalizedValue}-${alert.timestamp}`;
+        if (alertCache.has(uniqueId)) return; // Skip duplicates
 
-      alertCache.add(uniqueId);
+        alertCache.add(uniqueId);
 
-      // Handle missing or invalid timestamp
-      const ukTimestamp = alert.timestamp
-          ? formatToUKDate(alert.timestamp)
-          : "N/A"; // Fallback to "N/A" if timestamp is missing
+        const ukTimestamp = alert.timestamp
+            ? formatToUKDate(alert.timestamp)
+            : "N/A"; // Fallback to "N/A" if timestamp is missing
 
-      const row = document.createElement("tr");
-      row.innerHTML = `
-          <td style="padding: 8px; border: 1px solid;">${ukTimestamp}</td>
-          <td style="padding: 8px; border: 1px solid;">${mapping.types[alert.type] || alert.type}</td>
-          <td style="padding: 8px; border: 1px solid;">${metric}: ${normalizedValue}</td>
-          <td style="padding: 8px; border: 1px solid;">${alert.source}</td>
-          <td style="padding: 8px; border: 1px solid;">${fullDescription}</td>
-      `;
-      tableBody.appendChild(row);
-  });
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td style="padding: 8px; border: 1px solid;">${ukTimestamp}</td>
+            <td style="padding: 8px; border: 1px solid;">${mapping.types[alert.type] || alert.type}</td>
+            <td style="padding: 8px; border: 1px solid;">${metric}: ${normalizedValue}</td>
+            <td style="padding: 8px; border: 1px solid;">${alert.source}</td>
+            <td style="padding: 8px; border: 1px solid;">${fullDescription}</td>
+        `;
+        tableBody.appendChild(row);
+    });
 }
 
-    function formatToUKDate(timestamp) {
-        if (!timestamp || timestamp === "N/A") return "N/A";
-        const date = new Date(timestamp);
-        const day = String(date.getDate()).padStart(2, "0");
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const year = date.getFullYear();
-        const hours = String(date.getHours()).padStart(2, "0");
-        const minutes = String(date.getMinutes()).padStart(2, "0");
-        const seconds = String(date.getSeconds()).padStart(2, "0");
-        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-    }
+
+function formatToUKDate(timestamp) {
+    if (!timestamp || timestamp === "N/A") return "N/A";
+    const date = new Date(timestamp);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+}
+
 
     // Fetch alerts periodically
     setInterval(fetchAlerts, 2000);

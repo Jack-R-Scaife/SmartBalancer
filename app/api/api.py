@@ -2,6 +2,7 @@
 from flask import Blueprint, request, jsonify, Response,redirect,url_for,flash
 import joblib
 import pandas as pd
+from app import db
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers,get_servers_by_group
 from app.models import Server,LoadBalancerSetting,Strategy,Rule
@@ -20,10 +21,7 @@ from server.logging_config import main_logger, traffic_logger
 from server.rules_manager import create_rule
 import time,os
 from datetime import datetime, timezone, timedelta
-# Load the trained Random Forest model
-model_path = os.path.join( 'Predictive_Model', 'lightgbm_model.pkl')
-model = joblib.load(model_path)
-
+from server.dynamic_algorithms import DynamicAlgorithms
 status_mapping = {
     "healthy": 1,
     "overloaded": 2,
@@ -31,16 +29,21 @@ status_mapping = {
     "down": 4,
     "idle": 5
 }
+# Load the trained Random Forest model
+model_path = os.path.join( 'Predictive_Model', 'lightgbm_model.pkl')
+model = joblib.load(model_path)
+
+
 # Threshold for significant prediction error (e.g., 10%)
 threshold_error = 0.1
 
 @api_blueprint.route('/predicted_traffic', methods=['GET'])
 def get_predicted_traffic():
     """
-    Predict overall traffic rate based on aggregated real-time metrics from all agents.
+    Predicts overall traffic rate based on dynamically fetched real-time metrics from all agents.
+    Dynamically adjusts scenario and strategy in real-time using LoadBalancer data.
     """
     try:
-        # Fetch metrics from all agents
         load_balancer = LoadBalancer()
         agent_metrics = load_balancer.fetch_metrics_from_all_agents()
 
@@ -48,34 +51,40 @@ def get_predicted_traffic():
             api_logger.error("No metrics available from agents.")
             return jsonify({'error': 'No metrics available from agents'}), 500
 
-        # Aggregate metrics across all agents
+        # Aggregate real-time metrics across all agents
         num_agents = len(agent_metrics)
         aggregated_metrics = {
             'cpu_usage': sum(agent['metrics'].get('cpu_total', 0) for agent in agent_metrics) / num_agents,
             'memory_usage': sum(agent['metrics'].get('memory', 0) for agent in agent_metrics) / num_agents,
             'connections': sum(agent['metrics'].get('connections', 0) for agent in agent_metrics),
             'traffic_rate': sum(agent['metrics'].get('traffic_rate', 0) for agent in agent_metrics),
-            'scenario': 'baseline_high',  # Replace with dynamic logic if needed
-            'strategy': 'Round Robin' 
         }
 
-        # Prepare the feature set for prediction
+        # Fetch the real-time scenario and strategy from LoadBalancer
+        scenario = agent_metrics[0].get('scenario', 'default_scenario')  # Get first agent's scenario
+        strategy = load_balancer.active_strategy if load_balancer.active_strategy else "Round Robin"
+
+        # Attach scenario & strategy dynamically
+        aggregated_metrics['scenario'] = scenario
+        aggregated_metrics['strategy'] = strategy
+
+        # Prepare data for model prediction
         feature_df = pd.DataFrame([aggregated_metrics])
 
-        # Handle one-hot encoding for `scenario` and `strategy`
+        # One-hot encoding for `scenario` and `strategy`
         feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'], dummy_na=False)
         expected_features = model.feature_names_in_
         feature_df = feature_df.reindex(columns=expected_features, fill_value=0)
 
-        # Predict future traffic for the next 10 seconds
+        # Predict traffic for the next 10 seconds
         predictions = []
         current_time = datetime.now()
-        for i in range(10):  # Generate predictions for the next 10 seconds
+        for i in range(10):
             prediction = model.predict(feature_df)[0]
             future_timestamp = (current_time + timedelta(seconds=i)).timestamp()
             predictions.append({'timestamp': future_timestamp, 'value': prediction})
 
-        api_logger.info("Traffic prediction successful.")
+        api_logger.info(f"Traffic prediction successful. Scenario: {scenario}, Strategy: {strategy}")
         return jsonify(predictions), 200
 
     except Exception as e:
@@ -352,67 +361,56 @@ def fetch_servers(group_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     
-
 @api_blueprint.route('/load_balancer/set_strategy', methods=['POST'])
 def set_load_balancer_strategy():
     """
-    API endpoint to set the load balancing strategy for a specific server group.
+    API endpoint to set load balancing strategy and update the database.
+    Supports multiple strategies in priority order.
     """
     try:
-        # Parse the request JSON
         data = request.json
+        group_id = data.get("group_id")
+        strategies = data.get("strategies", [])
+        ai_enabled = data.get("ai_enabled", False)
+        weights = data.get("weights", {})
 
-        # Extract group_id
-        group_id = data.get('group_id')
         if not group_id:
             return jsonify({"status": "error", "message": "Group ID is required."}), 400
 
-        # Validate and convert group_id to an integer
-        try:
-            group_id = int(group_id)  # Convert to integer
-        except ValueError:
-            return jsonify({"status": "error", "message": "Invalid group ID. Must be an integer."}), 400
-
-        # Extract strategies from payload
-        strategies = data.get('strategies')
         if not strategies:
-            return jsonify({"status": "error", "message": "Strategy Name is required."}), 400
+            return jsonify({"status": "error", "message": "At least one strategy is required."}), 400
 
-        # Use the first strategy from the list
-        strategy_name = strategies[0]
+        # ✅ FIX: Pass Correct Strategy Order
+        result = StrategyManager.apply_multiple_strategies_to_group(strategies, group_id, ai_enabled)
 
-        # Apply the strategy
-        result = StrategyManager.apply_strategy_to_group(strategy_name, group_id)
+        # ✅ Apply weights only if Resource-Based is in Priority 1
+        if strategies[0] == "Resource-Based":
+            StrategyManager.dynamic_algorithms.set_weights({k: float(v) for k, v in weights.items() if v})
 
-        if result["status"] == "success":
-            load_balancer = LoadBalancer()
-            load_balancer.load_saved_strategies()
+        # ✅ Reload active strategies to ensure correct application
+        load_balancer = LoadBalancer()
+        load_balancer.load_saved_strategies()
 
         return jsonify(result), 200 if result["status"] == "success" else 400
 
     except Exception as e:
-        # Log the exception and return an error response
-        logging.error(f"Error in set_load_balancer_strategy: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_blueprint.route('/load_balancer/active_strategy/<int:group_id>', methods=['GET'])
 def get_active_strategy(group_id):
     try:
-        setting = LoadBalancerSetting.query.filter_by(active_strategy_id=group_id).first()
+        setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
         if not setting:
             return jsonify({"status": "error", "message": "No active strategy found for this group."}), 404
 
         strategy = Strategy.query.get(setting.active_strategy_id)
-        if not strategy:
-            return jsonify({"status": "error", "message": "Strategy not found."}), 404
-
         return jsonify({
             "status": "success",
             "strategy_name": strategy.name,
-            "method_type": strategy.method_type
+            "method_type": strategy.method_type,
+            "ai_enabled": setting.predictive_enabled
         }), 200
-
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     
@@ -717,5 +715,60 @@ def api_create_rule():
         else:
             return jsonify(result), 400
 
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+
+@api_blueprint.route('/load_balancer/group_strategy', methods=['POST'])
+def set_group_strategy():
+    """
+    Set strategy for a specific group and optionally enable AI.
+    """
+    data = request.json
+    group_id = data.get("group_id")
+    strategy_name = data.get("strategy")
+    ai_enabled = data.get("ai_enabled", False)
+
+    if not group_id or not strategy_name:
+        return jsonify({"status": "error", "message": "Group ID and strategy are required."}), 400
+
+    try:
+        result = StrategyManager.apply_strategy_to_group(strategy_name, group_id, ai_enabled)
+        return jsonify(result), 200 if result["status"] == "success" else 400
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+@api_blueprint.route('/load_balancer/resource_weights/<int:group_id>', methods=['GET'])
+def get_resource_weights(group_id):
+    """Returns current resource-based weight settings for a group"""
+    try:
+        weights = DynamicAlgorithms().weights
+        return jsonify({
+            "status": "success",
+            "weights": {
+                "cpu": weights.get("cpu", 0.4) * 100,  # Convert to percentage
+                "memory": weights.get("memory", 0.3) * 100,
+                "disk": weights.get("disk", 0.2) * 100,
+                "connections": weights.get("connections", 0.1) * 100
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@api_blueprint.route('/load_balancer/settings/<int:group_id>', methods=['GET'])
+def get_load_balancer_settings(group_id):
+    """Get full load balancer settings for a group"""
+    try:
+        setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
+        if not setting:
+            return jsonify({"status": "error", "message": "No settings found"}), 404
+
+        strategy = Strategy.query.get(setting.active_strategy_id)
+        return jsonify({
+            "status": "success",
+            "active_strategy": strategy.name if strategy else None,
+            "failover_priority": setting.failover_priority.split(", ") if setting.failover_priority else [],
+            "ai_enabled": setting.predictive_enabled
+        }), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500

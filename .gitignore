@@ -28,3 +28,5 @@ agent_monitor.log
 deploy_agent.sh
 *.log
 *.meta
+/logs
+*.csv
