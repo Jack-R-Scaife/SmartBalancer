@@ -3,7 +3,7 @@
 # Variables
 GITHUB_REPO="https://github.com/Jack-R-Scaife/SmartBalancer.git"
 BACKEND_VMS=("ubs1@192.168.1.3" "ubs2@192.168.1.4" "ubs3@192.168.1.5" "ubs4@192.168.1.6" "ubs5@192.168.1.7")
-LB_VM="lb@192.168.1.2"
+LB_VMS=("lb@192.168.1.2" "traffic@192.168.1.8")
 AGENT_FOLDER="agent"
 REQUIREMENTS_FILE_BACKEND="requirements.txt"
 REQUIREMENTS_FILE_LB="requirements.txt"
@@ -109,27 +109,32 @@ EOF
 }
 
 deploy_to_lb() {
-    echo "Deploying to load balancer server..."
-    USERNAME=$(echo "$LB_VM" | cut -d '@' -f 1)
-    PASSWORD=$USERNAME
+    echo "Deploying to load balancer servers..."
+    
+    # Iterate over each load balancer VM
+    for vm in "${LB_VMS[@]}"; do
+        echo "Processing $vm..."
+        USERNAME=$(echo "$vm" | cut -d '@' -f 1)
+        PASSWORD=$USERNAME
 
-    # Clean up old directories on the load balancer
-    sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
-        rm -rf ~/SmartBalancer
-    "
+        # Clean up old directories on the load balancer
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$vm" "
+            rm -rf ~/SmartBalancer
+        "
 
-    # Copy repository excluding the agent folder
-    copy_with_fallback "$TEMP_DIR/SmartBalancer/" "~/SmartBalancer/" "$LB_VM" "$PASSWORD"
+        # Copy repository excluding the agent folder
+        copy_with_fallback "$TEMP_DIR/SmartBalancer/" "~/SmartBalancer/" "$vm" "$PASSWORD"
 
-    # Set up environment on the load balancer
-    sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
-        sudo apt update && sudo apt install -y python3 python3-venv git &&
-        python3 -m venv ~/SmartBalancer/venv &&
-        source ~/SmartBalancer/venv/bin/activate &&
-        pip install -r ~/SmartBalancer/$REQUIREMENTS_FILE_LB &&
-        sudo chown -R $USERNAME:$USERNAME ~/SmartBalancer
-    "
-    echo "Deployment to load balancer completed."
+        # Set up environment on the load balancer
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$vm" "
+            sudo apt update && sudo apt install -y python3 python3-venv git &&
+            python3 -m venv ~/SmartBalancer/venv &&
+            source ~/SmartBalancer/venv/bin/activate &&
+            pip install -r ~/SmartBalancer/$REQUIREMENTS_FILE_LB &&
+            sudo chown -R $USERNAME:$USERNAME ~/SmartBalancer
+        "
+        echo "Deployment to $vm completed."
+    done
 }
 
 # Main
