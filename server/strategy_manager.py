@@ -1,9 +1,9 @@
+from app import db
 from app.models import Strategy, LoadBalancerSetting
 from server.static_algorithms import StaticAlgorithms
 from server.dynamic_algorithms import DynamicAlgorithms
 from server.servergroups import ServerGroup
 from server.agent_monitor import LoadBalancer
-from app import db
 
 class StrategyManager:
     static_algorithms = StaticAlgorithms()
@@ -109,6 +109,16 @@ class StrategyManager:
             if not strategy_names:
                 raise ValueError("At least one strategy must be provided.")
 
+            # ✅ Normalize strategy names to match DB format (add spaces where needed)
+            name_corrections = {
+                "RoundRobin": "Round Robin",
+                "WeightedRoundRobin": "Weighted Round Robin",
+                "LeastConnections": "Least Connections",
+                "LeastResponseTime": "Least Response Time",
+                "Resource-Based": "Resource-Based"
+            }
+            strategy_names = [name_corrections.get(s, s) for s in strategy_names]
+
             # ✅ Fetch strategies from DB
             strategies = Strategy.query.filter(Strategy.name.in_(strategy_names)).all()
             if not strategies:
@@ -130,16 +140,15 @@ class StrategyManager:
             load_balancer_setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
             if not load_balancer_setting:
                 load_balancer_setting = LoadBalancerSetting(
-                    failover_priority=", ".join(failover_strategies) if failover_strategies else None,  # Store only failover strategies
+                    failover_priority=", ".join(failover_strategies) if failover_strategies else None,
                     predictive_enabled=ai_enabled,
-                    active_strategy_id=priority_1_strategy.strategy_id,  # Set Priority 1 strategy as active
+                    active_strategy_id=priority_1_strategy.strategy_id,
                     group_id=group_id
                 )
                 db.session.add(load_balancer_setting)
             else:
-                # ✅ Update existing settings
                 load_balancer_setting.active_strategy_id = priority_1_strategy.strategy_id
-                load_balancer_setting.failover_priority = ", ".join(failover_strategies) if failover_strategies else None  # Failover only
+                load_balancer_setting.failover_priority = ", ".join(failover_strategies) if failover_strategies else None
                 load_balancer_setting.predictive_enabled = ai_enabled
                 load_balancer_setting.updated_at = db.func.current_timestamp()
 
@@ -157,5 +166,4 @@ class StrategyManager:
         except Exception as e:
             db.session.rollback()
             return {"status": "error", "message": str(e)}
-
 

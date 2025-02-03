@@ -41,7 +41,6 @@ threshold_error = 0.1
 def get_predicted_traffic():
     """
     Predicts overall traffic rate based on dynamically fetched real-time metrics from all agents.
-    Dynamically adjusts scenario and strategy in real-time using LoadBalancer data.
     """
     try:
         load_balancer = LoadBalancer()
@@ -49,7 +48,7 @@ def get_predicted_traffic():
 
         if not agent_metrics:
             api_logger.error("No metrics available from agents.")
-            return jsonify({'error': 'No metrics available from agents'}), 500
+            return jsonify([]), 200  # ✅ Return an empty array instead of an error object
 
         # Aggregate real-time metrics across all agents
         num_agents = len(agent_metrics)
@@ -60,11 +59,11 @@ def get_predicted_traffic():
             'traffic_rate': sum(agent['metrics'].get('traffic_rate', 0) for agent in agent_metrics),
         }
 
-        # Fetch the real-time scenario and strategy from LoadBalancer
-        scenario = agent_metrics[0].get('scenario', 'default_scenario')  # Get first agent's scenario
-        strategy = load_balancer.active_strategy if load_balancer.active_strategy else "Round Robin"
+        # Fetch scenario and strategy dynamically
+        scenario = agent_metrics[0].get('scenario', 'default_scenario')
+        group_id = agent_metrics[0].get('group_id', 1)  # Default to group 1 if missing
+        strategy = load_balancer.get_group_strategy(group_id) or "Round Robin"
 
-        # Attach scenario & strategy dynamically
         aggregated_metrics['scenario'] = scenario
         aggregated_metrics['strategy'] = strategy
 
@@ -84,12 +83,12 @@ def get_predicted_traffic():
             future_timestamp = (current_time + timedelta(seconds=i)).timestamp()
             predictions.append({'timestamp': future_timestamp, 'value': prediction})
 
-        api_logger.info(f"Traffic prediction successful. Scenario: {scenario}, Strategy: {strategy}")
-        return jsonify(predictions), 200
+        return jsonify(predictions), 200  # ✅ Always return an array
 
     except Exception as e:
         api_logger.error(f"Error in traffic prediction: {e}")
-        return jsonify({'error': f"An error occurred: {str(e)}"}), 500
+        return jsonify([]), 200  # Return an empty array if an error occurs
+
 
 
 # Route to link a server

@@ -263,7 +263,6 @@ const trafficChart = new Chart(ctx, {
     }
 });
 
-
 function fetchAndUpdateTrafficChart() {
     const MAX_TIME_WINDOW = 60 * 1000; // 1 minute in milliseconds
 
@@ -273,6 +272,17 @@ function fetchAndUpdateTrafficChart() {
     ])
     .then(([realTimeData, predictedData]) => {
         const now = new Date();
+
+        // Ensure predictedData is an array
+        if (!Array.isArray(predictedData)) {
+            console.error("Expected an array but got:", predictedData);
+            predictedData = [];  // Set to empty array to prevent crashes
+        }
+
+        if (!Array.isArray(realTimeData)) {
+            console.error("Expected realTimeData to be an array but got:", realTimeData);
+            realTimeData = [];  // Set to empty array to prevent crashes
+        }
 
         // Group and aggregate real-time traffic data
         const groupedRealTimeData = realTimeData.reduce((acc, point) => {
@@ -287,8 +297,10 @@ function fetchAndUpdateTrafficChart() {
         const realTimeLabels = Object.keys(groupedRealTimeData);
         const realTimeValues = Object.values(groupedRealTimeData);
 
-        // Extract predicted timestamps and values
-        const predictedLabels = predictedData.map(point => new Date(point.timestamp * 1000).toISOString());
+        //  Only map if data is valid
+        const predictedLabels = predictedData.map(point => 
+            new Date(point.timestamp * 1000).toISOString()
+        );
         const predictedValues = predictedData.map(point => point.value);
 
         // Combine labels and ensure continuity
@@ -318,8 +330,6 @@ function fetchAndUpdateTrafficChart() {
 
 // Periodically fetch data
 setInterval(fetchAndUpdateTrafficChart, 1000);
-
-
 
 // Add Reset Zoom functionality
 document.getElementById('resetTrafficZoomButton').addEventListener('click', () => {
@@ -409,7 +419,6 @@ function clearAlerts(alerts) {
         const uniqueId = `${alert.source}-${alert.type}-${alert.condition}-${alert.timestamp}`;
         alertCache.delete(uniqueId); // Clear from cache
     });
-
     // Re-fetch alerts to refresh the table
     fetchAlerts();
 }
@@ -417,7 +426,6 @@ function clearAlerts(alerts) {
 function updateAlertTable(alerts) {
     // Clear existing rows
     tableBody.innerHTML = "";
-
     if (!Array.isArray(alerts) || alerts.length === 0) {
         // If no alerts, display the "No Alerts" row
         displayNoAlertsRow();
@@ -429,8 +437,6 @@ function updateAlertTable(alerts) {
         processAndAddAlert(alert);
     });
 }
-
-
 function displayNoAlertsRow() {
     // Clear the table before displaying "No Alerts"
     tableBody.innerHTML = "";
@@ -445,13 +451,11 @@ function displayNoAlertsRow() {
     tableBody.appendChild(row);
 }
 
-
 function processAndAddAlert(alert) {
     if (!alert.type || !alert.condition || !alert.source) {
         console.warn("Skipping incomplete alert:", alert);
         return;
     }
-
     const conditions = alert.condition.split(",");
     conditions.forEach(condition => {
         const [key, value] = condition.split(":");
@@ -481,7 +485,6 @@ function processAndAddAlert(alert) {
     });
 }
 
-
 function formatToUKDate(timestamp) {
     if (!timestamp || timestamp === "N/A") return "N/A";
     const date = new Date(timestamp);
@@ -493,8 +496,6 @@ function formatToUKDate(timestamp) {
     const seconds = String(date.getSeconds()).padStart(2, "0");
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 }
-
-
     // Fetch alerts periodically
     setInterval(fetchAlerts, 2000);
     fetchAlerts();
