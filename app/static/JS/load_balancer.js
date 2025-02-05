@@ -225,7 +225,19 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (!enable && !loadingFromStorage) sel.value = "0";
     }
   }
-
+  function updateServerWeightsEnabled() {
+    const serverWeightsDiv = document.getElementById("serverWeights");
+    if (!serverWeightsDiv) return;
+    // Find all <select> elements with class "customselect" within the serverWeights div.
+    const selects = serverWeightsDiv.querySelectorAll("select.customselect");
+    // Enable only if both Static Method and Weighted Round Robin are active.
+    const staticMethodCheckbox = document.getElementById("staticMethod");
+    const WeightedRoundRobin = document.getElementById("WeightedRoundRobin");
+    const enable = staticMethodCheckbox.checked && WeightedRoundRobin.checked;
+    selects.forEach(sel => {
+       sel.disabled = !enable;
+    });
+  }
   // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
   // Local Storage & Server Sync Functions
   // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
@@ -293,10 +305,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!raw) return false;
     try {
       loadingFromStorage = true;
+      // First, disable all UI elements.
       disableAll();
       const stored = JSON.parse(raw);
-  
-      // 1. First restore METHODS based on stored strategies
+      
+      // Restore method selections based on stored strategies.
       const hasStatic = stored.strategies.some(s => 
         ["Round Robin", "Weighted Round Robin"].includes(s)
       );
@@ -304,30 +317,68 @@ document.addEventListener("DOMContentLoaded", async function () {
         ["Least Connections", "Least Response Time", "Resource-Based"].includes(s)
       );
       
-      staticMethodCheckbox.checked = hasStatic;
-      dynamicMethodCheckbox.checked = hasDynamic;
-      customCheckbox.checked = stored.methods.includes("custom");
-  
-      // 2. Now restore STRATEGIES
+      document.getElementById("staticMethod").checked = hasStatic;
+      document.getElementById("dynamicMethod").checked = hasDynamic;
+      document.getElementById("Custom").checked = stored.methods.includes("custom");
+      
+      // Restore strategy checkboxes.
+      const nameCorrections = {
+        "RoundRobin": "Round Robin",
+        "WeightedRoundRobin": "Weighted Round Robin",
+        "LeastConnections": "Least Connections",
+        "LeastResponseTime": "Least Response Time",
+        "Resource-Based": "Resource-Based"
+      };
       stored.strategies.forEach(displayName => {
         const strategyId = Object.entries(nameCorrections)
           .find(([id, name]) => name === displayName)?.[0] || displayName.replace(/ /g, '');
         const chk = document.getElementById(strategyId);
         if (chk) chk.checked = true;
       });
-      // Restore resource weights
+      
+      // Restore resource weights.
+      const resourceCheckBoxes = {
+        cpu: document.getElementById("cpuUsage"),
+        memory: document.getElementById("memoryUsage"),
+        disk: document.getElementById("diskUsage"),
+        leastConnections: document.getElementById("leastConnectionsResource")
+      };
+      const resourceWeightsSelects = {
+        cpu: document.getElementById("cpuUsageWeight"),
+        memory: document.getElementById("memoryUsageWeight"),
+        disk: document.getElementById("diskUsageWeight"),
+        leastConnections: document.getElementById("leastConnectionsWeight")
+      };
       Object.entries(stored.weights).forEach(([key, val]) => {
+        // Adjust key name if needed.
         const resourceKey = key === "connections" ? "leastConnections" : key;
         if (resourceCheckBoxes[resourceKey]) {
           resourceCheckBoxes[resourceKey].checked = true;
           resourceWeightsSelects[resourceKey].value = val;
         }
       });
-      handleMethodChange();
-      // Restore priorities
+      
+      // ── NEW: Restore server weights if they exist ──
+      if (stored.server_weights) {
+        const serverWeightsDiv = document.getElementById("serverWeights");
+        if (serverWeightsDiv) {
+          Object.entries(stored.server_weights).forEach(([serverId, weightVal]) => {
+            const sel = document.getElementById(`weight_${serverId}`);
+            if (sel) {
+              sel.value = weightVal;
+            }
+          });
+        }
+      }
+      
+      // Update failover priorities if needed.
+      const failoverPriority1 = document.getElementById("failoverPriority1");
+      const failoverPriority2 = document.getElementById("failoverPriority2");
       failoverPriority1.value = stored.strategies[0] || "";
       failoverPriority2.value = stored.strategies[1] || "";
-  
+      
+      // Update the rest of the UI.
+      handleMethodChange();
       return true;
     } catch (err) {
       console.error("Error parsing localStorage:", err);
@@ -336,6 +387,10 @@ document.addEventListener("DOMContentLoaded", async function () {
       loadingFromStorage = false;
     }
   }
+  
+
+
+  
 
   // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
   // Build payload from UI to send/save changes.
@@ -343,18 +398,20 @@ document.addEventListener("DOMContentLoaded", async function () {
   function buildPayloadFromUI() {
     const groupId = getGroupId();
     const methods = [];
-    if (staticMethodCheckbox.checked) methods.push("static");
-    if (dynamicMethodCheckbox.checked) methods.push("dynamic");
-    if (customCheckbox.checked) methods.push("custom");
+    if (document.getElementById("staticMethod").checked) methods.push("static");
+    if (document.getElementById("dynamicMethod").checked) methods.push("dynamic");
+    if (document.getElementById("Custom").checked) methods.push("custom");
   
-    // Validate at least one method selected
+    // Validate at least one method is selected.
     if (methods.length === 0) {
       alert("Please select at least one method.");
       return null;
     }
   
-    // Capture both priorities from dropdowns
+    // Capture both failover priorities from the dropdowns.
     const strategies = [];
+    const failoverPriority1 = document.getElementById("failoverPriority1");
+    const failoverPriority2 = document.getElementById("failoverPriority2");
     if (failoverPriority1.value && failoverPriority1.value !== "No strategies selected") {
       strategies.push(failoverPriority1.value);
     }
@@ -362,8 +419,20 @@ document.addEventListener("DOMContentLoaded", async function () {
       strategies.push(failoverPriority2.value);
     }
   
-    // Capture resource weights (corrected key names)
+    // Capture resource weights.
     const weights = {};
+    const resourceCheckBoxes = {
+      cpu: document.getElementById("cpuUsage"),
+      memory: document.getElementById("memoryUsage"),
+      disk: document.getElementById("diskUsage"),
+      leastConnections: document.getElementById("leastConnectionsResource")
+    };
+    const resourceWeightsSelects = {
+      cpu: document.getElementById("cpuUsageWeight"),
+      memory: document.getElementById("memoryUsageWeight"),
+      disk: document.getElementById("diskUsageWeight"),
+      leastConnections: document.getElementById("leastConnectionsWeight")
+    };
     Object.entries(resourceCheckBoxes).forEach(([key, checkbox]) => {
       if (checkbox.checked) {
         const weightKey = key === "leastConnections" ? "connections" : key;
@@ -371,14 +440,30 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
   
+    // ── NEW: Capture server weights if Weighted Round Robin is active ──
+    let serverWeights = {};
+    if (document.getElementById("staticMethod").checked && document.getElementById("WeightedRoundRobin").checked) {
+      const serverWeightsDiv = document.getElementById("serverWeights");
+      if (serverWeightsDiv) {
+        const selects = serverWeightsDiv.querySelectorAll("select.customselect");
+        selects.forEach(select => {
+          // Expected ID format: "weight_{serverId}"
+          const serverId = select.id.replace("weight_", "");
+          serverWeights[serverId] = select.value;
+        });
+      }
+    }
+  
     return {
       group_id: groupId,
       methods,
-      strategies: strategies.length > 0 ? strategies : ["Resource-Based"], // Fallback
+      strategies: strategies.length > 0 ? strategies : ["Resource-Based"], // fallback
       weights,
-      ai_enabled: predictiveAICheckbox.checked
+      server_weights: serverWeights, // include server weights in payload
+      ai_enabled: document.getElementById("predictiveAI").checked
     };
   }
+  
   
 
   function getGroupId() {

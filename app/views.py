@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify,session,redirect,url_for
+from flask import Blueprint, render_template, jsonify,session,redirect,url_for,request
 from app import db
 from app.models import Server, ServerGroup, ServerGroupServer  # Import necessary models
 from sqlalchemy import text
@@ -91,7 +91,9 @@ def server_power():
 @main_blueprint.route('/configRules')
 def configrules():
     session['sub_links_open'] = False
-    return render_template('configureRules.html')
+    # Get the subpage (default to 'editgroup' if not provided)
+    subpage = request.args.get('page', 'editgroup')
+    return render_template('configureRules.html', subpage=subpage)
 
 
 @main_blueprint.route('/toggle_sublinks', methods=['POST'])
@@ -101,3 +103,20 @@ def toggle_sublinks():
     
     return jsonify({'message': 'Sub-links toggled successfully!'})
 
+@main_blueprint.route('/configRules/methods')
+def config_methods():
+    session['sub_links_open'] = False
+    group_id = request.args.get('group_id')
+    return render_template('config_methods.html', group_id=group_id)
+
+@main_blueprint.route('/configRules/show')
+def config_show_rules():
+    session['sub_links_open'] = False
+    group_id = request.args.get('group_id')
+    return render_template('config_show_rules.html', group_id=group_id)
+
+@main_blueprint.route('/configRules/add')
+def config_add_rules():
+    session['sub_links_open'] = False
+    group_id = request.args.get('group_id')
+    return render_template('config_add_rules.html', group_id=group_id)

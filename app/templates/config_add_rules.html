@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Configure Device - Load Balancing Methods{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='CSS/serverOverview.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='CSS/rule.css') }}" rel="stylesheet">
+
+<style>
+      .labelcst{
+        width: 67px;
+      }
+      .labelweight {
+      text-align: start;
+      max-width: 72px;
+    }
+    .labelcustom{
+      width: 200px;
+    }
+ 
+      
+      label {
+        color: #c7c7c7;
+        width: 707px;
+      }
+    
+      .customselect {
+        margin-left: 2px;
+        border: none;
+        border-bottom: 2px solid #fff; 
+        outline: none;
+        padding: 5px 0;
+        background-color: transparent;
+        box-shadow: none;
+        font-size: 16px;
+        color: #fff;
+        width: 100%;
+        max-width: 250px;
+        height: 36px;
+      }
+    
+      .dropdown-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+     
+    
+      .customsearch{
+        border: none;
+        border-bottom: 2px solid #fff; 
+        outline: none;
+        padding: 5px 0;
+        background-color: transparent;
+        box-shadow: none;
+        font-size: 16px;
+        color: #ffffff;
+        width: 100%;
+      }
+    
+      
+      select {
+        background-color: #333;
+        color: #ffffff;
+        border: 1px solid #555;
+        padding: 5px;
+      }
+    
+     
+      .customselect option {
+        background-color: #ffffff;
+        color: black;
+      }
+    
+      .customselect:focus {
+        border-bottom: 2px solid #fff; 
+        box-shadow: none;
+      }
+    
+      
+      /* Flex container to align labels and selects consistently */
+      .dropdown-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+     
+      .customsearch{
+        border: none;
+        border-bottom: 2px solid #fff; 
+        outline: none;
+        padding: 5px 0;
+        background-color: transparent;
+        box-shadow: none;
+        font-size: 16px;
+        color: #ffffff;
+        width: 100%;
+      }
+    
+      .custombtn {
+    background: none;
+    border: none;
+    color: #ffffff;
+    padding: 0;
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 15px;
+    }
+    .buttonstyle{
+    color:white;
+    width: 160px;
+    height: 30px;
+    border-radius: 5px !important;
+    text-align: left;
+    padding-left:5px;
+    padding-top: 1px;
+    font-weight: 700;
+    margin: 2px;
+    }
+
+    .customView{
+    background-color: #055858;
+    border:solid 1px #2BB7DC;
+    width: 170px;
+    }
+
+  
+</style>
+
+<div class="container customContainer mt-2">
+  <div class="d-flex mb-3">
+    <input type="text" class="search-bar" placeholder="Search...">
+  </div>
+  
+  <div class="card-content" id="create">
+    <form id="createRuleForm">
+      <!-- Basic Rule Details -->
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label for="ruleName">Rule Name</label>
+          <input type="text" class="customselect" id="ruleName" placeholder="Enter rule name">
+        </div>
+        <div class="col-md-4">
+          <label for="ruleDescription">Description</label>
+          <input type="text" class="customselect" id="ruleDescription" placeholder="Enter rule description">
+        </div>
+        <div class="col-md-4">
+          <label for="ruleType">Rule Type</label>
+          <select id="ruleType" class="customselect">
+            <option value="traffic">Traffic-Based</option>
+            <option value="geo">Geo-Based</option>
+            <option value="time">Time-Based</option>
+            <option value="load">Load-Based</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+      </div>
+  
+      <!-- Dynamic Sections (Rule-Specific Inputs) -->
+      <div id="ruleInputsContainer">
+        
+        <!-- Placeholder for dynamically inserted rule-specific inputs -->
+      </div>
+  
+      <!-- Priority and Action -->
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label for="rulePriority">Priority</label>
+          <input type="number" class="customselect" id="rulePriority" min="1" value="1">
+        </div>
+        <div class="col-md-4">
+          <label for="ruleAction">Action</label>
+          <select id="ruleAction" class="customselect">
+            <option value="allow">Allow</option>
+            <option value="block">Block</option>
+            <option value="redirect">Redirect</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="ruleStatus">Status</label>
+          <select id="ruleStatus" class="customselect">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+      </div>
+  
+      <!-- Submit Button -->
+      <button type="button" class="customView buttonstyle" id="createRuleButton">Create Rule</button>
+    </form>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='JS/rules.js') }}"></script>
+
+{% endblock %}

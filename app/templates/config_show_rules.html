@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Configure Device - Load Balancing Methods{% endblock %}
+
+{% block content %}
+<link href="{{ url_for('static', filename='CSS/serverOverview.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='CSS/rule.css') }}" rel="stylesheet">
+
+<style>
+  /* Container styling */
+  .customContainer {
+    color: #fff;
+    border-radius: 8px;
+  }
+  
+  /* Table styling */
+  .table-responsive {
+    overflow-x: auto;
+  }
+  table.customtable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.customtable thead tr {
+    border-bottom: 2px solid #555;
+  }
+  table.customtable th,
+  table.customtable td {
+    padding: 6px 2px;
+    text-align: left;
+    border-bottom: 1px solid #444;
+  }
+  table.customtable th.sortable-header {
+    cursor: pointer;
+  }
+  table.customtable th.sortable-header .sort-arrows {
+    font-size: 0.8em;
+    margin-left: 5px;
+    color: #aaa;
+  }
+  table.customtable tbody tr:hover {
+    background-color: #333;
+  }
+
+  /* Button styling */
+  .buttonstyle {
+    color: white;
+    width: 100px;
+    height: 30px;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: 700;
+    margin-right: 5px;
+    border: none;
+    cursor: pointer;
+  }
+  .customConfig {
+    background-color: #652C0D;
+    border: 1px solid #FFAA7B;
+  }
+  .customRemove {
+    background-color: #681313;
+    border: 1px solid #FF7676;
+  }
+
+  /* Checkbox styling */
+  .action-checkbox {
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+</style>
+
+<div class="container customContainer mt-2">
+  <div class="d-flex mb-3">
+    <input type="text" class="search-bar" placeholder="Search...">
+  </div>
+  
+  <div class="table-responsive">
+    <table class="customtable">
+      <thead>
+        <tr>
+          <th class="sortable-header">Name <span class="sort-arrows">&#9650; &#9660;</span></th>
+          <th class="sortable-header">Description <span class="sort-arrows">&#9650; &#9660;</span></th>
+          <th class="sortable-header">Rule Priority <span class="sort-arrows">&#9650; &#9660;</span></th>
+          <th class="sortable-header">Schedule <span class="sort-arrows">&#9650; &#9660;</span></th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Redirect HTTP to HTTPS</td>
+          <td>Ensures all traffic is secure by redirecting to HTTPS</td>
+          <td>1</td>
+          <td>Mon-Fri, 9:00 AM - 5:00 PM</td>
+          <td>
+            <label class="action-checkbox">Enable <input type="checkbox"></label>
+            <label class="action-checkbox">Disable <input type="checkbox"></label>
+            <button type="button" class="customConfig buttonstyle">Edit</button>
+            <button type="button" class="customRemove buttonstyle">Delete</button>
+          </td>
+        </tr>
+        <!-- Additional rows can be added here -->
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

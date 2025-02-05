@@ -64,7 +64,37 @@
                     <a class="nav-link" href="{{ url_for('main.rules') }}">
                         <i class="bi bi-sliders"></i> Rules
                     </a>
+                    {% if request.args.get('group_id') %}
+                        {% set group_id = request.args.get('group_id') %}
+                    {% else %}
+                        {% set group_id = None %}
+                    {% endif %}
+                    {% if request.path.startswith('/configRules') %}
+                        <div class="collapse show" id="configRulesSubLinks">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link {% if request.path == '/configRules/methods' %} active {% endif %}" 
+                                       href="{{ url_for('main.config_methods', group_id=group_id) }}">
+                                        <i class="bi bi-sliders"></i> Methods
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {% if request.path == '/configRules/show' %} active {% endif %}" 
+                                       href="{{ url_for('main.config_show_rules', group_id=group_id) }}">
+                                        <i class="bi bi-eye"></i> Show Rules
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {% if request.path == '/configRules/add' %} active {% endif %}" 
+                                       href="{{ url_for('main.config_add_rules', group_id=group_id) }}">
+                                        <i class="bi bi-plus-circle"></i> Add Rules
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    {% endif %}
                 </li>
+                
                 <li class="nav-item">
                     <a class="nav-link" href="/logs">
                         <i class="bi bi-file-earmark-text"></i> Logs
@@ -86,7 +116,7 @@
             </ul>
         </div>
     </nav>
-    
+  
     <style>
         .collapse .nav-link {
     padding-left: 30px; /* Adjust to control indentation */
@@ -109,6 +139,7 @@
         .nav-link.active, .nav-link:hover {
             background-color: #808183; /* Light background color for highlighting */
             border-radius: 5px;
+            color: white !important;
         }
    
     </style>
