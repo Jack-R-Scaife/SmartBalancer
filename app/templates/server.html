@@ -58,12 +58,12 @@
                     </td>
                       
                     <td>{{ server.status }}</td>
-                    <td>{{ server.name }}</td>
+                    <td id="server-name-{{ server.ip_address }}">{{ server.name or 'Loading...' }}</td>
                     <td>{{ server.ip_address }}</td>
-                    <td>{{ server.cpu_usage }}%</td>
-                    <td>{{ server.memory_usage }}%</td>
-                    <td>{{ server.disk_usage }}%</td>
-                    <td>{{ server.network_traffic }} mb/s</td>
+                    <td id="cpu-{{ server.ip_address }}">{{ server.cpu_usage or '0' }}%</td>
+                    <td id="memory-{{ server.ip_address }}">{{ server.memory_usage or '0' }}%</td>
+                    <td id="disk-{{ server.ip_address }}">{{ server.disk_usage or '0' }} MB/s</td>
+                    <td id="network-{{ server.ip_address }}">{{ server.network_traffic or '0' }} MB/s</td>
                     <td>
                         <button type="button" class="customRemove buttonstyle" onclick="removeServer('{{ server.ip_address }}')">Remove</button>
                         <button type="button" class=" customConfig buttonstyle" onclick="toggleSubLinks('{{ server.server_id }}')">Configure Device</button>
@@ -75,7 +75,47 @@
     </div>
 </div>
 <script>
- 
+ let refreshInterval = null; // Store interval ID
+
+// Function to fetch server metrics and update the table
+function fetchServerMetrics() {
+    fetch('/api/metrics/all')
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(server => {
+                document.getElementById(`server-name-${server.ip}`).innerText = server.name || `Server ${server.ip}`;
+                document.getElementById(`cpu-${server.ip}`).innerText = `${server.metrics.cpu_total}%`;
+                document.getElementById(`memory-${server.ip}`).innerText = `${server.metrics.memory}%`;
+                document.getElementById(`disk-${server.ip}`).innerText = `${(server.metrics.disk_read_MBps + server.metrics.disk_write_MBps).toFixed(2)} MB/s`;
+                document.getElementById(`network-${server.ip}`).innerText = `${(server.metrics.net_recv_MBps + server.metrics.net_send_MBps).toFixed(2)} MB/s`;
+            });
+        })
+        .catch(error => console.error("Error fetching server metrics:", error));
+}
+
+// Function to start the interval (if not already started)
+function startMetricsRefresh() {
+    if (!refreshInterval) { // Ensure only one interval runs at a time
+        refreshInterval = setInterval(fetchServerMetrics, 1000);
+    }
+}
+
+// Function to stop the interval
+function stopMetricsRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+
+// Fetch metrics immediately when the page loads
+document.addEventListener("DOMContentLoaded", () => {
+    fetchServerMetrics(); // Initial fetch
+    setTimeout(startMetricsRefresh, 1000); // Start interval after 5s
+});
+
+// Ensure interval stops when the user leaves the page
+window.addEventListener("beforeunload", stopMetricsRefresh);
 
     </script>
     

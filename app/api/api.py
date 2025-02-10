@@ -29,9 +29,13 @@ status_mapping = {
     "down": 4,
     "idle": 5
 }
-# Load the trained Random Forest model
-model_path = os.path.join( 'Predictive_Model', 'lightgbm_model.pkl')
-model = joblib.load(model_path)
+model_path = os.path.join('Predictive_Model', 'lightgbm_model.pkl')
+if os.path.exists(model_path):
+    model = joblib.load(model_path)
+    print("Predictive model loaded successfully.")
+else:
+    model = None
+    print("No predictive model found. The load balancer will work without predictions until a model is trained.")
 
 
 # Threshold for significant prediction error (e.g., 10%)
@@ -40,7 +44,8 @@ threshold_error = 0.1
 @api_blueprint.route('/predicted_traffic', methods=['GET'])
 def get_predicted_traffic():
     """
-    Predicts overall traffic rate based on dynamically fetched real-time metrics from all agents.
+    Predicts overall traffic for the next 10 intervals (e.g., 10 steps of 60 seconds each)
+    using a recursive approach.
     """
     try:
         load_balancer = LoadBalancer()
@@ -48,9 +53,9 @@ def get_predicted_traffic():
 
         if not agent_metrics:
             api_logger.error("No metrics available from agents.")
-            return jsonify([]), 200  # ✅ Return an empty array instead of an error object
+            return jsonify([]), 200
 
-        # Aggregate real-time metrics across all agents
+        # Aggregate current metrics
         num_agents = len(agent_metrics)
         aggregated_metrics = {
             'cpu_usage': sum(agent['metrics'].get('cpu_total', 0) for agent in agent_metrics) / num_agents,
@@ -59,35 +64,47 @@ def get_predicted_traffic():
             'traffic_rate': sum(agent['metrics'].get('traffic_rate', 0) for agent in agent_metrics),
         }
 
-        # Fetch scenario and strategy dynamically
         scenario = agent_metrics[0].get('scenario', 'default_scenario')
-        group_id = agent_metrics[0].get('group_id', 1)  # Default to group 1 if missing
+        group_id = agent_metrics[0].get('group_id', 1)
         strategy = load_balancer.get_group_strategy(group_id) or "Round Robin"
 
         aggregated_metrics['scenario'] = scenario
         aggregated_metrics['strategy'] = strategy
 
-        # Prepare data for model prediction
-        feature_df = pd.DataFrame([aggregated_metrics])
+        # Prepare the base feature vector
+        base_features = pd.DataFrame([aggregated_metrics])
+        base_features = pd.get_dummies(base_features, columns=['scenario', 'strategy'], dummy_na=False)
+        if model is not None:
+            expected_features = model.feature_names_in_
+            current_features = base_features.reindex(columns=expected_features, fill_value=0)
+        else:
+            api_logger.info("Predictive model not trained yet. Returning empty predictions.")
+            return jsonify([]), 200
 
-        # One-hot encoding for `scenario` and `strategy`
-        feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'], dummy_na=False)
-        expected_features = model.feature_names_in_
-        feature_df = feature_df.reindex(columns=expected_features, fill_value=0)
-
-        # Predict traffic for the next 10 seconds
+        # Recursive forecasting over 10 future steps (each step 60 seconds ahead)
         predictions = []
         current_time = datetime.now()
+        # Assume your features include lag columns: traffic_rate, traffic_rate_lag_1, traffic_rate_lag_2, etc.
         for i in range(10):
-            prediction = model.predict(feature_df)[0]
-            future_timestamp = (current_time + timedelta(seconds=i)).timestamp()
-            predictions.append({'timestamp': future_timestamp, 'value': prediction})
-
-        return jsonify(predictions), 200  # ✅ Always return an array
+            pred = model.predict(current_features)[0]
+            future_timestamp = (current_time + timedelta(seconds=60*(i+1))).timestamp()
+            predictions.append({'timestamp': future_timestamp, 'value': pred})
+            
+            # Update the feature vector for the next iteration.
+            # For example, shift lag features:
+            # new lag_3 = old lag_2, new lag_2 = old lag_1, new lag_1 = prediction,
+            # and update the current traffic_rate with the predicted value.
+            current_features['traffic_rate'] = pred
+            if 'traffic_rate_lag_1' in current_features and 'traffic_rate_lag_2' in current_features and 'traffic_rate_lag_3' in current_features:
+                current_features['traffic_rate_lag_3'] = current_features['traffic_rate_lag_2']
+                current_features['traffic_rate_lag_2'] = current_features['traffic_rate_lag_1']
+                current_features['traffic_rate_lag_1'] = pred
+            # Optionally update any rolling average feature similarly
+        return jsonify(predictions), 200
 
     except Exception as e:
-        api_logger.error(f"Error in traffic prediction: {e}")
-        return jsonify([]), 200  # Return an empty array if an error occurs
+        api_logger.error(f"Error in recursive forecasting: {e}")
+        return jsonify([]), 200
 
 
 
