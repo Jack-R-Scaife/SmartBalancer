@@ -4,6 +4,7 @@ import time
 import requests
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+import random
 
 # Initialize Flask app and logging
 app = Flask(__name__)
@@ -23,6 +24,9 @@ traffic_logger.addHandler(traffic_handler)
 traffic_logger.setLevel(logging.INFO)
 
 # Global state for traffic simulation
+PROTOCOLS = ["http", "https", "tcp", "udp"]
+COUNTRIES = ["United States", "Germany", "China", "Nigeria", "Brazil"]
+DIRECTIONS = ["incoming", "outgoing"]
 traffic_thread = None
 traffic_running = False
 traffic_metrics = []
@@ -127,37 +131,71 @@ def get_traffic_metrics():
 
 def simulate_traffic(start_time):
     """
-    Simulate continuous traffic with adjustable baseline and real-time scaling events.
+    Simulate continuous traffic with adjustable baseline and scaling events.
+    Each traffic request includes additional fields:
+      - protocol: one of "http", "https", "tcp", "udp"
+      - port: default port for HTTP/HTTPS or random port for TCP/UDP
+      - country: one of the supported countries
+      - traffic_direction: "incoming" or "outgoing"
     """
     global traffic_running, traffic_metrics, events, current_baseline_rate, current_scenario
 
+    # Optionally: Filter and combine active events here (see previous examples).
     while traffic_running:
         current_time = time.time() - start_time
         rate = current_baseline_rate
 
-        # Apply any active scaling events
-        for event in events:
-            if event["start_time"] <= current_time < event["start_time"] + event["duration"]:
-                rate = int(current_baseline_rate * event["scale"])
+        # Example: combine active events multiplicatively
+        active_events = [event for event in events 
+                         if event["start_time"] <= current_time < event["start_time"] + event["duration"]]
+        if active_events:
+            effective_scale = 1.0
+            for event in active_events:
+                effective_scale *= event["scale"]
+            rate = int(current_baseline_rate * effective_scale)
 
+        # (Optional) Remove expired events to prevent buildup.
+        events[:] = [event for event in events if current_time < event["start_time"] + event["duration"]]
+
+        # Send "rate" traffic requests with a richer payload
         for _ in range(rate):
+            # Select a protocol randomly
+            protocol = random.choice(PROTOCOLS)
+            # Determine a port: default for HTTP/HTTPS or random for TCP/UDP.
+            if protocol == "http":
+                port = 80
+            elif protocol == "https":
+                port = 443
+            else:
+                port = random.randint(1024, 65535)
+            # Choose a country and traffic direction randomly.
+            country = random.choice(COUNTRIES)
+            traffic_direction = random.choice(DIRECTIONS)
+
+            # Build the payload
+            payload = {
+                "url": url,                        # the endpoint (or target URL) for the simulated traffic
+                "type": protocol.upper(),          # e.g., "HTTP", "HTTPS", "TCP", "UDP"
+                "rate": rate,
+                "duration": 1,
+                "scenario": current_scenario,
+                "protocol": protocol,              # added field: protocol
+                "port": port,                      # added field: port number
+                "country": country,                # added field: country (of origin)
+                "traffic_direction": traffic_direction  # added field: incoming or outgoing
+            }
             try:
-                response = requests.post(url, json={
-                    "url": url,
-                    "type": "GET",
-                    "rate": rate,
-                    "duration": 1,
-                    "scenario": current_scenario
-                })
-                traffic_logger.debug(f"Traffic sent: {response.status_code} {response.text}")
+                response = requests.post(url, json=payload)
+                traffic_logger.debug(f"Traffic sent: {response.status_code} {response.text} with payload: {payload}")
             except Exception as e:
                 traffic_logger.error(f"Error sending traffic: {e}")
 
-        # Log traffic metrics
+        # Log the current rate as a metric (using the current timestamp)
         traffic_metrics.append({"timestamp": time.time(), "rate": rate})
         time.sleep(1)
 
     traffic_logger.info("Traffic simulation stopped.")
+
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=8000, debug=True)

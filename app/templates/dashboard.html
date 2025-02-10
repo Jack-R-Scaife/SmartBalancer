@@ -195,28 +195,37 @@ h5 {
 
 const ctx = document.getElementById('trafficChart').getContext('2d');
 
-// Initialize the chart
 const trafficChart = new Chart(ctx, {
     type: 'line',
     data: {
-        labels: [],
+        // No global labels—each dataset will provide its own x (time) values.
         datasets: [
             {
                 label: 'Incoming Traffic',
-                data: [], // Dynamic real-time data
+                data: [], // Data will be objects of the form { x: Date, y: value }
                 borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
                 fill: false,
                 tension: 0.4,
-                borderWidth: 1
+                borderWidth: 1,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: 'rgba(75, 192, 192, 0.8)',
+                pointBorderColor: 'rgba(75, 192, 192, 1)'
             },
             {
                 label: 'Predicted Traffic',
-                data: [], // Dynamic predicted data
+                data: [], // This will be re-created each poll
                 borderColor: 'rgba(255, 99, 132, 1)',
-                borderDash: [5, 5], // Dashed line for predictions
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderDash: [5, 5],
                 fill: false,
                 tension: 0.4,
-                borderWidth: 1
+                borderWidth: 1,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: 'rgba(255, 99, 132, 0.8)',
+                pointBorderColor: 'rgba(255, 99, 132, 1)'
             }
         ]
     },
@@ -225,8 +234,7 @@ const trafficChart = new Chart(ctx, {
         maintainAspectRatio: false,
         scales: {
             x: {
-                display: true,
-                type: 'time', // Time-based x-axis
+                type: 'time', // Use a time-based x-axis
                 time: {
                     unit: 'second'
                 },
@@ -247,91 +255,81 @@ const trafficChart = new Chart(ctx, {
             zoom: {
                 pan: {
                     enabled: true,
-                    mode: 'x' // Allow panning horizontally
+                    mode: 'x'
                 },
                 zoom: {
                     wheel: {
-                        enabled: true // Zoom with the mouse wheel
+                        enabled: true
                     },
                     pinch: {
-                        enabled: true // Zoom with pinch gestures
+                        enabled: true
                     },
-                    mode: 'x' // Only zoom horizontally
+                    mode: 'x'
                 }
             }
         }
     }
 });
-
 function fetchAndUpdateTrafficChart() {
-    const MAX_TIME_WINDOW = 60 * 1000; // 1 minute in milliseconds
+  const now = new Date();
+  const REALTIME_WINDOW = 30 * 1000; // Only show real-time points from the last 30 seconds
+  const GAP_THRESHOLD = 1000;        // 1 second gap between real-time and predicted points
 
-    Promise.all([
-        fetch('/api/traffic').then(response => response.json()),
-        fetch('/api/predicted_traffic').then(response => response.json())
-    ])
-    .then(([realTimeData, predictedData]) => {
-        const now = new Date();
+  Promise.all([
+    fetch('/api/traffic').then(response => response.json()),
+    fetch('/api/predicted_traffic').then(response => response.json())
+  ])
+  .then(([realTimeData, predictedData]) => {
 
-        // Ensure predictedData is an array
-        if (!Array.isArray(predictedData)) {
-            console.error("Expected an array but got:", predictedData);
-            predictedData = [];  // Set to empty array to prevent crashes
-        }
+    // ----- Process Incoming (Real-Time) Traffic -----
+    // Group the incoming traffic points by timestamp (rounded to whole seconds)
+    const aggregated = {};
+    realTimeData.forEach(pt => {
+      const ts = Math.floor(pt.timestamp); // round down to a whole second
+      if (!aggregated[ts]) {
+        aggregated[ts] = 0;
+      }
+      aggregated[ts] += pt.value;
+    });
 
-        if (!Array.isArray(realTimeData)) {
-            console.error("Expected realTimeData to be an array but got:", realTimeData);
-            realTimeData = [];  // Set to empty array to prevent crashes
-        }
+    // Convert the aggregated object into an array of data points and sort by time.
+    let realTimePoints = Object.keys(aggregated)
+      .map(ts => ({
+        x: new Date(parseInt(ts, 10) * 1000),
+        y: aggregated[ts]
+      }))
+      .sort((a, b) => a.x - b.x)
+      // Filter to only include points from the last 30 seconds.
+      .filter(pt => pt.x >= new Date(now.getTime() - REALTIME_WINDOW));
 
-        // Group and aggregate real-time traffic data
-        const groupedRealTimeData = realTimeData.reduce((acc, point) => {
-            const timestamp = new Date(point.timestamp * 1000).toISOString();
-            if (!acc[timestamp]) {
-                acc[timestamp] = 0;
-            }
-            acc[timestamp] += point.value; // Aggregate traffic
-            return acc;
-        }, {});
+    // ----- Process Predicted Traffic -----
+    let predictedPoints = predictedData
+      .map(pt => ({
+        x: new Date(pt.timestamp * 1000),
+        y: pt.value
+      }))
+      .filter(pt => pt.x > now); // Only future predictions
 
-        const realTimeLabels = Object.keys(groupedRealTimeData);
-        const realTimeValues = Object.values(groupedRealTimeData);
+    // ----- Remove Overlapping Predicted Points -----
+    // If there are real-time points, remove predicted points that occur too close
+    // (within GAP_THRESHOLD) to the last real-time point.
+    if (realTimePoints.length > 0 && predictedPoints.length > 0) {
+      const lastRealTimePoint = realTimePoints[realTimePoints.length - 1];
+      predictedPoints = predictedPoints.filter(pt => (pt.x - lastRealTimePoint.x) > GAP_THRESHOLD);
+    }
 
-        //  Only map if data is valid
-        const predictedLabels = predictedData.map(point => 
-            new Date(point.timestamp * 1000).toISOString()
-        );
-        const predictedValues = predictedData.map(point => point.value);
-
-        // Combine labels and ensure continuity
-        const combinedLabels = [...new Set([...realTimeLabels, ...predictedLabels])].sort();
-
-        // Map real-time and predicted values to combined labels
-        const combinedRealTimeValues = combinedLabels.map(label =>
-            realTimeLabels.includes(label) ? realTimeValues[realTimeLabels.indexOf(label)] : null
-        );
-        const combinedPredictedValues = combinedLabels.map(label =>
-            predictedLabels.includes(label) ? predictedValues[predictedLabels.indexOf(label)] : null
-        );
-
-        // Remove points older than 1 minute
-        const recentLabels = combinedLabels.filter(label => new Date(label) >= now - MAX_TIME_WINDOW);
-        const recentRealTimeValues = combinedRealTimeValues.slice(-recentLabels.length);
-        const recentPredictedValues = combinedPredictedValues.slice(-recentLabels.length);
-
-        // Update the chart
-        trafficChart.data.labels = recentLabels;
-        trafficChart.data.datasets[0].data = recentRealTimeValues; // Incoming Traffic
-        trafficChart.data.datasets[1].data = recentPredictedValues; // Predicted Traffic
-        trafficChart.update();
-    })
-    .catch(error => console.error('Error fetching traffic data:', error));
+    // ----- Update the Chart -----
+    trafficChart.data.datasets[0].data = realTimePoints;   // Aggregated incoming traffic (last 30s)
+    trafficChart.data.datasets[1].data = predictedPoints;    // Predicted traffic (with gap)
+    trafficChart.update();
+  })
+  .catch(error => console.error('Error fetching traffic data:', error));
 }
 
-// Periodically fetch data
+// Poll the API every second.
 setInterval(fetchAndUpdateTrafficChart, 1000);
 
-// Add Reset Zoom functionality
+// Reset Zoom functionality remains unchanged.
 document.getElementById('resetTrafficZoomButton').addEventListener('click', () => {
     trafficChart.resetZoom();
 });
