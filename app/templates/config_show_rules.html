@@ -1,48 +1,50 @@
 {% extends "base.html" %}
 
-{% block title %}Configure Device - Load Balancing Methods{% endblock %}
+{% block title %}Manage Rules - Load Balancer{% endblock %}
 
 {% block content %}
 <link href="{{ url_for('static', filename='CSS/serverOverview.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='CSS/rule.css') }}" rel="stylesheet">
 
 <style>
-  /* Container styling */
   .customContainer {
     color: #fff;
     border-radius: 8px;
   }
   
-  /* Table styling */
   .table-responsive {
     overflow-x: auto;
   }
+
   table.customtable {
     width: 100%;
     border-collapse: collapse;
   }
+  
   table.customtable thead tr {
     border-bottom: 2px solid #555;
   }
-  table.customtable th,
-  table.customtable td {
+  
+  table.customtable th, table.customtable td {
     padding: 6px 2px;
     text-align: left;
     border-bottom: 1px solid #444;
   }
-  table.customtable th.sortable-header {
+
+  .sortable-header {
     cursor: pointer;
   }
-  table.customtable th.sortable-header .sort-arrows {
+
+  .sortable-header .sort-arrows {
     font-size: 0.8em;
     margin-left: 5px;
     color: #aaa;
   }
+
   table.customtable tbody tr:hover {
     background-color: #333;
   }
 
-  /* Button styling */
   .buttonstyle {
     color: white;
     width: 100px;
@@ -54,54 +56,165 @@
     border: none;
     cursor: pointer;
   }
-  .customConfig {
-    background-color: #652C0D;
-    border: 1px solid #FFAA7B;
-  }
-  .customRemove {
-    background-color: #681313;
-    border: 1px solid #FF7676;
-  }
 
-  /* Checkbox styling */
+  .customConfig { background-color: #652C0D; border: 1px solid #FFAA7B; }
+  .customRemove { background-color: #681313; border: 1px solid #FF7676; }
+
   .action-checkbox {
     margin-right: 10px;
     vertical-align: middle;
   }
+
+  /* Drag-and-drop styling */
+  tbody tr { cursor: grab; }
+  tbody tr.dragging { background: rgba(255, 255, 255, 0.2); }
+
+  .delete-rule {
+  color: #FF7676;  
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.delete-rule:hover {
+  text-decoration: underline;
+}
+
+.td-actions {
+  display: flex;
+  align-items: center;
+}
+
+.td-actions .action-checkbox {
+  margin-right: 15px;
+}
 </style>
 
 <div class="container customContainer mt-2">
-  <div class="d-flex mb-3">
-    <input type="text" class="search-bar" placeholder="Search...">
-  </div>
-  
+  <h3>Manage Rules</h3>
+
   <div class="table-responsive">
     <table class="customtable">
       <thead>
         <tr>
           <th class="sortable-header">Name <span class="sort-arrows">&#9650; &#9660;</span></th>
           <th class="sortable-header">Description <span class="sort-arrows">&#9650; &#9660;</span></th>
-          <th class="sortable-header">Rule Priority <span class="sort-arrows">&#9650; &#9660;</span></th>
+          <th class="sortable-header">Priority <span class="sort-arrows">&#9650; &#9660;</span></th>
           <th class="sortable-header">Schedule <span class="sort-arrows">&#9650; &#9660;</span></th>
-          <th>Action</th>
+          <th>Actions</th>
         </tr>
       </thead>
-      <tbody>
-        <tr>
-          <td>Redirect HTTP to HTTPS</td>
-          <td>Ensures all traffic is secure by redirecting to HTTPS</td>
-          <td>1</td>
-          <td>Mon-Fri, 9:00 AM - 5:00 PM</td>
+      <tbody id="ruleTableBody">
+        {% for rule in rules %}
+        <tr data-id="{{ rule.rule_id }}" draggable="true">
+          <td>{{ rule.name }}</td>
+          <td>{{ rule.description }}</td>
+          <td class="priority">{{ rule.priority }}</td>
+          <td>{{ rule.schedule | default("N/A") }}</td>
           <td>
-            <label class="action-checkbox">Enable <input type="checkbox"></label>
-            <label class="action-checkbox">Disable <input type="checkbox"></label>
-            <button type="button" class="customConfig buttonstyle">Edit</button>
-            <button type="button" class="customRemove buttonstyle">Delete</button>
+            <div class="td-actions">
+              <label class="action-checkbox">
+                Enable 
+                <input type="checkbox" data-id="{{ rule.rule_id }}" class="toggle-rule" {% if rule.status %}checked{% endif %}>
+              </label>
+              <span class="delete-rule" data-id="{{ rule.rule_id }}">Delete</span>
+            </div>
           </td>
         </tr>
-        <!-- Additional rows can be added here -->
+        {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const ruleTableBody = document.getElementById("ruleTableBody");
+  
+    // Enable/Disable Rules
+    document.querySelectorAll(".toggle-rule").forEach(checkbox => {
+      checkbox.addEventListener("change", function () {
+        const ruleId = this.dataset.id;
+        const status = this.checked;
+        fetch(`/api/rules/update_status/${ruleId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: status })
+        })
+        .then(response => response.json())
+        .then(data => console.log(data));
+      });
+    });
+  
+    // Delete Rules
+    document.querySelectorAll(".delete-rule").forEach(span => {
+  span.addEventListener("click", function () {
+    const ruleId = this.dataset.id;
+    if (confirm("Are you sure you want to delete this rule?")) {
+      fetch(`/api/rules/delete/${ruleId}`, { method: "DELETE" })
+        .then(response => response.json())
+        .then(() => location.reload());
+    }
+  });
+});
+  
+    // Drag-and-Drop Priority Sorting
+    let draggedRow = null;
+  
+    ruleTableBody.addEventListener("dragstart", (e) => {
+      draggedRow = e.target;
+      e.target.classList.add("dragging");
+    });
+  
+    ruleTableBody.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const afterElement = getDragAfterElement(ruleTableBody, e.clientY);
+      if (afterElement == null) {
+        ruleTableBody.appendChild(draggedRow);
+      } else {
+        ruleTableBody.insertBefore(draggedRow, afterElement);
+      }
+    });
+  
+    ruleTableBody.addEventListener("dragend", () => {
+      draggedRow.classList.remove("dragging");
+      updatePriorities();
+    });
+  
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll("tr:not(.dragging)")];
+  
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+  
+    function updatePriorities() {
+      const rows = document.querySelectorAll("#ruleTableBody tr");
+      let priority = 1;
+      const updatedRules = [];
+  
+      rows.forEach(row => {
+        const ruleId = row.dataset.id;
+        row.querySelector(".priority").textContent = priority;
+        updatedRules.push({ rule_id: ruleId, priority: priority });
+        priority++;
+      });
+  
+      fetch("/rules/update_priority", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules: updatedRules })
+      }).then(response => response.json())
+        .then(data => console.log("Priority updated:", data));
+    }
+  });
+  </script>
+  
+  
 {% endblock %}

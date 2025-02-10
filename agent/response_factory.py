@@ -6,7 +6,7 @@ logging.basicConfig(filename='response_factory.log', level=logging.DEBUG, format
 
 class ResponseFactory:
     @staticmethod
-    def generate_alerts():
+    def generate_alerts(ip_address):
         """
         Generate alerts when the agent's health status is NOT healthy.
         """
@@ -14,8 +14,6 @@ class ResponseFactory:
 
         # Initialize health check
         health_check = HealthCheck()
-        ip_address = "192.168.1.2"  # Update to dynamic fetching if needed
-
         # Get health status
         health_status = health_check.determine_status(ip_address)
         resource_status = health_check.check_resources()

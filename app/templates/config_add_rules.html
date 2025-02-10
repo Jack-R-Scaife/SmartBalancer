@@ -153,9 +153,6 @@
           <select id="ruleType" class="customselect">
             <option value="traffic">Traffic-Based</option>
             <option value="geo">Geo-Based</option>
-            <option value="time">Time-Based</option>
-            <option value="load">Load-Based</option>
-            <option value="custom">Custom</option>
           </select>
         </div>
       </div>
@@ -195,5 +192,6 @@
   </div>
 </div>
 <script src="{{ url_for('static', filename='JS/rules.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/rules_dynamic.js') }}"></script>
 
 {% endblock %}

@@ -14,7 +14,7 @@ class AlertManager:
         while True:
             try:
                 with AlertManager._lock:
-                    alerts = ResponseFactory.generate_alerts()
+                    alerts = ResponseFactory.generate_alerts(ip_address)
                     AlertManager._cached_alerts = {
                         "status": "success",
                         "ip": ip_address,

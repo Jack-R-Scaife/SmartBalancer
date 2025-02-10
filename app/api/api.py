@@ -5,7 +5,7 @@ import pandas as pd
 from app import db
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers,get_servers_by_group
-from app.models import Server,LoadBalancerSetting,Strategy,Rule
+from app.models import Server,LoadBalancerSetting,Strategy,Rule,ServerGroup
 import json,os
 import random,logging
 from server.traffic_store import TrafficStore
@@ -699,24 +699,76 @@ def api_create_rule():
     API endpoint to create a new rule.
     """
     try:
-        # Parse request data
         data = request.json
-
-        # Validate common fields
         if not data.get('name') or not data.get('action') or not data.get('rule_type'):
             return jsonify({"status": "error", "message": "Name, action, and rule type are required."}), 400
 
-        # Delegate rule creation to rules_manager
         result = create_rule(data)
 
         if result["status"] == "success":
             return jsonify(result), 201
         else:
             return jsonify(result), 400
-
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@api_blueprint.route('/rules/delete/<int:rule_id>', methods=['DELETE'])
+def delete_rule(rule_id):
+    """
+    Deletes a rule from the database.
+    """
+    try:
+        rule = Rule.query.get(rule_id)
+        if not rule:
+            return jsonify({"status": "error", "message": "Rule not found"}), 404
+        
+        db.session.delete(rule)
+        db.session.commit()
+        
+        return jsonify({"status": "success", "message": "Rule deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+   
+@api_blueprint.route('/rules/update_status/<int:rule_id>', methods=['POST'])
+def update_rule_status(rule_id):
+    """
+    Updates the enable/disable status of a rule.
+    """
+    try:
+        data = request.json
+        rule = Rule.query.get(rule_id)
+
+        if not rule:
+            return jsonify({"status": "error", "message": "Rule not found"}), 404
+        
+        rule.status = data.get("status", True)  # Toggle status based on checkbox
+        db.session.commit()
+        
+        return jsonify({"status": "success", "message": f"Rule status updated to {'enabled' if rule.status else 'disabled'}"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
     
+@api_blueprint.route('/rules/update_priority', methods=['POST'])
+def update_rule_priority():
+    """
+    Updates rule priorities dynamically based on drag-and-drop order.
+    """
+    try:
+        data = request.json
+        for rule_data in data["rules"]:
+            rule = Rule.query.get(rule_data["rule_id"])
+            if rule:
+                rule.priority = rule_data["priority"]
+
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Rule priorities updated"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+
 
 @api_blueprint.route('/load_balancer/group_strategy', methods=['POST'])
 def set_group_strategy():
@@ -771,3 +823,41 @@ def get_load_balancer_settings(group_id):
         }), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+
+@api_blueprint.route('/get_groups', methods=['GET'])
+def get_groups():
+    groups = ServerGroup.query.all()
+    groups_list = [{"group_id": g.group_id, "name": g.name} for g in groups]
+    return jsonify({"groups": groups_list})
+
+
+# Servers Endpoint - Add required fields
+@api_blueprint.route('/get_servers', methods=['GET'])
+def get_servers():
+    servers = Server.query.all()
+    servers_list = [{"ip": s.ip_address, "name": f"Server {s.server_id}"} for s in servers]
+    return jsonify({"servers": servers_list})
+
+# Countries Endpoint - Match frontend expectations
+@api_blueprint.route('/get_countries', methods=['GET'])
+def get_countries():
+    region = request.args.get("region", "NA")
+    countries = {
+        "NA": [{"code": "US", "name": "United States"}],
+        "EU": [{"code": "DE", "name": "Germany"}],
+        "AS": [{"code": "CN", "name": "China"}],
+        "AF": [{"code": "NG", "name": "Nigeria"}],
+        "SA": [{"code": "BR", "name": "Brazil"}]
+    }
+    return jsonify({"countries": countries.get(region, [])})
+
+@api_blueprint.route('/get_load_methods', methods=['GET'])
+def get_load_methods():
+    methods = [
+        {"id": "round_robin", "name": "Round Robin"},
+        {"id": "least_connections", "name": "Least Connections"},
+        {"id": "weighted", "name": "Weighted Round Robin"},
+        {"id": "resource", "name": "Resource-Based"}
+    ]
+    return jsonify(methods)

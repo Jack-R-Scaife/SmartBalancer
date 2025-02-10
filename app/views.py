@@ -113,7 +113,10 @@ def config_methods():
 def config_show_rules():
     session['sub_links_open'] = False
     group_id = request.args.get('group_id')
-    return render_template('config_show_rules.html', group_id=group_id)
+    #Query all rules from the database
+    from app.models import Rule
+    rules = Rule.query.order_by(Rule.priority.asc()).all()  # Order by priority
+    return render_template('config_show_rules.html', group_id=group_id, rules=rules)
 
 @main_blueprint.route('/configRules/add')
 def config_add_rules():
