@@ -103,31 +103,12 @@ function initializeCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'nearest',
-                    intersect: false
-                },
-                plugins: {
-                    zoom: {
-                        pan: {
-                            enabled: true,
-                            mode: 'x'
-                        },
-                        zoom: {
-                            wheel: {
-                                enabled: true
-                            },
-                            pinch: {
-                                enabled: true
-                            },
-                            mode: 'x',
-                            limits: {
-                                x: {
-                                    min: () => initialLoadTime,
-                                    max: () => new Date()
-                                }
-                            }
-                        }
+                // Try an explicit aspect ratio (adjust the value as needed)
+                aspectRatio: 2,
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 35
                     }
                 },
                 scales: {
@@ -142,18 +123,51 @@ function initializeCharts() {
                         },
                         ticks: {
                             autoSkip: true,
-                            maxTicksLimit: 10
+                            maxTicksLimit: 5,
+                            maxRotation: 0,
+                            minRotation: 0,
+                            font: {
+                                size: 12 // Smaller font size for x-axis labels
+                            }
                         },
                         title: {
                             display: true,
-                            text: 'Time'
+                            text: 'Time',
+                            font: {
+                                size: 12
+                            }
                         }
                     },
                     y: {
                         beginAtZero: true,
+                        ticks: {
+                            font: {
+                                size: 12  // Smaller font size for y-axis labels
+                            }
+                        },
                         title: {
                             display: true,
-                            text: 'CPU Usage (%)'
+                            text: 'CPU Usage (%)',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'x'
+                        },
+                        zoom: {
+                            wheel: {
+                                enabled: true
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'x'
                         }
                     }
                 }
@@ -170,31 +184,12 @@ function initializeCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'nearest',
-                    intersect: false
-                },
-                plugins: {
-                    zoom: {
-                        pan: {
-                            enabled: true,
-                            mode: 'x'
-                        },
-                        zoom: {
-                            wheel: {
-                                enabled: true
-                            },
-                            pinch: {
-                                enabled: true
-                            },
-                            mode: 'x',
-                            limits: {
-                                x: {
-                                    min: () => initialLoadTime,
-                                    max: () => new Date()
-                                }
-                            }
-                        }
+                // Try an explicit aspect ratio (adjust the value as needed)
+                aspectRatio: 2,
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 35
                     }
                 },
                 scales: {
@@ -209,18 +204,51 @@ function initializeCharts() {
                         },
                         ticks: {
                             autoSkip: true,
-                            maxTicksLimit: 10
+                            maxTicksLimit: 5,
+                            maxRotation: 0,
+                            minRotation: 0,
+                            font: {
+                                size: 12 // Smaller font size for x-axis labels
+                            }
                         },
                         title: {
                             display: true,
-                            text: 'Time'
+                            text: 'Time',
+                            font: {
+                                size: 12
+                            }
                         }
                     },
                     y: {
                         beginAtZero: true,
+                        ticks: {
+                            font: {
+                                size: 12  // Smaller font size for y-axis labels
+                            }
+                        },
                         title: {
                             display: true,
-                            text: 'Memory Usage (GB)'
+                            text: 'Memory Usage GB (%)',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'x'
+                        },
+                        zoom: {
+                            wheel: {
+                                enabled: true
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'x'
                         }
                     }
                 }

@@ -3,13 +3,13 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <link href="{{ url_for('static', filename='CSS/dashboard.css') }}" rel="stylesheet">
-<div class="container mt-4">
+<div class="container mt-2">
 <style>
  .server-square {
   width: 15px;
   height: 15px;
   border-radius: 2px;
-  margin: 10px !important;
+  margin: -7px !important;
   margin-top: 25px !important;
   background-color: rgb(43, 42, 42); /* Default color */
 
@@ -26,7 +26,7 @@
   font-weight: bolder; /* Make the text bold */
   color: white; 
   margin: 11px;
- margin-top: 25px;
+ margin-top: 4px;
 }
 
 .healthy {
@@ -63,7 +63,7 @@
 
 #serverStatusContainer {
   width: 100%;
-  height: 400px;
+  height: 222px;
   display: flex;
   flex-direction: column;
 }
@@ -76,78 +76,110 @@
   flex: 0;
 }
 .serverStatus{
-  width: 100%;
+  width: 200px;
 }
-h5 {
+.charth5 {
   color: white  !important;
-
+  text-align: center;
+  width: 269px;
+  margin: 0 !important;
+}
+.leftcharts{
+  height: 150px;
+  width: 500px;
+}
+.activeConnections{
+  margin-top: 22px !important;
 }
 </style>
-<div class="row mb-2">
-  <!-- Search bar -->
-  <div class="col-12">
+  <div class="row mb-2">
+    <div class="col-12">
       <input type="text" class="search-bar" placeholder="Search...">
+    </div>
   </div>
-</div>
-<div class="row mb-2">
-    <div class="col-md-4 d-flex ">
+  <div class="row mb-2">
+    <!-- Current Server Status -->
+    <div class="col-md-5">
+      <div class="metrics">
+        <div class="d-flex justify-content-between align-items-center">
+          <button id="resetResponseZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+          <h5 class="charth5">Response Time</h5>
+          <select class="customselect" id="responsetimeGroup"></select>
+        </div>
+        <canvas id="responseTimeChart"></canvas>
+      </div>
+      <div class="metrics">
+        <div class="d-flex justify-content-between align-items-center">
+          <button id="resettraffic24ZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+          <h5 class="charth5">Traffic Last 24 Hrs</h5>
+          <select class="customselect" id="traffic24Group"></select>
+        </div>
+        <canvas id="traffic24Chart"></canvas>
+      </div>
+      <div class="metrics">
+        <div class="d-flex justify-content-between align-items-center">
+          <button id="resetpredictiveChartZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+          <h5 class="charth5">Prediction Efficiency</h5>
+          <select class="customselect" id="predictiveGroup"></select>
+        </div>
+        <canvas id="predictiveChart"></canvas>
+      </div>
+    </div>
+    <!-- Server Monitor with Active Connections -->
+    <div class="col-md-2 d-flex flex-column">
       <div class="CurrentServerStatus" id="serversquares">
         <div class="px-2 d-flex justify-content-between align-items-center customdiv">
-          <div class="statusmsg">Current Status of <span id="serverCount">1</span> Servers</div>          
-          <p class="livetxt mb-0">Live</p>
+          <div class="statusmsg">Status of <span id="serverCount">1</span> Servers</div>
+        </div>
+        <div class="server-grid">
+          
         </div>
       </div>
-    </div>
-    <div class="col-md-3 d-flex">
+
       <div class="serverStatus">
-        <h6 class="statusmsg ms-2">Server Monitor <span class="livetxt mb-0 ">Live</span></h6>
+        <h6 class="statusmsg ms-2">Server Monitor <span class="livetxt">Live</span></h6>
         <div id="serverStatusContainer">
-          <div class="down monitorrectangles">
-            <span class="monitor-text">Down</span> <span class="monitor-number"></span>
-          </div>
-          <div class="overloaded monitorrectangles">
-            <span class="monitor-text">Overloaded</span> <span class="monitor-number"></span>
-          </div>
-          <div class="maintenance monitorrectangles">
-            <span class="monitor-text">Maintenance</span> <span class="monitor-number"></span>
-          </div>
-          <div class="idle monitorrectangles">
-            <span class="monitor-text">Idle</span> <span class="monitor-number"></span>
-          </div>
-          <div class="healthy monitorrectangles">
-            <span class="monitor-text">Healthy</span> <span class="monitor-number"></span>
-          </div>
-       
+          <div class="down monitorrectangles">Down <span class="monitor-number"></span></div>
+          <div class="overloaded monitorrectangles">Overloaded <span class="monitor-number"></span></div>
+          <div class="maintenance monitorrectangles">Maintenance <span class="monitor-number"></span></div>
+          <div class="idle monitorrectangles">Idle <span class="monitor-number"></span></div>
+          <div class="healthy monitorrectangles">Healthy <span class="monitor-number"></span></div>
         </div>
       </div>
-    </div>
-    <div class="col-md-5">
-      <div class="row no-gutters mb-2">
-          <div class="col-12">
-              <div class="metrics">
-                <div class="d-flex">
-                <button id="resetCpuZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
-                 <h5 class="text-center">CPU Usage</h5>
-                </div>
-                  <div class="metric-data" style="height: 85%; width: 100%;">
-                      <canvas id="cpuUsageChart"></canvas>
-                  </div>
-              </div>
-          </div>
-          <div class="col-12">
-              <div class="metrics">
-                <div class="d-flex">
-                  <button id="resetMemoryZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
-                  <h5 class="text-center">Memory Usage</h5>
-                </div>
-                  <div class="metric-data" style=" width: 100%; height: 85%;">
-                      <canvas id="memoryUsageChart"></canvas>
-                  </div>
-              </div>
-          </div>
+  
+      <div style=
+      "margin-top: 5px; height: 160px; background-color: #17191C; border: 1px solid #cccccc6b;">
+      <canvas id="strategyChart" width="200" height="160"></canvas>
       </div>
     </div>
-</div>
+    <!-- CPU & Memory Usage with Dropdowns -->
+    <div class="col-md-5">
+      <div class="metrics">
+        <div class="d-flex justify-content-between align-items-center">
+          <button id="resetCpuZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+          <h5 class="charth5">CPU Usage</h5>
+          <select class="customselect" id="cpuUsageGroup"></select>
+        </div>
+        <canvas id="cpuUsageChart"></canvas>
+      </div>
+      <div class="metrics">
+        <div class="d-flex justify-content-between align-items-center">
+          <button id="resetMemoryZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+          <h5 class="charth5">Memory Usage</h5>
+          <select class="customselect" id="memoryUsageGroup"></select>
+        </div>
+        <canvas id="memoryUsageChart"></canvas>
+      </div>
+      <div class="metrics">
+        <div class="d-flex justify-content-between align-items-center">
+          <button id="resetactiveconnectionsZoomButton" class="buttonstyle customReset ">Reset Zoom</button>
+          <h5 class="charth5">Active Connections</h5>
+          <select class="customselect" id="activeconnectionGroup"></select>
+        </div>
+        <canvas id="activeconnectionChart"></canvas>
+      </div>
+    </div>
+  </div>
 
   <!-- Fourth and Fifth Rows: Long Rectangles -->
   <div class="row mb-2">
@@ -192,6 +224,26 @@ h5 {
 <script src="{{ url_for('static', filename='JS/server_status.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/dashboardchart.js') }}"></script>
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+  function populateDropdown(id, endpoint) {
+    fetch(endpoint)
+      .then(response => response.json())
+      .then(data => {
+        const select = document.getElementById(id);
+        data.groups.forEach(group => {
+          let option = document.createElement("option");
+          option.value = group.group_id;
+          option.textContent = group.name;
+          select.appendChild(option);
+        });
+      });
+  }
+  populateDropdown("responseTimeGroup", "/api/get_groups");
+  populateDropdown("trafficGroup", "/api/get_groups");
+  populateDropdown("cpuUsageGroup", "/api/get_groups");
+  populateDropdown("memoryUsageGroup", "/api/get_groups");
+});
+
 
 const ctx = document.getElementById('trafficChart').getContext('2d');
 
@@ -498,12 +550,240 @@ function formatToUKDate(timestamp) {
     setInterval(fetchAlerts, 2000);
     fetchAlerts();
 });
+const overallBenefitPercent = 75;  // e.g., 75% overall benefit
+// TEST CHART CODE 
+const responseTimeOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+    padding: {
+      top: 5,
+      bottom: 20,  // extra space for the x-axis title
+      left: 10,
+      right: 10
+    }
+  },
+    elements: { point: { radius: 3 } },
+    scales: {
+      x: {
+        type: 'time',
+        time: { unit: 'second' },
+        title: { display: true, text: 'Time' }
+      },
+      y: {
+        beginAtZero: true,
+        title: { display: true, text: 'Response Time (ms)' }
+      }
+    },
+    plugins: { legend: { display: false } }
+  };
+
+  function generateTimeData(numPoints = 20) {
+    const data = [];
+    const now = Date.now();
+    for (let i = 0; i < numPoints; i++) {
+      // Random response time between 50 and 250 ms
+      data.push({ x: now + i * 1000, y: Math.random() * 200 + 50 });
+    }
+    return data;
+  }
+
+  const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+  const responseTimeChart = new Chart(responseTimeCtx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        data: generateTimeData(),
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        showLine: true,
+        borderWidth: 1,
+        fill: false
+      }]
+    },
+    options: responseTimeOptions
+  });
 
 
+  /********** 2. TRAFFIC VOLUME LAST 24 HRS: BAR CHART **********/
+  // (You can update the header label in the HTML to "Traffic Volume Last 24 Hrs")
+  const trafficBarOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+    padding: {
+      top: 5,
+      bottom: 20,  // extra space for the x-axis title
+      left: 10,
+      right: 10
+    }
+  },
+    scales: {
+      x: { title: { display: true, text: 'Time Period' } },
+      y: { beginAtZero: true, title: { display: true, text: 'Volume' } }
+    },
+    plugins: { legend: { display: false } }
+  };
 
+  function generateBarData(numPoints = 10) {
+    const labels = [];
+    const data = [];
+    for (let i = 0; i < numPoints; i++) {
+      labels.push(`H${i+1}`); // e.g., Hour 1, Hour 2, etc.
+      data.push(Math.floor(Math.random() * 500));
+    }
+    return { labels, data };
+  }
+
+  const trafficData = generateBarData(10);
+  const traffic24Ctx = document.getElementById('traffic24Chart').getContext('2d');
+  const traffic24Chart = new Chart(traffic24Ctx, {
+    type: 'bar',
+    data: {
+      labels: trafficData.labels,
+      datasets: [{
+        data: trafficData.data,
+        backgroundColor: 'rgba(255, 159, 64, 0.7)',
+        borderColor: 'rgba(255, 159, 64, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: trafficBarOptions
+  });
+
+
+  /********** 3. PREDICTION EFFICIENCY: BAR CHART **********/
+  // Showing two metrics: Mean Squared Error (MSE) and R² (converted to percentage)
+  const predictiveOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+    padding: {
+      top: 5,
+      bottom: 20,  // extra space for the x-axis title
+      left: 10,
+      right: 10
+    }
+  },
+    scales: {
+      x: { title: { display: true, text: 'Metric' } },
+      y: { beginAtZero: true, title: { display: true, text: 'Value' } }
+    },
+    plugins: { legend: { display: false } }
+  };
+
+  // For testing, use fixed values (e.g., MSE = 25, R² = 0.85 → 85%)
+  const mseValue = 25;
+  const rSquaredValue = 85; // Represented as percentage for visual scaling
+
+  const predictiveCtx = document.getElementById('predictiveChart').getContext('2d');
+  const predictiveChart = new Chart(predictiveCtx, {
+    type: 'bar',
+    data: {
+      labels: ['MSE', 'R² (%)'],
+      datasets: [{
+        data: [mseValue, rSquaredValue],
+        backgroundColor: ['rgba(54, 162, 235, 0.7)', 'rgba(54, 162, 235, 0.7)'],
+        borderColor: ['rgba(54, 162, 235, 1)', 'rgba(54, 162, 235, 1)'],
+        borderWidth: 1
+      }]
+    },
+    options: predictiveOptions
+  });
+
+
+  /********** 4. ACTIVE CONNECTIONS: BAR CHART BY SERVER **********/
+  const activeConnOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+    padding: {
+      top: 5,
+      bottom: 20,  // extra space for the x-axis title
+      left: 10,
+      right: 10
+    }
+  },
+    scales: {
+      x: { title: { display: true, text: 'Server' } },
+      y: { beginAtZero: true, title: { display: true, text: 'Connections' } }
+    },
+    plugins: { legend: { display: false } }
+  };
+
+  function generateServerConnections(numServers = 4) {
+    const labels = [];
+    const data = [];
+    for (let i = 0; i < numServers; i++) {
+      labels.push(`Server ${i+1}`);
+      data.push(Math.floor(Math.random() * 100));
+    }
+    return { labels, data };
+  }
+
+  const activeConnData = generateServerConnections(4);
+  const activeConnCtx = document.getElementById('activeconnectionChart').getContext('2d');
+  const activeConnectionsChart = new Chart(activeConnCtx, {
+    type: 'bar',
+    data: {
+      labels: activeConnData.labels,
+      datasets: [{
+        data: activeConnData.data,
+        backgroundColor: 'rgba(153, 102, 255, 0.7)',
+        borderColor: 'rgba(153, 102, 255, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: activeConnOptions
+  });
+
+
+  const overallBenefitChartData = {
+    labels: ['Benefit Gained', 'Gap to Target'],
+    datasets: [{
+      data: [overallBenefitPercent, 100 - overallBenefitPercent],
+      backgroundColor: [
+        'rgba(75, 192, 192, 0.8)',  // Color for benefit gained
+        'rgba(220, 220, 220, 0.8)'  // Color for the gap
+      ],
+      borderWidth: 0
+    }]
+  };
+
+  // Options for the doughnut chart with a title and legend.
+  const overallBenefitOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '70%',  // Adjust thickness of the doughnut ring
+    plugins: {
+      legend: {
+        display: true,
+        position: 'bottom'
+      },
+      title: {
+        display: true,
+        text: ' Benefit Gained from Model',
+        font: {
+          size: 14
+        }
+      },
+      tooltip: {
+        enabled: true
+      }
+    }
+  };
+
+  // Create the chart
+  const strategyCtx = document.getElementById('strategyChart').getContext('2d');
+  const overallBenefitChart = new Chart(strategyCtx, {
+    type: 'doughnut',
+    data: overallBenefitChartData,
+    options: overallBenefitOptions
+  });
 
 </script>
 <style>
+  
  #alertTable {
     width: 100%;
     border-collapse: collapse;

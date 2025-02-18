@@ -1,16 +1,18 @@
-const numberOfServers = 220; // Total number of servers
+const numberOfServers = 10; // Total number of servers
 let pollInterval = 1000;
 // Function to create server squares dynamically
 function createServerSquares() {
-    const container = document.getElementById('serversquares');
+    // Target the inner grid container for the squares
+    const container = document.querySelector('.server-grid');
     for (let i = 1; i <= numberOfServers; i++) {
         // Create the server div
         const serverDiv = document.createElement('div');
         serverDiv.classList.add('server-square');
-        serverDiv.id = `server-${i}`; // Assign each square a unique ID based on its index
+        serverDiv.id = `server-${i}`; // Unique ID for each square
         container.appendChild(serverDiv);
     }
 }
+
 
 // Function to map numeric status codes to CSS classes
 function getStatusClass(statusCode) {
@@ -114,7 +116,6 @@ document.addEventListener("DOMContentLoaded", function () {
     startPolling();  // Start fetching statuses at dynamic intervals
     setInterval(reorderStatusRectangles, 2000);  // Reorder rectangles every 2 seconds
 });
-
 // Recursive polling function that dynamically adjusts based on server statuses
 function startPolling() {
     fetchServerStatus();
@@ -134,8 +135,3 @@ function fetchServerCount() {
     .catch(error => console.error('Error fetching server count:', error));
 }
 
-// Create the squares when the page loads
-createServerSquares();
-
-// Start polling with dynamic intervals
-startPolling();
