@@ -1,9 +1,11 @@
+import json
+import time
 from threading import Lock
-
 class TrafficStore:
     _instance = None
     _traffic_data = []
     _lock = Lock()
+    _file_path = "./traffic_data.json"
 
     @staticmethod
     def get_instance():
@@ -15,6 +17,7 @@ class TrafficStore:
         if TrafficStore._instance is not None:
             raise Exception("This is a singleton class. Use get_instance() to access it.")
         TrafficStore._instance = self
+        self.load_traffic_data()  
 
     def get_traffic_data(self, agent_ip=None):
         """
@@ -42,3 +45,18 @@ class TrafficStore:
 
             # Keep only the last X entries
             self._traffic_data = self._traffic_data[-10000:]
+            # Save updated data to file
+            self.save_traffic_data()
+
+    def save_traffic_data(self):
+        """Save traffic data to a JSON file."""
+        with open(self._file_path, "w") as f:
+            json.dump(self._traffic_data, f)
+
+    def load_traffic_data(self):
+        """Load previous traffic data from file."""
+        try:
+            with open(self._file_path, "r") as f:
+                self._traffic_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self._traffic_data = []

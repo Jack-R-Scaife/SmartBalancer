@@ -836,9 +836,28 @@ def get_load_balancer_settings(group_id):
 
 @api_blueprint.route('/get_groups', methods=['GET'])
 def get_groups():
-    groups = ServerGroup.query.all()
-    groups_list = [{"group_id": g.group_id, "name": g.name} for g in groups]
-    return jsonify({"groups": groups_list})
+    """
+    API endpoint to fetch all server groups and their associated servers.
+    """
+    try:
+        from app.models import ServerGroup, Server, ServerGroupServer
+
+        groups = ServerGroup.query.all()
+        group_list = []
+
+        for group in groups:
+            servers = Server.query.join(ServerGroupServer).filter(ServerGroupServer.group_id == group.group_id).all()
+            group_data = {
+                "group_id": group.group_id,
+                "name": group.name,
+                "servers": [{"server_id": server.server_id, "ip": server.ip_address} for server in servers]
+            }
+            group_list.append(group_data)
+
+        return jsonify({"status": "success", "groups": group_list}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # Servers Endpoint - Add required fields
@@ -870,3 +889,128 @@ def get_load_methods():
         {"id": "resource", "name": "Resource-Based"}
     ]
     return jsonify(methods)
+
+@api_blueprint.route('/ping_agents', methods=['GET'])
+def api_ping_agents():
+    """
+    API endpoint to ping all agents and retrieve rounded response times.
+    """
+    try:
+        load_balancer = LoadBalancer()
+        agent_intervals = load_balancer.ping_agents()  # Get response times
+
+        response_times = [
+            {
+                "ip": agent,
+                "response_time": round(load_balancer.dynamic_executor.response_times.get(agent, 0), 2)
+            }
+            for agent in load_balancer.known_agents
+        ]
+
+        return jsonify({"status": "success", "response_times": response_times}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_blueprint.route('/traffic_24h', methods=['GET'])
+def get_traffic_24h():
+    """
+    API endpoint to fetch the last 24 hours of traffic, grouped by hour.
+    """
+    try:
+        traffic_store = TrafficStore.get_instance()
+        traffic_data = traffic_store.get_traffic_data()
+
+        # Get current time and calculate 24-hour cutoff
+        now = int(time.time())
+        start_time = now - (24 * 60 * 60)
+
+        # Initialize traffic dictionary for 24 hours (default to 0)
+        hourly_traffic = {f"{hour:02d}:00": 0 for hour in range(24)}
+
+        # Filter and group traffic data by hour
+        for entry in traffic_data:
+            entry_time = int(entry["timestamp"])
+            if entry_time >= start_time:
+                hour_label = time.strftime("%H:00", time.gmtime(entry_time))
+                hourly_traffic[hour_label] += entry["value"]
+
+        # Convert data into lists for JSON response
+        sorted_hours = sorted(hourly_traffic.keys())  # Ensure sorted order
+        traffic_values = [hourly_traffic[hour] for hour in sorted_hours]
+
+        return jsonify({"hours": sorted_hours, "traffic": traffic_values}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@api_blueprint.route('/prediction_efficiency', methods=['GET'])
+def get_prediction_efficiency():
+    """
+    API endpoint to calculate prediction efficiency over time.
+    Adjusts predicted timestamps by shifting them 60 seconds back.
+    """
+    try:
+        import requests
+
+        # Fetch real and predicted traffic data
+        real_traffic = requests.get("http://localhost:5000/api/traffic").json()
+        predicted_traffic = requests.get("http://localhost:5000/api/predicted_traffic").json()
+
+        if not real_traffic or not predicted_traffic:
+            return jsonify({"status": "error", "message": "No traffic data available"}), 200
+
+        efficiency_data = {}
+
+        # Aggregate real traffic by timestamp (sum across all agents)
+        real_dict = {}
+        for entry in real_traffic:
+            ts = int(entry["timestamp"])  # Convert to integer seconds
+            real_dict[ts] = real_dict.get(ts, 0) + entry["value"]  # Sum traffic per second
+
+        # Adjust predicted timestamps by shifting them **60 seconds back**
+        predicted_dict = {int(entry["timestamp"]) - 60: entry["value"] for entry in predicted_traffic}
+
+        # Find common timestamps (allow ±5s mismatch)
+        common_timestamps = sorted(set(real_dict.keys()) & set(predicted_dict.keys()))
+
+        # Compute efficiency
+        for ts in common_timestamps:
+            actual = real_dict[ts]
+            predicted = predicted_dict[ts]
+
+            if actual > 0:
+                error = abs(predicted - actual) / actual * 100
+                efficiency = max(0, 100 - error)  # Ensure efficiency is non-negative
+            else:
+                efficiency = 0  # Default to 0% efficiency if no actual traffic
+
+            efficiency_data[ts] = round(efficiency, 4)  # More decimal places for small changes
+
+        # Convert dictionary to list format for JSON response
+        efficiency_list = [{"timestamp": ts, "efficiency": eff} for ts, eff in efficiency_data.items()]
+
+        return jsonify({"status": "success", "efficiency_data": efficiency_list}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+@api_blueprint.route('/active_connections', methods=['GET'])
+def get_active_connections():
+    """
+    API endpoint to fetch the number of active connections from all agents.
+    """
+    try:
+        from server.agent_monitor import LoadBalancer
+
+        load_balancer = LoadBalancer()
+        metrics = load_balancer.fetch_metrics_from_all_agents()
+
+        # Aggregate connections from all agents
+        total_connections = sum(agent["metrics"].get("connections", 0) for agent in metrics if "metrics" in agent)
+
+        return jsonify({"status": "success", "active_connections": total_connections}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

@@ -140,4 +140,5 @@ margin-top: 5px;
     .customReset{
     background-color: transparent;
     border:none;
+    width: 200px !important;
     }
