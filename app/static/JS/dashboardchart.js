@@ -50,7 +50,6 @@ document.addEventListener("DOMContentLoaded", function () {
     "#D2691E"  // Chocolate
   ];
   
-  // Replace assignColorsToGroups with this new version
   function assignColorsToGroups(groups) {
     // Helper to generate hash-based index from string
     function stringToColorIndex(str) {

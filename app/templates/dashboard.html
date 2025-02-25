@@ -147,12 +147,25 @@
         </div>
       </div>
   
-      <div style= "margin-top: 5px; height: 160px; background-color: #17191C; border: 1px solid #cccccc6b;width: 200px;">
-        <h6 class="statusmsg ms-2">Active Strategy</h6>
-        <div id="strategyInfo" style="color: #f8f8f8; font-weight: bold; text-align: center; padding: 10px;">
-            Loading...
+      <div style="margin-top: 5px; height: 160px; background-color: #17191C; border: 1px solid #cccccc6b; width: 200px; text-align: center; padding: 10px;">
+        <h6 style="font-size: 1rem; font-weight: bold; color: white; ">Active Strategy</h6>
+        
+        <!-- Dropdown to Select Group -->
+        <select id="groupSelect" class="customselect" style="width: 100%;">
+            <option value="">Select Group</option>
+        </select>
+    
+        <!-- Display Active Strategy -->
+        <div id="strategyInfo" style="color: #f8f8f8; font-weight: bold; text-align: center; padding: 5px;">
+            Please select a group to see the strategy.
         </div>
-      </div>
+    
+        <!-- AI Enabled Status -->
+        <div id="aiStatus" style="color: #f8f8f8; font-weight: bold; text-align: center; padding: 5px;">
+        </div>
+    </div>
+    
+    
     </div>
     <!-- CPU & Memory Usage with Dropdowns -->
     <div class="col-md-5">
@@ -530,6 +543,78 @@ function formatToUKDate(timestamp) {
     setInterval(fetchAlerts, 2000);
     fetchAlerts();
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    const groupSelect = document.getElementById("groupSelect");
+    const strategyInfo = document.getElementById("strategyInfo");
+    const aiStatus = document.getElementById("aiStatus");
+
+    // Fetch Groups for Dropdown (but don't auto-select)
+    function fetchGroups() {
+        fetch("/api/get_groups")
+            .then(response => response.json())
+            .then(data => {
+                if (data.groups && data.groups.length > 0) {
+                    groupSelect.innerHTML = '<option value="">Select Group</option>';
+                    
+                    data.groups.forEach(group => {
+                        const option = document.createElement("option");
+                        option.value = group.group_id;
+                        option.textContent = group.name;
+                        groupSelect.appendChild(option);
+                    });
+
+                    // ✅ On load, DON'T auto-select a group to prevent unwanted strategy loading
+                    strategyInfo.textContent = "Please select a group to see the strategy.";
+                    aiStatus.textContent = "";
+                } else {
+                    // If no groups exist, show a message
+                    strategyInfo.textContent = "No groups available. Please create a group.";
+                    aiStatus.textContent = "";
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching groups:", error);
+                strategyInfo.textContent = "Error loading groups.";
+            });
+    }
+
+    // Fetch Strategy Info for Selected Group
+    function fetchStrategyInfo(groupId) {
+        if (!groupId) {
+            strategyInfo.textContent = "Please select a group to see the strategy.";
+            aiStatus.textContent = "";
+            return;
+        }
+
+        fetch(`/api/load_balancer/active_strategy/${groupId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success" && data.strategy_name) {
+                    strategyInfo.textContent = `Strategy: ${data.strategy_name}`;
+                    aiStatus.textContent = `AI Enabled: ${data.ai_enabled ? "Yes" : "No"}`;
+                } else {
+                    strategyInfo.textContent = "No Strategy Assigned";
+                    aiStatus.textContent = "AI Enabled: Unknown";
+                }
+            })
+            .catch(error => {
+                strategyInfo.textContent = "Error Loading";
+                aiStatus.textContent = "AI Status: Error";
+                console.error("Error fetching strategy:", error);
+            });
+    }
+
+    // Event Listener for Group Selection Change
+    groupSelect.addEventListener("change", function () {
+        fetchStrategyInfo(this.value);
+    });
+
+    // ✅ Load the group dropdown but don't load any strategy initially
+    fetchGroups();
+});
+
+
   </script>
 
 <style>
