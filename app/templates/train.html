@@ -1,0 +1,515 @@
+<!-- templates/dashboard.html -->
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<script>
+    // Initialize Bootstrap tooltips on DOMContentLoaded
+    document.addEventListener("DOMContentLoaded", function(){
+      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+      tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl)
+      });
+      loadGlobalModels();
+    });
+  </script>
+  <style>
+
+body {
+background-color: #0F1011;
+color: white;
+}
+
+.buttonstyle{
+color:white;
+width: 150px;
+height: 20px;
+border-radius: 5px !important;
+text-align: left;
+padding-left:5px;
+padding-top: 1px;
+font-weight: 600;
+margin: 2px;
+}
+    .search-bar {
+    width: 100%;
+    padding: 0px;
+    margin-bottom: 15px;
+    font-size: 16px;
+    height: 30px;
+    border: none;
+    border-bottom: white 1px solid;
+    border-radius: 4px;
+    background-color:#0F1011 ;
+    color: white;
+}
+    .customselect {
+    border: none;
+     border-bottom: 2px solid #fff; 
+    outline: none;
+    padding: 5px 0;
+    background-color: transparent;
+    box-shadow: none;
+    font-size: .875em;
+    color: #fff;
+    width: 100%;
+    margin-right: 5px;
+    height: 25px;
+    font-weight: bold;
+  }
+  .input-group{
+    flex-wrap: nowrap !important;
+
+  }
+  .exportdata{
+    height: 25px;
+    text-align: center;
+    background-color: #055858;
+    border:solid 1px #2BB7DC;
+  }
+  .deletebtn{
+    background-color: #681313;
+    border:solid 1px #FF7676;
+    margin-bottom: 10px;
+  }
+  select option {
+  background-color: #000;
+  color: #fff;
+}
+
+
+  
+  </style>
+  <div class="container mt-2">
+    <div class="row mb-2">
+        <div class="col-12">
+          <input type="text" class="search-bar" placeholder="Search...">
+        </div>
+      </div>
+    <!-- Training Data Section -->
+    <h2 class="fw-bold">Training Data</h2>
+    <hr>
+    <div class="row mb-3">
+        <!-- Export Data Section -->
+        <div class="col-md-4">
+          <p>Export data from the database:</p>
+          <button class="buttonstyle exportdata w-100" onclick="exportData()">Export Data</button>
+        </div>
+      
+        <!-- Clean Data Section -->
+        <div class="col-md-4">
+            <p>Export data from the database:</p>
+
+            <div class="input-group">
+                <select id="clean_data_select" class="customselect w-40"></select>
+                <button class="buttonstyle exportdata w-47" onclick="cleanData()">Clean Data</button>
+              </div>
+              
+        </div>
+      
+        <!-- Refresh File List Section -->
+        <div class="col-md-4">
+            <br class="mb-3">
+          <button class="buttonstyle exportdata w-50" onclick="refreshDataList()">Refresh File List</button>
+        </div>
+      </div>
+    <hr>
+    <!-- Predictive Model Configurator -->
+    <h2 class="fw-bold">Predictive Model Configurator</h2>
+    <hr>
+    
+    <!-- Input and Select for Predictive Model -->
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Predictive Model</label>
+        <input type="text" id="predictive_model_input" class="customselect" placeholder="Enter model name">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Select Model</label>
+        <select id="predictive_model_select" class="customselect">
+          <option value="">Choose a model</option>
+          <!-- Add dynamic options here -->
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Training Data</label>
+        <select id="predictive_data_select" class="customselect">
+            <option value="">Choose Training File</option>
+            <!-- Add dynamic options here -->
+          </select>      </div>
+    </div>
+    
+ 
+    
+    <!-- Parameter Labels with Tooltips -->
+    <div class="row mb-2">
+        <div class="col-md-3">
+          <label>Estimators 
+            <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="top" title="The number of trees the model will build. More trees can improve accuracy but increase training time."></i>
+          </label>
+        </div>
+        <div class="col-md-3">
+          <label>Learning Rate 
+            <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="top" title="Controls how much each tree contributes to the final prediction. A smaller rate means slower, more precise learning."></i>
+          </label>
+        </div>
+        <div class="col-md-3">
+          <label>Max Depth 
+            <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="top" title="The maximum number of levels (or splits) allowed in each tree. This limits how complex each tree can be."></i>
+          </label>
+        </div>
+        <div class="col-md-3">
+          <label>Random State 
+            <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="top" title="A fixed number to ensure reproducible results by controlling the randomness in model training."></i>
+          </label>
+        </div>
+      </div>
+      
+    <!-- Parameter Inputs (underline-only style) -->
+    <div class="row mb-3">
+      <div class="col-md-3">
+        <input type="number" id="estimators" class="customselect" value="100">
+      </div>
+      <div class="col-md-3">
+        <input type="number" id="learning_rate" class="customselect" value="0.1" step="0.01">
+      </div>
+      <div class="col-md-3">
+        <input type="number" id="max_depth" class="customselect" value="5">
+      </div>
+      <div class="col-md-3">
+        <input type="number" id="random_state" class="customselect" value="42">
+      </div>
+    </div>
+    <!-- Train Model Button (full width) -->
+    <button class="buttonstyle exportdata w-100 mb-3" onclick="trainModel()">Train Model</button>
+    
+    <!-- Model Assignment Section -->
+    <h2 class="fw-bold">Model Assignment</h2>
+    <hr>
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label>Predictive Model</label>
+        <select id="global_model_dropdown" class="customselect" style="height: 30px;"></select>
+      </div>
+      <div class="col-md-6 d-flex align-items-end">
+        <button class="buttonstyle exportdata w-100" onclick="setGlobalActiveModel()">Set Active Model</button>
+      </div>
+    </div>
+       <!-- Display existing predictive models in a 2x2 grid -->
+       <div id="model_list" class="row mb-3">
+       
+      </div>
+    <hr>
+    
+    <!-- Training Results Section with Chart.js -->
+    <h2 class="fw-bold">Training Results</h2>
+    <div class="row">
+        <div class="col-md-6">
+          <h3>MSE Over Time</h3>
+          <canvas id="mseChart" width="400" height="200"></canvas>
+        </div>
+        <div class="col-md-6">
+          <h3>R² Over Time</h3>
+          <canvas id="r2Chart" width="400" height="200"></canvas>
+        </div>
+      </div>  
+</div>
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+  <script>
+  
+  document.addEventListener("DOMContentLoaded", function(){
+    loadTrainingHistory();
+  refreshDataList();
+  loadGlobalModels(); // load previously trained models for assignment
+
+  // Force the training model type select (in the configurator) to only have "lightgbm"
+  let trainModelSelect = document.getElementById('predictive_model_select');
+  if (trainModelSelect) {
+    trainModelSelect.innerHTML = '<option value="lightgbm">lightgbm</option>';
+  }
+});
+
+
+function refreshDataList() {
+  axios.get('/api/list_data_files')
+    .then(response => {
+      // Populate the training data select (id: "predictive_data_select") and clean data select
+      let trainingDropdown = document.getElementById('predictive_data_select');
+      let cleanSelect = document.getElementById('clean_data_select');
+      
+      trainingDropdown.innerHTML = '<option value="">Choose Training File</option>';
+      cleanSelect.innerHTML = '<option value="">Choose Data File</option>';
+      
+      response.data.data_files.forEach(file => {
+        let option1 = document.createElement('option');
+        option1.value = file;
+        option1.text = file;
+        trainingDropdown.appendChild(option1);
+        
+        let option2 = document.createElement('option');
+        option2.value = file;
+        option2.text = file;
+        cleanSelect.appendChild(option2);
+      });
+    })
+    .catch(error => {
+      alert('Error fetching data file list');
+    });
+}
+
+document.addEventListener("DOMContentLoaded", refreshDataList);
+  
+    // Export Data from Database
+    function exportData() {
+      axios.get('/api/export_data')
+        .then(response => {
+          alert(response.data.message + "\nFilename: " + response.data.filename);
+          refreshDataList();
+        })
+        .catch(error => {
+          alert('Error exporting data from database');
+        });
+    }
+      
+    // Clean Data Function
+    function cleanData() {
+  const filename = document.getElementById('clean_data_select').value;
+  if (!filename) {
+    alert("Please select a data file to clean.");
+    return;
+  }
+  const formData = new FormData();
+  formData.append('filename', filename);
+  axios.post('/api/clean_data', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+    .then(response => {
+      alert(response.data.message + "\nCleaned file: " + response.data.output_file);
+      refreshDataList();
+    })
+    .catch(error => {
+      alert('Error cleaning data: ' + error.response.data.message);
+    });
+}
+  
+    // Train Model Function (global)
+    function trainModel() {
+      // Assume a training data file is selected from an external mechanism or a hidden input.
+        const filename = document.getElementById('predictive_data_select') ? document.getElementById('predictive_data_select').value : '';
+        if (!filename) {
+        alert("Please select a training data file.");
+        return;
+        }
+      const formData = new FormData();
+      formData.append('filename', filename);
+      formData.append('model_name', document.getElementById('predictive_model_input') ? document.getElementById('predictive_model_input').value : 'global_model');
+      formData.append('estimators', document.getElementById('estimators').value);
+      formData.append('learning_rate', document.getElementById('learning_rate').value);
+      formData.append('max_depth', document.getElementById('max_depth').value);
+      formData.append('random_state', document.getElementById('random_state').value);
+      
+      axios.post('/api/train_model', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      .then(response => {
+        alert("Model trained successfully!");
+        loadGlobalModels();
+        loadTrainingHistory();  // This will fetch and update the chart with all history
+        })
+      .catch(error => {
+        alert("Error training model: " + error.response.data.message);
+      });
+    }
+  
+    function loadGlobalModels() {
+  axios.get('/api/list_models')
+    .then(response => {
+      let dropdown = document.getElementById('global_model_dropdown');
+      dropdown.innerHTML = '';
+      response.data.models.forEach(model => {
+        let option = document.createElement('option');
+        option.value = model;
+        option.text = model;
+        dropdown.appendChild(option);
+      });
+      // Also update the model list grid (with remove buttons)
+      updateModelList(response.data.models);
+    })
+    .catch(error => {
+      alert('Error fetching models');
+    });
+}
+
+
+// Ensure models load on page load
+document.addEventListener("DOMContentLoaded", loadGlobalModels);
+  
+  // Display the models in a 2x2 grid with a Remove button for each
+function updateModelList(models) {
+  let container = document.getElementById('model_list');
+  container.innerHTML = ''; // Clear previous models
+
+  models.slice(0, 4).forEach(model => {
+    let div = document.createElement('div');
+    div.className = "col-md-6 mb-2"; // Two models per row
+
+    div.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center customselect " style="height:35px;">
+          <span>${model}</span>
+          <button class="deletebtn buttonstyle" onclick="removeModel('${model}')">Remove</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+  
+function removeModel(model) {
+  if (confirm("Are you sure you want to remove this model?")) {
+    axios.post('/api/remove_model', { model: model })
+      .then(response => {
+          alert(response.data.message);
+          loadGlobalModels(); // Reload models after removal
+      })
+      .catch(error => {
+          alert("Error removing model: " + (error.response.data.message || ''));
+      });
+  }
+}
+  
+    // Set Global Active Model
+function setGlobalActiveModel() {
+  let model = document.getElementById('global_model_dropdown').value;
+  if (!model) {
+    alert("Please select a model.");
+    return;
+  }
+  axios.post('/api/set_active_model_for_all', { model: model })
+    .then(response => {
+      alert(response.data.message);
+    })
+    .catch(error => {
+      alert("Error setting active model: " + (error.response.data.message || ''));
+    });
+}
+
+// Ensure models load on page load
+document.addEventListener("DOMContentLoaded", loadGlobalModels);
+
+const predefinedColors = [
+  "#FF6B6B", "#FF69B4", "#FF1493", "#FFA500", "#FF6347", "#FA8072", "#FF4500",
+  "#3CB371", "#32CD32", "#00FA9A", "#4ECDC4", "#45B7D1", "#6A5ACD", "#8A2BE2",
+  "#9370DB", "#FFEEAD", "#FFD700", "#C23B22", "#DA70D6", "#4B0082", "#D2691E"
+];
+
+
+
+function loadTrainingHistory() {
+  axios.get('/api/training_history')
+    .then(response => {
+      if (response.data.status === 'success') {
+        const history = response.data.history;
+        // Each history entry represents one training run (one point per model).
+        const mseDatasets = [];
+        const r2Datasets = [];
+        history.forEach((entry, index) => {
+          const color = predefinedColors[index % predefinedColors.length];
+          // For each model, create a single data point dataset.
+          mseDatasets.push({
+            label: entry.model_filename,
+            data: [{
+              x: index + 1,  // training order (1, 2, 3, …)
+              y: entry.mse,
+              timestamp: entry.timestamp  // stored for tooltip reference if needed
+            }],
+            backgroundColor: color
+          });
+          r2Datasets.push({
+            label: entry.model_filename,
+            data: [{
+              x: index + 1,
+              y: entry.r2,
+              timestamp: entry.timestamp
+            }],
+            backgroundColor: color
+          });
+        });
+        // Update separate scatter charts for MSE and R².
+        updateScatterChart('mseChart', mseDatasets, 'MSE', 50, 'High error');
+        updateScatterChart('r2Chart', r2Datasets, 'R²', 0.8, 'Low R²');
+      }
+    })
+    .catch(error => {
+      const errMsg = error.response && error.response.data && error.response.data.message 
+                   ? error.response.data.message 
+                   : error.message;
+      alert("Error fetching training history: " + errMsg);
+    });
+}
+
+function updateScatterChart(canvasId, datasets, metricLabel, thresholdValue, thresholdInterpretation) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  
+  // Destroy any existing chart instance on this canvas.
+  if (window[canvasId + 'Instance']) {
+    window[canvasId + 'Instance'].destroy();
+  }
+  
+  window[canvasId + 'Instance'] = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets: datasets },
+    options: {
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Training Order' },
+          ticks: { precision: 0 }
+        },
+        y: {
+          title: { display: true, text: metricLabel }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const value = context.parsed.y;
+              const model = context.dataset.label;
+              let interpretation = '';
+              if (metricLabel === 'R²') {
+                interpretation = value >= thresholdValue ? 'Good performance' : thresholdInterpretation;
+              } else if (metricLabel === 'MSE') {
+                interpretation = value < thresholdValue ? 'Low error' : thresholdInterpretation;
+              }
+              return `Model: ${model}\n${metricLabel}: ${value}\n${interpretation}`;
+            }
+          }
+        },
+        // Optional: Draw a horizontal threshold line.
+        annotation: {
+          annotations: {
+            thresholdLine: {
+              type: 'line',
+              yMin: thresholdValue,
+              yMax: thresholdValue,
+              borderColor: metricLabel === 'R²' ? 'green' : 'red',
+              borderDash: [6, 6],
+              label: {
+                content: `${metricLabel} Threshold`,
+                enabled: true,
+                position: 'end'
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+  </script>
+    {% endblock %}

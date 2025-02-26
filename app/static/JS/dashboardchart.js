@@ -669,6 +669,8 @@ document.addEventListener("DOMContentLoaded", function () {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      aspectRatio: 2,
+      layout: { padding: { top: 10, bottom: 35 } },
       scales: {
         x: { type: "time", time: { unit: "minute" }, title: { display: true, text: "Time" } },
         y: { beginAtZero: true, suggestedMax: 100, title: { display: true, text: "Efficiency (%)" } }
@@ -708,6 +710,8 @@ document.addEventListener("DOMContentLoaded", function () {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      aspectRatio: 2,
+      layout: { padding: { top: 10, bottom: 35 } },
       scales: {
         x: { type: "time", time: { unit: "second" }, title: { display: true, text: "Time" } },
         y: { beginAtZero: true, title: { display: true, text: "Connections" } }

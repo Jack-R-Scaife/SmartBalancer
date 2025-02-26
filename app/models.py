@@ -24,14 +24,16 @@ class Server(db.Model):
 
 class ServerGroup(db.Model):
     __tablename__ = 'Server_Groups'
-
+    
     group_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(45), nullable=False, unique=True)
-    description = db.Column(db.String(200), nullable=False,)
+    description = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     server_count = db.Column(db.Integer, nullable=False, default=0)
     max_servers = db.Column(db.Integer, nullable=False, default=10)
+    active_model = db.Column(db.String(100), nullable=True)
+
 
 class Strategy(db.Model):
     __tablename__ = 'Strategies'

@@ -29,32 +29,18 @@ status_mapping = {
     "down": 4,
     "idle": 5
 }
-model_path = os.path.join('Predictive_Model', 'lightgbm_model.pkl')
-if os.path.exists(model_path):
-    model = joblib.load(model_path)
-    print("Predictive model loaded successfully.")
-else:
-    model = None
-    print("No predictive model found. The load balancer will work without predictions until a model is trained.")
-
-
-# Threshold for significant prediction error (e.g., 10%)
-threshold_error = 0.1
 
 @api_blueprint.route('/predicted_traffic', methods=['GET'])
 def get_predicted_traffic():
-    """
-    Predicts overall traffic rate based on dynamically fetched real-time metrics from all agents.
-    """
     try:
+        # Fetch metrics from agents
         load_balancer = LoadBalancer()
         agent_metrics = load_balancer.fetch_metrics_from_all_agents()
-
         if not agent_metrics:
             api_logger.error("No metrics available from agents.")
-            return jsonify([]), 200  # Return an empty array
+            return jsonify([]), 200
 
-        # Aggregate real-time metrics across all agents
+        # Aggregate metrics across agents
         num_agents = len(agent_metrics)
         aggregated_metrics = {
             'cpu_usage': sum(agent['metrics'].get('cpu_total', 0) for agent in agent_metrics) / num_agents,
@@ -63,28 +49,44 @@ def get_predicted_traffic():
             'traffic_rate': sum(agent['metrics'].get('traffic_rate', 0) for agent in agent_metrics),
         }
 
-        # Fetch scenario and strategy dynamically
+        # Determine scenario, group, and strategy from the first agent's metrics
         scenario = agent_metrics[0].get('scenario', 'default_scenario')
-        group_id = agent_metrics[0].get('group_id', 1)  # Default to group 1 if missing
+        group_id = agent_metrics[0].get('group_id', 1)
         strategy = load_balancer.get_group_strategy(group_id) or "Round Robin"
-
         aggregated_metrics['scenario'] = scenario
         aggregated_metrics['strategy'] = strategy
 
-        # Prepare data for model prediction
-        feature_df = pd.DataFrame([aggregated_metrics])
-
-        # One-hot encoding for `scenario` and `strategy`
-        feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'], dummy_na=False)
-        if model is not None:
-            expected_features = model.feature_names_in_
-            feature_df = feature_df.reindex(columns=expected_features, fill_value=0)
-        else:
-            # If no model, simply log and return empty predictions.
-            api_logger.info("Predictive model not trained yet. Returning empty predictions.")
+        # Check if predictive modeling is enabled for this group
+        from app.models import LoadBalancerSetting, ServerGroup
+        setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
+        if not setting or not setting.predictive_enabled:
+            api_logger.info("Predictive model is disabled for this group.")
             return jsonify([]), 200
 
-        # Predict traffic for the next 10 seconds if a model is available
+        # Determine the active model for the group; if not set, use a default name.
+        group = ServerGroup.query.filter_by(group_id=group_id).first()
+        if group and group.active_model:
+            model_filename = group.active_model
+        else:
+            model_filename = "lightgbm_model.pkl"
+
+        # Build the path to the global model
+        models_folder = os.path.join(os.getcwd(), 'Models')
+        model_path = os.path.join(models_folder, model_filename)
+        if not os.path.exists(model_path):
+            api_logger.info("Predictive model file not found. Returning empty predictions.")
+            return jsonify([]), 200
+
+        # Load the model
+        model = joblib.load(model_path)
+
+        # Prepare the features for prediction
+        feature_df = pd.DataFrame([aggregated_metrics])
+        feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'], dummy_na=False)
+        expected_features = model.feature_names_in_
+        feature_df = feature_df.reindex(columns=expected_features, fill_value=0)
+
+        # Generate predictions for the next 60 seconds
         predictions = []
         current_time = datetime.now()
         for i in range(60):
@@ -92,11 +94,12 @@ def get_predicted_traffic():
             future_timestamp = (current_time + timedelta(seconds=i)).timestamp()
             predictions.append({'timestamp': future_timestamp, 'value': prediction})
 
-        return jsonify(predictions), 200  # Always return an array
+        return jsonify(predictions), 200
 
     except Exception as e:
         api_logger.error(f"Error in traffic prediction: {e}")
-        return jsonify([]), 200  # Return an empty array if an error occurs
+        return jsonify([]), 200
+
 
 
 
@@ -1014,3 +1017,269 @@ def get_active_connections():
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+
+@api_blueprint.route('/list_data_files', methods=['GET'])
+def list_data_files():
+    try:
+        data_folder = os.path.join(os.getcwd(), 'Data')
+        if not os.path.exists(data_folder):
+            os.makedirs(data_folder)
+        files = [f for f in os.listdir(data_folder) if f.endswith('.csv') or f.endswith('.sql')]
+        return jsonify({'data_files': files}), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+    
+@api_blueprint.route('/export_data', methods=['GET'])
+def export_data():
+    try:
+        from app.models import PredictiveLog
+        import pandas as pd
+        from datetime import datetime
+
+        # Query all predictive logs (adjust filtering as needed)
+        logs = PredictiveLog.query.all()
+        data = [dict(
+            id=log.id,
+            timestamp=log.timestamp,
+            server_ip=log.server_ip,
+            response_time=log.response_time,
+            cpu_usage=log.cpu_usage,
+            memory_usage=log.memory_usage,
+            connections=log.connections,
+            traffic_rate=log.traffic_rate,
+            traffic_volume=log.traffic_volume,
+            scenario=log.scenario,
+            strategy=log.strategy,
+            group_id=log.group_id
+        ) for log in logs]
+        df = pd.DataFrame(data)
+        
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        data_folder = os.path.join(os.getcwd(), 'Data')
+        if not os.path.exists(data_folder):
+            os.makedirs(data_folder)
+        # Count existing files for today to determine the version
+        existing = [f for f in os.listdir(data_folder) if f.startswith(today_str) and f.endswith('.csv')]
+        version = len(existing) + 1
+        filename = f"{today_str}_v{version}.csv"
+        file_path = os.path.join(data_folder, filename)
+        
+        df.to_csv(file_path, index=False)
+        return jsonify({'message': 'Data exported successfully', 'filename': filename}), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+
+@api_blueprint.route('/clean_data', methods=['POST'])
+def clean_data():
+    try:
+        from app import db
+        import pandas as pd
+        import os
+
+        filename = request.form.get('filename')
+        if not filename:
+            return jsonify({'message': 'Filename not provided'}), 400
+        
+        data_folder = os.path.join(os.getcwd(), 'Data')
+        input_path = os.path.join(data_folder, filename)
+        if not os.path.exists(input_path):
+            return jsonify({'message': 'File not found'}), 404
+
+        # --- Cleaning logic (example based on clean_data.py) ---
+        data = pd.read_csv(input_path)
+        data['timestamp'] = pd.to_datetime(data['timestamp'])
+        data = data.sort_values('timestamp')
+        # Example: calculate rolling averages (you can replace this with your actual logic)
+        data['cpu_usage_avg'] = data['cpu_usage'].rolling(window=5).mean()
+        data = data.dropna()
+
+        base, ext = os.path.splitext(filename)
+        output_file = f"{base}_clean{ext}"
+        output_path = os.path.join(data_folder, output_file)
+        data.to_csv(output_path, index=False)
+        return jsonify({'message': 'Data cleaned successfully', 'output_file': output_file}), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+@api_blueprint.route('/train_model', methods=['POST'])
+def train_model():
+    try:
+        from lightgbm import LGBMRegressor
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import mean_squared_error, r2_score
+        import pandas as pd, joblib, os
+        from datetime import datetime
+
+        # Get training parameters from the form
+        filename = request.form.get('filename')
+        model_name = request.form.get('model_name')
+        estimators = int(request.form.get('estimators', 100))
+        learning_rate = float(request.form.get('learning_rate', 0.1))
+        max_depth = int(request.form.get('max_depth', 5))
+        random_state = int(request.form.get('random_state', 42))
+        subsample = float(request.form.get('subsample', 1))
+
+        # Build the path to the training data file in the Data folder
+        data_folder = os.path.join(os.getcwd(), 'Data')
+        input_path = os.path.join(data_folder, filename)
+        if not os.path.exists(input_path):
+            return jsonify({'message': 'Training data file not found'}), 404
+
+        # Load the data and prepare the training target
+        data = pd.read_csv(input_path)
+        data['traffic_rate_sum_10s'] = data['traffic_rate'].shift(-10)
+        data = data.dropna()
+
+        # Define features and target
+        X = data[['cpu_usage', 'memory_usage', 'connections', 'traffic_rate']]
+        y = data['traffic_rate_sum_10s']
+
+        # Split data into training and testing sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state)
+
+        # Train the LightGBM model
+        model = LGBMRegressor(
+            n_estimators=estimators,
+            learning_rate=learning_rate,
+            max_depth=max_depth,
+            random_state=random_state,
+            subsample=subsample
+        )
+        model.fit(X_train, y_train)
+
+        # Evaluate the model
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+
+        # Save the trained model into the Models folder
+        models_folder = os.path.join(os.getcwd(), 'Models')
+        if not os.path.exists(models_folder):
+            os.makedirs(models_folder)
+        model_filename = f"{model_name}.pkl"
+
+        model_output_path = os.path.join(models_folder, model_filename)
+        joblib.dump(model, model_output_path)
+
+        # Bulk update all groups to use this new model
+        from app.models import ServerGroup
+        groups = ServerGroup.query.all()
+        for group in groups:
+            group.active_model = model_filename
+        db.session.commit()
+
+        # Define the result dictionary
+        result = {
+            'message': 'Model trained successfully!',
+            'mse': mse,
+            'r2': r2,
+            'model_filename': model_filename,
+            'model_download_url': f'/download_model/{model_filename}',
+            'timestamp': datetime.now().isoformat()
+        }
+        # Save training result for history
+        save_training_result(result)
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+
+@api_blueprint.route('/list_models', methods=['GET'])
+def list_models():
+    try:
+        import os
+        models_folder = os.path.join(os.getcwd(), 'Models')
+        if not os.path.exists(models_folder):
+            os.makedirs(models_folder)
+        models = [f for f in os.listdir(models_folder) if f.endswith('.pkl')]
+        return jsonify({'models': models}), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+
+@api_blueprint.route('/set_active_model_for_group', methods=['POST'])
+def set_active_model_for_group():
+    try:
+        data = request.get_json()
+        group_id = data.get('group_id')
+        model = data.get('model')
+        if not group_id or not model:
+            return jsonify({'message': 'Missing group_id or model'}), 400
+
+        from app.models import ServerGroup
+        group = ServerGroup.query.filter_by(group_id=group_id).first()
+        if not group:
+            return jsonify({'message': 'Server group not found'}), 404
+
+        group.active_model = model
+        db.session.commit()
+        return jsonify({'message': 'Active model updated successfully.'}), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+    
+
+@api_blueprint.route('/remove_model', methods=['POST'])
+def remove_model():
+    try:
+        data = request.get_json()
+        model = data.get('model')
+        if not model:
+            return jsonify({'message': 'No model specified'}), 400
+
+        models_folder = os.path.join(os.getcwd(), 'Models')
+        model_path = os.path.join(models_folder, model)
+        if os.path.exists(model_path):
+            os.remove(model_path)
+            return jsonify({'message': 'Model removed successfully'}), 200
+        else:
+            return jsonify({'message': 'Model not found'}), 404
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+    
+@api_blueprint.route('/set_active_model_for_all', methods=['POST'])
+def set_active_model_for_all():
+    try:
+        data = request.get_json()
+        model = data.get('model')
+        if not model:
+            return jsonify({'message': 'No model specified'}), 400
+
+        from app.models import ServerGroup
+        groups = ServerGroup.query.all()
+        for group in groups:
+            group.active_model = model
+        db.session.commit()
+        return jsonify({'message': 'Active model updated for all groups successfully.'}), 200
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+
+def save_training_result(result):
+    import json
+    import os
+    history_file = os.path.join(os.getcwd(), 'training_history.json')
+    try:
+        with open(history_file, 'r') as f:
+            history = json.load(f)
+    except FileNotFoundError:
+        history = []
+    history.append(result)
+    with open(history_file, 'w') as f:
+        json.dump(history, f)
+
+
+@api_blueprint.route('/training_history', methods=['GET'])
+def get_training_history():
+    try:
+        import json, os
+        history_file = os.path.join(os.getcwd(), 'training_history.json')
+        with open(history_file, 'r') as f:
+            history = json.load(f)
+        return jsonify({'status': 'success', 'history': history}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500

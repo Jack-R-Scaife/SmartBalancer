@@ -91,6 +91,10 @@
 .activeConnections{
   margin-top: 22px !important;
 }
+select option {
+  background-color: #000;
+  color: #fff;
+}
 </style>
   <div class="row mb-2">
     <div class="col-12">
@@ -357,7 +361,6 @@ function fetchAndUpdateTrafficChart() {
       }))
       .filter(pt => pt.x > now); // Only future predictions
 
-    // ----- Remove Overlapping Predicted Points -----
     // If there are real-time points, remove predicted points that occur too close
     // (within GAP_THRESHOLD) to the last real-time point.
     if (realTimePoints.length > 0 && predictedPoints.length > 0) {
@@ -549,7 +552,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const strategyInfo = document.getElementById("strategyInfo");
     const aiStatus = document.getElementById("aiStatus");
 
-    // Fetch Groups for Dropdown (but don't auto-select)
+    // Fetch Groups for Dropdown
     function fetchGroups() {
         fetch("/api/get_groups")
             .then(response => response.json())
@@ -564,7 +567,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         groupSelect.appendChild(option);
                     });
 
-                    // ✅ On load, DON'T auto-select a group to prevent unwanted strategy loading
+                    //  On load, dont auto-select a group to prevent unwanted strategy loading
                     strategyInfo.textContent = "Please select a group to see the strategy.";
                     aiStatus.textContent = "";
                 } else {
@@ -610,7 +613,7 @@ document.addEventListener("DOMContentLoaded", function () {
         fetchStrategyInfo(this.value);
     });
 
-    // ✅ Load the group dropdown but don't load any strategy initially
+    // Load the group dropdown but don't load any strategy initially
     fetchGroups();
 });
 

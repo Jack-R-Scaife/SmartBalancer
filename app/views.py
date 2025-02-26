@@ -50,6 +50,11 @@ def overview():
     session['sub_links_open'] = True
     return render_template('serverOverview.html')
 
+# Web UI route for the server details page
+@main_blueprint.route('/train')
+def train():
+    session['sub_links_open'] = False
+    return render_template('train.html')
 
 @main_blueprint.route('/process_threads')
 def process_threads():
