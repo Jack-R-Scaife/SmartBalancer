@@ -38,17 +38,13 @@ class LoadBalancer:
             self.initialized = True
 
     def load_agents_from_db(self):
-        """
-        Load all agents' IP addresses from the database and add them to known_agents.
-        This ensures that previously linked agents are tracked after a restart.
-        """
         main_logger.info("Loading agents from the database")
         with self.app.app_context():
             try:
-                servers = Server.query.all()
-                for server in servers:
-                    self.known_agents.append(server.ip_address)
-                    main_logger.debug(f"Loaded agent with IP {server.ip_address} from database")
+                servers = Server.query.order_by(Server.ip_address).all()  # Sort agents by IP
+                self.known_agents = [server.ip_address for server in servers]  # Clear and rebuild list
+                for ip in self.known_agents:
+                    main_logger.debug(f"Loaded agent with IP {ip} from database")
             except Exception as e:
                 main_logger.error(f"Error loading agents from database: {e}")
 
