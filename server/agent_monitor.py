@@ -245,84 +245,87 @@ class LoadBalancer:
         
     def fetch_metrics_from_all_agents(self, scenario=None, group_id=None):
         """
-        Fetch system metrics + a 30-second rolling traffic rate/volume per agent.
-        Dynamically fetch strategies for each group.
+        Fetch system metrics and log traffic using the active strategy from the database.
+        The active strategy for the group is fetched and used to select the next agent.
         """
-        main_logger.info("Fetching metrics from all known agents")
+        main_logger.info("Fetching metrics using active strategy")
         metrics = []
         traffic_store = TrafficStore.get_instance()
         window_size = 30
         now = time.time()
 
-        for ip in self.known_agents:
-            try:
-                # Fetch group_id dynamically for each agent
-                group_id = self.lookup_group_id_for_agent(ip)
+        # Get the active strategy for the provided group_id, defaulting to "Round Robin" if not set.
+        active_strategy = self.get_group_strategy(group_id) if group_id else "Round Robin"
+        main_logger.info(f"Active strategy for group {group_id}: {active_strategy}")
 
-                # Dynamically fetch the strategy for the group
-                strategy = self.get_group_strategy(group_id)
+        # Select the next agent based on the active strategy.
+        if active_strategy == "Round Robin":
+            selected_agent = self.strategy_executor.round_robin()
+        elif active_strategy == "Weighted Round Robin":
+            selected_agent = self.strategy_executor.weighted_round_robin()
+        elif active_strategy == "Least Connections":
+            selected_agent = self.dynamic_executor.least_connections()
+        elif active_strategy == "Least Response Time":
+            selected_agent = self.dynamic_executor.least_response_time()
+        elif active_strategy == "Resource-Based":
+            selected_agent = self.dynamic_executor.resource_based()
+        else:
+            main_logger.warning(f"Unknown strategy '{active_strategy}', defaulting to Round Robin.")
+            selected_agent = self.strategy_executor.round_robin()
 
-                # Optionally measure round-trip time for 'metrics' call
-                start_time = time.time()
-                response = self.send_tcp_request(ip, 9000, "metrics")
-                round_trip_ms = (time.time() - start_time) * 1000
+        if not selected_agent:
+            main_logger.warning("No agent selected by active strategy!")
+            return metrics
 
-                if response.get("status") == "success":
-                    system_metrics = response.get("metrics", {})
-                    main_logger.debug(f"System metrics from {ip}: {system_metrics}")
+        try:
+            # Determine the group for the selected agent.
+            group_id = self.lookup_group_id_for_agent(selected_agent)
+            # Measure round-trip time for the metrics request.
+            start_time = time.time()
+            response = self.send_tcp_request(selected_agent, 9000, "metrics")
+            round_trip_ms = (time.time() - start_time) * 1000
 
-                    # Retrieve traffic data for this agent in the last 30s
-                    agent_traffic = traffic_store.get_traffic_data(agent_ip=ip)
-                    recent_traffic = [
-                        entry for entry in agent_traffic
-                        if (now - entry["timestamp"]) <= window_size
-                    ]
+            if response.get("status") == "success":
+                system_metrics = response.get("metrics", {})
+                main_logger.debug(f"System metrics from {selected_agent}: {system_metrics}")
 
-                    traffic_rate = sum(e["value"] for e in recent_traffic)
-                    traffic_volume = len(recent_traffic)
+                # Retrieve traffic data for the selected agent within the rolling window.
+                agent_traffic = traffic_store.get_traffic_data(agent_ip=selected_agent)
+                recent_traffic = [entry for entry in agent_traffic if (now - entry["timestamp"]) <= window_size]
+                traffic_rate = sum(e["value"] for e in recent_traffic)
+                traffic_volume = len(recent_traffic)
+                main_logger.info(f"For agent {selected_agent}, traffic_rate={traffic_rate}, volume={traffic_volume}")
 
-                    main_logger.info(
-                        f"For agent {ip}, traffic_rate={traffic_rate}, volume={traffic_volume}"
+                # Log metrics if there's significant traffic.
+                if traffic_rate > 0:
+                    connections_count = system_metrics.get("connections", 0)
+                    log_entry = PredictiveLog(
+                        server_ip=selected_agent,
+                        response_time=round_trip_ms,
+                        cpu_usage=system_metrics.get("cpu_total", 0),
+                        memory_usage=system_metrics.get("memory", 0),
+                        connections=connections_count,
+                        traffic_rate=traffic_rate,
+                        traffic_volume=traffic_volume,
+                        scenario=scenario or "default_scenario",
+                        strategy=active_strategy or "Unknown",
+                        group_id=group_id
                     )
-
-                    # Only log if there's traffic in last 30 seconds
-                    if traffic_rate > 0:
-                        connections_count = system_metrics.get("connections", 0)
-
-                        # Insert the row into PredictiveLog, including scenario & strategy
-                        log_entry = PredictiveLog(
-                            server_ip=ip,
-                            response_time=round_trip_ms,
-                            cpu_usage=system_metrics.get("cpu_total", 0),
-                            memory_usage=system_metrics.get("memory", 0),
-                            connections=connections_count,
-                            traffic_rate=traffic_rate,
-                            traffic_volume=traffic_volume,
-                            scenario=scenario or "default_scenario",
-                            strategy=strategy,
-                            group_id=group_id
-                        )
-                        db.session.add(log_entry)
-                        db.session.commit()
-
-                        main_logger.info(
-                            f"PredictiveLog inserted for {ip} with traffic_rate={traffic_rate}, "
-                            f"scenario={scenario}, strategy={strategy}, group_id={group_id}"
-                        )
-                    else:
-                        main_logger.info(f"No traffic for {ip} in last {window_size} seconds; skipping DB insert.")
-
-                    metrics.append({"ip": ip, "metrics": system_metrics})
+                    db.session.add(log_entry)
+                    db.session.commit()
                 else:
-                    error_msg = response.get("message", "Unknown error")
-                    metrics.append({"ip": ip, "error": error_msg})
-                    main_logger.warning(f"Failed to fetch metrics from {ip}: {error_msg}")
+                    main_logger.info(f"No significant traffic for {selected_agent}; skipping DB insert.")
 
-            except Exception as e:
-                metrics.append({"ip": ip, "error": str(e)})
-                main_logger.error(f"Error fetching metrics from {ip}: {e}")
-
+                metrics.append({"ip": selected_agent, "metrics": system_metrics})
+            else:
+                error_msg = response.get("message", "Unknown error")
+                metrics.append({"ip": selected_agent, "error": error_msg})
+                main_logger.warning(f"Failed to fetch metrics from {selected_agent}: {error_msg}")
+        except Exception as e:
+            metrics.append({"ip": selected_agent, "error": str(e)})
+            main_logger.error(f"Error fetching metrics from {selected_agent}: {e}")
         return metrics
+
     def get_group_strategy(self, group_id):
         """
         Retrieve the strategy for a specific group dynamically.
