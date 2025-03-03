@@ -39,3 +39,4 @@ main_logger = setup_logger("agent_monitor", "agent_monitor.log", level=logging.D
 traffic_logger = setup_logger("traffic", "traffic.log")
 dynamic_logger = setup_logger("dynamic_algorithms", "dynamic_algorithms.log")
 api_logger = setup_logger("api", "api.log")
+round_robin_logger = setup_logger("round_robin_debug", "round_robin_debug.log", level=logging.DEBUG)

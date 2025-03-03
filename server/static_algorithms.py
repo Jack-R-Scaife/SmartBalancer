@@ -1,3 +1,6 @@
+import logging
+from server.logging_config import round_robin_logger
+
 class StaticAlgorithms:
     def __init__(self):
         # Initialize the list of servers, current index for round-robin, and weights for weighted round-robin
@@ -7,11 +10,19 @@ class StaticAlgorithms:
 
         
     def round_robin(self):
-        # Select the next server in the list using round-robin
+        """Select the next server in the list using round-robin and log the process."""
         if not self.known_agents:
+            round_robin_logger.warning("Round Robin called with no known agents!")
             return None  # Return None if no servers are available
+        
+        # Log before selection
+        round_robin_logger.debug(f"BEFORE: Index: {self.current_index}, Known Agents: {self.known_agents}")
+        
         server = self.known_agents[self.current_index]
         self.current_index = (self.current_index + 1) % len(self.known_agents)  # Move to the next server
+        
+        # Log after selection
+        round_robin_logger.debug(f"AFTER: Selected Server: {server}, Next Index: {self.current_index}")
         return server
     
     def set_weights(self, weights):
