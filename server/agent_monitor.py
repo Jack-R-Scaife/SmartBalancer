@@ -12,9 +12,10 @@ from server.logging_config import main_logger, traffic_logger
 from server.dynamic_algorithms import DynamicAlgorithms
 from server.static_algorithms import StaticAlgorithms
 from server.traffic_store import TrafficStore
-
+from threading import Lock
 main_logger.info("Agent monitor starting")
 traffic_logger.debug("Traffic logger initialized")
+db_lock = Lock()
 
 class LoadBalancer:
     _instance = None
@@ -239,6 +240,7 @@ class LoadBalancer:
             server.status = status  # Update the status in the database
             db.session.commit()
         
+
     def fetch_metrics_from_all_agents(self, scenario=None, group_id=None):
         """
         Fetch system metrics and log traffic using the active strategy from the database.
@@ -276,6 +278,7 @@ class LoadBalancer:
         try:
             # Determine the group for the selected agent.
             group_id = self.lookup_group_id_for_agent(selected_agent)
+            
             # Measure round-trip time for the metrics request.
             start_time = time.time()
             response = self.send_tcp_request(selected_agent, 9000, "metrics")
@@ -295,21 +298,25 @@ class LoadBalancer:
                 # Log metrics if there's significant traffic.
                 if traffic_rate > 0:
                     connections_count = system_metrics.get("connections", 0)
-                    log_entry = PredictiveLog(
-                        timestamp=datetime.now(),
-                        server_ip=selected_agent,
-                        response_time=round_trip_ms,
-                        cpu_usage=system_metrics.get("cpu_total", 0),
-                        memory_usage=system_metrics.get("memory", 0),
-                        connections=connections_count,
-                        traffic_rate=traffic_rate,
-                        traffic_volume=traffic_volume,
-                        scenario=scenario or "default_scenario",
-                        strategy=active_strategy or "Unknown",
-                        group_id=group_id
-                    )
-                    db.session.add(log_entry)
-                    db.session.commit()
+
+                    # **Fix: Ensure correct indentation for db_lock**
+                    with db_lock:
+                        log_entry = PredictiveLog(
+                            timestamp=datetime.utcnow(),  # Ensure millisecond precision
+                            server_ip=selected_agent,
+                            response_time=round_trip_ms,
+                            cpu_usage=system_metrics.get("cpu_total", 0),
+                            memory_usage=system_metrics.get("memory", 0),
+                            connections=connections_count,
+                            traffic_rate=traffic_rate,
+                            traffic_volume=traffic_volume,
+                            scenario=scenario or "default_scenario",
+                            strategy=active_strategy or "Unknown",
+                            group_id=group_id
+                        )
+                        db.session.add(log_entry)
+                        db.session.commit()
+
                 else:
                     main_logger.info(f"No significant traffic for {selected_agent}; skipping DB insert.")
 
@@ -318,9 +325,12 @@ class LoadBalancer:
                 error_msg = response.get("message", "Unknown error")
                 metrics.append({"ip": selected_agent, "error": error_msg})
                 main_logger.warning(f"Failed to fetch metrics from {selected_agent}: {error_msg}")
+
         except Exception as e:
             metrics.append({"ip": selected_agent, "error": str(e)})
             main_logger.error(f"Error fetching metrics from {selected_agent}: {e}")
+            db.session.rollback()  # Prevent database corruption
+
         return metrics
 
     def get_group_strategy(self, group_id):
