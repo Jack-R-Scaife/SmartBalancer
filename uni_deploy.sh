@@ -66,7 +66,7 @@ deploy_to_backend() {
         echo "Processing $vm..."
         
         USERNAME=$(echo "$vm" | cut -d '@' -f 1)
-        PASSWORD=$USERNAME
+        PASSWORD="$USERNAME"
 
         # Clean up old directories and service
         sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$vm" "
@@ -111,7 +111,7 @@ EOF
 deploy_to_lb() {
     echo "Deploying to load balancer server..."
     USERNAME=$(echo "$LB_VM" | cut -d '@' -f 1)
-    PASSWORD=$USERNAME
+    PASSWORD="$USERNAME"
 
     # Clean up old directories on the load balancer
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -t "$LB_VM" "
