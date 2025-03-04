@@ -296,6 +296,7 @@ class LoadBalancer:
                 if traffic_rate > 0:
                     connections_count = system_metrics.get("connections", 0)
                     log_entry = PredictiveLog(
+                        timestamp=datetime.now(),
                         server_ip=selected_agent,
                         response_time=round_trip_ms,
                         cpu_usage=system_metrics.get("cpu_total", 0),
