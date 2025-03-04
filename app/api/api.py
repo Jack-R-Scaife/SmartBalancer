@@ -681,14 +681,6 @@ def get_agent_logs():
 
     return jsonify({"status": "success", "logs": formatted_logs}), 200
 
-@api_blueprint.route('/metrics/aggregate', methods=['GET'])
-def get_aggregated_metrics():
-    """
-    API endpoint to aggregate metrics from all agents.
-    """
-    load_balancer = LoadBalancer()
-    metrics = load_balancer.fetch_all_metrics()
-    return jsonify({"status": "success", "data": metrics}), 200
 
 @api_blueprint.route('/logs/download_agents', methods=['POST'])
 def download_agent_logs():

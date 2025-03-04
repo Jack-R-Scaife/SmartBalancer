@@ -557,25 +557,25 @@ class LoadBalancer:
 
 
         
-    def fetch_all_metrics(self):
-        """
-        Fetch metrics from all known agents.
-        """
-        main_logger.info("Fetching all metrics from agents")
+    def fetch_all_metrics(self, scenario=None, group_id=None):
+        main_logger.info("Fetching metrics from all agents")
         metrics = []
-        for ip in self.known_agents:
+        for agent in self.known_agents:
             try:
                 start_time = time.time()
-                response = self.send_tcp_request(ip, 9000, "gather_metrics")
-                if response.get("status") != "error":
-                    metrics.append({"ip": ip, "metrics": response})
-                    main_logger.debug(f"Metrics fetched from {ip}: {response}")
+                response = self.send_tcp_request(agent, 9000, "metrics")
+                round_trip_ms = (time.time() - start_time) * 1000
+                if response.get("status") == "success":
+                    system_metrics = response.get("metrics", {})
+                    main_logger.debug(f"System metrics from {agent}: {system_metrics}")
+                    metrics.append({"ip": agent, "metrics": system_metrics})
                 else:
-                    metrics.append({"ip": ip, "error": response.get("message")})
-                    main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
+                    error_msg = response.get("message", "Unknown error")
+                    metrics.append({"ip": agent, "error": error_msg})
+                    main_logger.warning(f"Failed to fetch metrics from {agent}: {error_msg}")
             except Exception as e:
-                metrics.append({"ip": ip, "error": str(e)})
-                main_logger.error(f"Error fetching metrics from {ip}: {e}")
+                metrics.append({"ip": agent, "error": str(e)})
+                main_logger.error(f"Error fetching metrics from {agent}: {e}")
         return metrics
 
 
