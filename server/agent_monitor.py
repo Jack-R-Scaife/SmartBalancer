@@ -296,6 +296,7 @@ class LoadBalancer:
                 if traffic_rate > 0:
                     connections_count = system_metrics.get("connections", 0)
                     log_entry = PredictiveLog(
+                        timestamp=datetime.now(),
                         server_ip=selected_agent,
                         response_time=round_trip_ms,
                         cpu_usage=system_metrics.get("cpu_total", 0),
@@ -563,14 +564,20 @@ class LoadBalancer:
         main_logger.info("Fetching all metrics from agents")
         metrics = []
         for ip in self.known_agents:
-            response = self.send_tcp_request(ip, 9000, "gather_metrics")
-            if response.get("status") != "error":
-                metrics.append({"ip": ip, "metrics": response})
-                main_logger.debug(f"Metrics fetched from {ip}: {response}")
-            else:
-                metrics.append({"ip": ip, "error": response.get("message")})
-                main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
+            try:
+                start_time = time.time()
+                response = self.send_tcp_request(ip, 9000, "gather_metrics")
+                if response.get("status") != "error":
+                    metrics.append({"ip": ip, "metrics": response})
+                    main_logger.debug(f"Metrics fetched from {ip}: {response}")
+                else:
+                    metrics.append({"ip": ip, "error": response.get("message")})
+                    main_logger.warning(f"Failed to fetch metrics from {ip}: {response.get('message')}")
+            except Exception as e:
+                metrics.append({"ip": ip, "error": str(e)})
+                main_logger.error(f"Error fetching metrics from {ip}: {e}")
         return metrics
+
 
 if __name__ == "__main__":
     load_balancer = LoadBalancer()

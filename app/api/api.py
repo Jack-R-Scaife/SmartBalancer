@@ -285,7 +285,7 @@ def api_get_all_metrics():
     api_logger.info("Fetching all metrics from agents")
     try:
         load_balancer = LoadBalancer()
-        metrics = load_balancer.fetch_metrics_from_all_agents()
+        metrics = load_balancer.fetch_all_metrics()
         api_logger.debug(f"Metrics fetched: {metrics}")
         return jsonify(metrics), 200
     except Exception as e:
