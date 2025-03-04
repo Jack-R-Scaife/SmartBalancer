@@ -30,23 +30,23 @@ class TrafficStore:
 
     def append_traffic_data(self, agent_ip, timestamp, rate):
         with self._lock:
-            # If the last entry is for the same second AND same agent, aggregate
-            if (self._traffic_data
-                and self._traffic_data[-1]["timestamp"] == timestamp
-                and self._traffic_data[-1]["agent_ip"] == agent_ip):
+            # If the last entry is for the same agent and the timestamp difference is very small, aggregate.
+            if (self._traffic_data and 
+                self._traffic_data[-1]["agent_ip"] == agent_ip and 
+                abs(self._traffic_data[-1]["timestamp"] - timestamp) < 0.01):
                 self._traffic_data[-1]["value"] += rate
             else:
-                # Add a new entry with the agent IP
+                # Otherwise, add a new entry with high‑precision timestamp.
                 self._traffic_data.append({
                     "agent_ip": agent_ip,
-                    "timestamp": timestamp,
+                    "timestamp": timestamp,  # using float timestamp for sub-second precision
                     "value": rate
                 })
 
-            # Keep only the last X entries
+            # Keep only the last X entries.
             self._traffic_data = self._traffic_data[-10000:]
-            # Save updated data to file
             self.save_traffic_data()
+
 
     def save_traffic_data(self):
         """Save traffic data to a JSON file."""

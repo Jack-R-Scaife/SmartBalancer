@@ -296,7 +296,6 @@ class LoadBalancer:
                 if traffic_rate > 0:
                     connections_count = system_metrics.get("connections", 0)
                     log_entry = PredictiveLog(
-                        timestamp=datetime.now(),
                         server_ip=selected_agent,
                         response_time=round_trip_ms,
                         cpu_usage=system_metrics.get("cpu_total", 0),
@@ -345,9 +344,9 @@ class LoadBalancer:
             if key not in traffic_config:
                 traffic_logger.error(f"Missing key '{key}' in traffic_config: {traffic_config}")
                 return {"status": "error", "message": f"Missing key '{key}' in traffic_config"}
-        
+
         scenario = traffic_config.get("scenario", "default_scenario")
-        
+
         if not self.known_agents:
             traffic_logger.warning("No known agents available for traffic simulation.")
             return {"status": "error", "message": "No agents available for traffic simulation"}
@@ -357,32 +356,28 @@ class LoadBalancer:
         duration = traffic_config["duration"]
 
         for _ in range(duration):
-            current_time = int(time.time())
+            current_time = time.time()  # use float timestamp for high precision
             for _ in range(rate):
                 try:
-                    # Get target agent and its group
+                    # Get target agent and group (existing code)
                     target_agent = None
                     group_id = None
-                    
-                    # Find first agent with valid group association
                     for agent_ip in self.known_agents:
                         group_id = self.lookup_group_id_for_agent(agent_ip)
                         if group_id:
                             target_agent = agent_ip
                             break
-                    
+
                     if not target_agent or not group_id:
                         traffic_logger.error("No agents with valid group association found")
                         return {"status": "error", "message": "No agents with valid group configuration"}
 
                     # Execute group-specific strategy
                     target_agent = self.execute_strategy(group_id)
-                    
                     if not target_agent:
                         traffic_logger.warning("No agent selected by the strategy.")
                         continue
 
-                    # Log and send traffic
                     traffic_logger.info(
                         "Traffic predictive data logged",
                         extra={
@@ -395,7 +390,7 @@ class LoadBalancer:
                     response = self.send_tcp_request(target_agent, 9000, "simulate_traffic", payload=traffic_config)
                     traffic_logger.debug(f"Traffic sent to {target_agent}: {response}")
 
-                    # Store traffic data
+                    # Store traffic data with high precision timestamp
                     traffic_store.append_traffic_data(target_agent, current_time, 1)
                     self.fetch_metrics_from_all_agents(scenario=scenario, group_id=group_id)
 
@@ -406,6 +401,7 @@ class LoadBalancer:
             time.sleep(1)
 
         return {"status": "success", "message": "Traffic simulation completed"}
+
     
 
     def lookup_group_id_for_agent(self, ip_address):
