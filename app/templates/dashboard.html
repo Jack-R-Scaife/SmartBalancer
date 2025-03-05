@@ -552,26 +552,22 @@ document.addEventListener("DOMContentLoaded", function () {
     const strategyInfo = document.getElementById("strategyInfo");
     const aiStatus = document.getElementById("aiStatus");
 
-    // Fetch Groups for Dropdown
+    // Fetch groups to populate the dropdown
     function fetchGroups() {
         fetch("/api/get_groups")
             .then(response => response.json())
             .then(data => {
                 if (data.groups && data.groups.length > 0) {
                     groupSelect.innerHTML = '<option value="">Select Group</option>';
-                    
                     data.groups.forEach(group => {
                         const option = document.createElement("option");
                         option.value = group.group_id;
                         option.textContent = group.name;
                         groupSelect.appendChild(option);
                     });
-
-                    //  On load, dont auto-select a group to prevent unwanted strategy loading
                     strategyInfo.textContent = "Please select a group to see the strategy.";
                     aiStatus.textContent = "";
                 } else {
-                    // If no groups exist, show a message
                     strategyInfo.textContent = "No groups available. Please create a group.";
                     aiStatus.textContent = "";
                 }
@@ -582,8 +578,9 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 
-    // Fetch Strategy Info for Selected Group
-    function fetchStrategyInfo(groupId) {
+    // Unified function to update the strategy info
+    function updateStrategyInfo() {
+        const groupId = groupSelect.value;
         if (!groupId) {
             strategyInfo.textContent = "Please select a group to see the strategy.";
             aiStatus.textContent = "";
@@ -594,29 +591,30 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success" && data.strategy_name) {
-                    strategyInfo.textContent = `Strategy: ${data.strategy_name}`;
+                    // Replace the content instead of appending duplicates
+                    strategyInfo.innerHTML = `Strategy: <b>${data.strategy_name}</b>`;
                     aiStatus.textContent = `AI Enabled: ${data.ai_enabled ? "Yes" : "No"}`;
                 } else {
-                    strategyInfo.textContent = "No Strategy Assigned";
+                    strategyInfo.innerHTML = "<span style='color: red;'>No Active Strategy</span>";
                     aiStatus.textContent = "AI Enabled: Unknown";
                 }
             })
             .catch(error => {
+                console.error("Error fetching strategy:", error);
                 strategyInfo.textContent = "Error Loading";
                 aiStatus.textContent = "AI Status: Error";
-                console.error("Error fetching strategy:", error);
             });
     }
 
-    // Event Listener for Group Selection Change
-    groupSelect.addEventListener("change", function () {
-        fetchStrategyInfo(this.value);
-    });
+    // Update immediately when user changes the dropdown
+    groupSelect.addEventListener("change", updateStrategyInfo);
 
-    // Load the group dropdown but don't load any strategy initially
+    // Also poll every 5 minutes to catch backend updates
+    setInterval(updateStrategyInfo, 300000); // 300,000 ms = 5 minutes
+
+    updateStrategyInfo(); // Initial call
     fetchGroups();
 });
-
 
   </script>
 

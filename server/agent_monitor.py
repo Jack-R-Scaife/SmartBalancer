@@ -241,7 +241,7 @@ class LoadBalancer:
             db.session.commit()
         
 
-    def fetch_metrics_from_all_agents(self, scenario=None, group_id=None):
+    def fetch_metrics_from_selected_agent(self, scenario=None, group_id=None):
         """
         Fetch system metrics and log traffic using the active strategy from the database.
         The active strategy for the group is fetched and used to select the next agent.
@@ -403,7 +403,7 @@ class LoadBalancer:
 
                     # Store traffic data with high precision timestamp
                     traffic_store.append_traffic_data(target_agent, current_time, 1)
-                    self.fetch_metrics_from_all_agents(scenario=scenario, group_id=group_id)
+                    self.fetch_metrics_from_selected_agent(scenario=scenario, group_id=group_id)
 
                 except Exception as e:
                     traffic_logger.error(f"Error sending traffic simulation command: {str(e)}")

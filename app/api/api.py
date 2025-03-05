@@ -33,9 +33,9 @@ status_mapping = {
 @api_blueprint.route('/predicted_traffic', methods=['GET'])
 def get_predicted_traffic():
     try:
-        # Fetch metrics from agents
+        # Fetch metrics from all agents
         load_balancer = LoadBalancer()
-        agent_metrics = load_balancer.fetch_metrics_from_all_agents()
+        agent_metrics = load_balancer.fetch_all_metrics()
         if not agent_metrics:
             api_logger.error("No metrics available from agents.")
             return jsonify([]), 200
@@ -57,30 +57,25 @@ def get_predicted_traffic():
         aggregated_metrics['strategy'] = strategy
 
         # Check if predictive modeling is enabled for this group
-        from app.models import LoadBalancerSetting, ServerGroup
         setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
         if not setting or not setting.predictive_enabled:
             api_logger.info("Predictive model is disabled for this group.")
             return jsonify([]), 200
 
-        # Determine the active model for the group; if not set, use a default name.
+        # Determine the active model for the group
         group = ServerGroup.query.filter_by(group_id=group_id).first()
-        if group and group.active_model:
-            model_filename = group.active_model
-        else:
-            model_filename = "lightgbm_model.pkl"
+        model_filename = group.active_model if group and group.active_model else "lightgbm_model.pkl"
 
-        # Build the path to the global model
+        # Load the model
         models_folder = os.path.join(os.getcwd(), 'Models')
         model_path = os.path.join(models_folder, model_filename)
         if not os.path.exists(model_path):
             api_logger.info("Predictive model file not found. Returning empty predictions.")
             return jsonify([]), 200
 
-        # Load the model
         model = joblib.load(model_path)
 
-        # Prepare the features for prediction
+        # Prepare features for prediction
         feature_df = pd.DataFrame([aggregated_metrics])
         feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'], dummy_na=False)
         expected_features = model.feature_names_in_
@@ -1000,7 +995,7 @@ def get_active_connections():
         from server.agent_monitor import LoadBalancer
 
         load_balancer = LoadBalancer()
-        metrics = load_balancer.fetch_metrics_from_all_agents()
+        metrics = load_balancer.fetch_all_metrics()
 
         # Aggregate connections from all agents
         total_connections = sum(agent["metrics"].get("connections", 0) for agent in metrics if "metrics" in agent)
