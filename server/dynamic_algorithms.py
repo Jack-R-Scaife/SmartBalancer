@@ -14,21 +14,37 @@ class DynamicAlgorithms:
         self.lock = threading.Lock()  # Protect shared resources
 
     def least_connections(self):
-        """Return the server with the fewest active connections."""
         with self.lock:
             if not self.known_agents:
                 return None
+            # Build a dictionary of effective connection counts.
+            # If AI is enabled, subtract 1 (placeholder for future AI logic).
             if self.ai_enabled:
-                dynamic_logger.info("AI-Enhanced Least Connections is running.")
-                return min(self.known_agents, key=lambda server: self.connection_counts.get(server, 0) - 1)
-            return min(self.known_agents, key=lambda server: self.connection_counts.get(server, 0))
+                effective_counts = {server: self.connection_counts.get(server, 0) - 1 for server in self.known_agents}
+                dynamic_logger.info("AI-Enhanced Least Connections is running (placeholder logic).")
+            else:
+                effective_counts = {server: self.connection_counts.get(server, 0) for server in self.known_agents}
+            # Determine the minimum count.
+            min_count = min(effective_counts.values())
+            # Get all servers with the minimum count.
+            candidates = [server for server, count in effective_counts.items() if count == min_count]
+            # Randomly choose one candidate to break ties.
+            return random.choice(candidates)
+
 
     def least_response_time(self):
-        """Return the server with the lowest response time."""
         with self.lock:
             if not self.known_agents:
                 return None
-            return min(self.known_agents, key=lambda server: self.response_times.get(server, float('inf')))
+            # Build a dictionary of response times.
+            effective_rts = {server: self.response_times.get(server, float('inf')) for server in self.known_agents}
+            # Find the minimum response time.
+            min_rt = min(effective_rts.values())
+            # Get all servers with that minimum response time.
+            candidates = [server for server, rt in effective_rts.items() if rt == min_rt]
+            # Randomly choose one to break ties.
+            return random.choice(candidates)
+
 
     def resource_based(self):
         """Compute a weighted score for each server and return the best one."""

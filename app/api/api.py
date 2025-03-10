@@ -386,12 +386,15 @@ def set_load_balancer_strategy():
         if not strategies:
             return jsonify({"status": "error", "message": "At least one strategy is required."}), 400
 
-        # ✅ FIX: Pass Correct Strategy Order
+        # FIX: Pass Correct Strategy Order
         result = StrategyManager.apply_multiple_strategies_to_group(strategies, group_id, ai_enabled)
 
-        # ✅ Apply weights only if Resource-Based is in Priority 1
+        # Apply weights only if Resource-Based is in Priority 1
         if strategies[0] == "Resource-Based":
             StrategyManager.dynamic_algorithms.set_weights({k: float(v) for k, v in weights.items() if v})
+        
+        if strategies[0] == "Weighted Round Robin":
+            StrategyManager.static_algorithms.set_weights(data["server_weights"])
 
         # ✅ Reload active strategies to ensure correct application
         load_balancer = LoadBalancer()

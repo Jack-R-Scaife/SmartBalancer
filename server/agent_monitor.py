@@ -242,10 +242,6 @@ class LoadBalancer:
         
 
     def fetch_metrics_from_selected_agent(self, scenario=None, group_id=None):
-        """
-        Fetch system metrics and log traffic using the active strategy from the database.
-        The active strategy for the group is fetched and used to select the next agent.
-        """
         main_logger.info("Fetching metrics using active strategy")
         metrics = []
         traffic_store = TrafficStore.get_instance()
@@ -278,7 +274,7 @@ class LoadBalancer:
         try:
             # Determine the group for the selected agent.
             group_id = self.lookup_group_id_for_agent(selected_agent)
-            
+
             # Measure round-trip time for the metrics request.
             start_time = time.time()
             response = self.send_tcp_request(selected_agent, 9000, "metrics")
@@ -287,6 +283,15 @@ class LoadBalancer:
             if response.get("status") == "success":
                 system_metrics = response.get("metrics", {})
                 main_logger.debug(f"System metrics from {selected_agent}: {system_metrics}")
+
+                # Update dynamic metrics with new values.
+                self.dynamic_executor.update_resource_metrics(
+                    selected_agent,
+                    system_metrics.get("cpu_total", 0),
+                    system_metrics.get("memory", 0),
+                    system_metrics.get("disk", 0),
+                    system_metrics.get("connections", 0)
+                )
 
                 # Retrieve traffic data for the selected agent within the rolling window.
                 agent_traffic = traffic_store.get_traffic_data(agent_ip=selected_agent)
@@ -298,8 +303,6 @@ class LoadBalancer:
                 # Log metrics if there's significant traffic.
                 if traffic_rate > 0:
                     connections_count = system_metrics.get("connections", 0)
-
-                    # **Fix: Ensure correct indentation for db_lock**
                     with db_lock:
                         log_entry = PredictiveLog(
                             timestamp=datetime.utcnow(),  # Ensure millisecond precision
@@ -316,7 +319,6 @@ class LoadBalancer:
                         )
                         db.session.add(log_entry)
                         db.session.commit()
-
                 else:
                     main_logger.info(f"No significant traffic for {selected_agent}; skipping DB insert.")
 
@@ -332,6 +334,7 @@ class LoadBalancer:
             db.session.rollback()  # Prevent database corruption
 
         return metrics
+
 
     def get_group_strategy(self, group_id):
         """
