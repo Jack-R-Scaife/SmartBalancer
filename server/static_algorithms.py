@@ -1,6 +1,6 @@
 import threading
 import logging
-from server.logging_config import round_robin_logger
+from server.logging_config import round_robin_logger,weights_logger
 
 class StaticAlgorithms:
     def __init__(self):
@@ -25,10 +25,13 @@ class StaticAlgorithms:
     def set_weights(self, weights):
         """Set weights for weighted round-robin; resets index for consistency."""
         with self.lock:
+            # Convert weight values if necessary (they should already be integers)
             self.index_weights = [
                 server for server, weight in weights.items() for _ in range(weight)
             ]
             self.current_index = 0
+            weights_logger.debug(f"Received weights: {weights}")
+            weights_logger.debug(f"Constructed weighted list: {self.index_weights}")
 
     def weighted_round_robin(self):
         """Select the next server from the weighted list in a thread-safe manner."""
