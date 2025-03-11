@@ -394,9 +394,9 @@ def set_load_balancer_strategy():
             StrategyManager.dynamic_algorithms.set_weights({k: float(v) for k, v in weights.items() if v})
         
         if strategies[0] == "Weighted Round Robin":
-            StrategyManager.static_algorithms.set_weights(data["server_weights"])
+            StrategyManager.static_algorithms.set_weights({k: int(v) for k, v in data["server_weights"].items() if v})
 
-        # ✅ Reload active strategies to ensure correct application
+        #  Reload active strategies to ensure correct application
         load_balancer = LoadBalancer()
         load_balancer.load_saved_strategies()
 
