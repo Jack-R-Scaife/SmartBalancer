@@ -12,7 +12,6 @@ from server.logging_config import main_logger, traffic_logger
 from server.dynamic_algorithms import DynamicAlgorithms
 from server.static_algorithms import StaticAlgorithms
 from server.traffic_store import TrafficStore
-from server.strategy_manager import StrategyManager
 from threading import Lock
 main_logger.info("Agent monitor starting")
 traffic_logger.debug("Traffic logger initialized")
@@ -33,6 +32,7 @@ class LoadBalancer:
             main_logger.info("Initializing LoadBalancer")
             self.app = create_app()
             self.known_agents = []  # List of known agent IP addresses
+            from server.strategy_manager import StrategyManager
             self.strategy_executor = StrategyManager.static_algorithms
             self.dynamic_executor = DynamicAlgorithms()
             self.load_agents_from_db()
