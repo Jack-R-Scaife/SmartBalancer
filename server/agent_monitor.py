@@ -42,8 +42,11 @@ class LoadBalancer:
         main_logger.info("Loading agents from the database")
         with self.app.app_context():
             try:
-                servers = Server.query.order_by(Server.ip_address).all()  # Sort agents by IP
-                self.known_agents = [server.ip_address for server in servers]  # Clear and rebuild list
+                servers = Server.query.order_by(Server.ip_address).all()
+                # Create a mapping: {server_id (as string): ip_address}
+                self.agent_map = {str(server.server_id): server.ip_address for server in servers}
+                # known_agents will now be the list of IP addresses.
+                self.known_agents = list(self.agent_map.values())
                 for ip in self.known_agents:
                     main_logger.debug(f"Loaded agent with IP {ip} from database")
             except Exception as e:

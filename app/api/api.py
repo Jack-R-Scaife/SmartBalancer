@@ -394,7 +394,15 @@ def set_load_balancer_strategy():
             StrategyManager.dynamic_algorithms.set_weights({k: float(v) for k, v in weights.items() if v})
         
         if strategies[0] == "Weighted Round Robin":
-            StrategyManager.static_algorithms.set_weights({k: int(v) for k, v in data.get("server_weights", {}).items() if v})
+            # Get an instance of the load balancer to access its agent_map.
+            lb = LoadBalancer()
+            mapped_weights = {}
+            for server_id, weight in data.get("server_weights", {}).items():
+                # Look up the IP address corresponding to this server ID.
+                ip = lb.agent_map.get(server_id)
+                if ip:
+                    mapped_weights[ip] = int(weight)
+            StrategyManager.static_algorithms.set_weights(mapped_weights)
         #  Reload active strategies to ensure correct application
         load_balancer = LoadBalancer()
         load_balancer.load_saved_strategies()
