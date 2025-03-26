@@ -33,70 +33,78 @@ status_mapping = {
 @api_blueprint.route('/predicted_traffic', methods=['GET'])
 def get_predicted_traffic():
     try:
-        # Fetch metrics from all agents
         load_balancer = LoadBalancer()
         agent_metrics = load_balancer.fetch_all_metrics()
+        
         if not agent_metrics:
-            api_logger.error("No metrics available from agents.")
             return jsonify([]), 200
 
-        # Aggregate metrics across agents
-        num_agents = len(agent_metrics)
-        aggregated_metrics = {
-            'cpu_usage': sum(agent['metrics'].get('cpu_total', 0) for agent in agent_metrics) / num_agents,
-            'memory_usage': sum(agent['metrics'].get('memory', 0) for agent in agent_metrics) / num_agents,
-            'connections': sum(agent['metrics'].get('connections', 0) for agent in agent_metrics),
-            'traffic_rate': sum(agent['metrics'].get('traffic_rate', 0) for agent in agent_metrics),
-        }
+        # Get global scenario from first agent
+        scenario = agent_metrics[0].get('scenario', 'baseline_low')
+        all_predictions = []
 
-        # Determine scenario, group, and strategy from the first agent's metrics
-        scenario = agent_metrics[0].get('scenario', 'default_scenario')
-        group_id = agent_metrics[0].get('group_id', 1)
-        strategy = load_balancer.get_group_strategy(group_id) or "Round Robin"
-        aggregated_metrics['scenario'] = scenario
-        aggregated_metrics['strategy'] = strategy
+        # Group agents by their group_id
+        groups = {}
+        for agent in agent_metrics:
+            group_id = agent.get('group_id', 1)
+            if group_id not in groups:
+                groups[group_id] = []
+            groups[group_id].append(agent)
 
-        # Check if predictive modeling is enabled for this group
-        setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
-        if not setting or not setting.predictive_enabled:
-            api_logger.info("Predictive model is disabled for this group.")
-            return jsonify([]), 200
+        for group_id, agents in groups.items():
+            # Check if predictive is enabled for this group
+            setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
+            if not setting or not setting.predictive_enabled:
+                continue
 
-        # Determine the active model for the group
-        group = ServerGroup.query.filter_by(group_id=group_id).first()
-        model_filename = group.active_model if group and group.active_model else "lightgbm_model.pkl"
+            # Get group-specific metrics (only agents in this group)
+            num_agents = len(agents)
+            aggregated = {
+                'cpu_usage': sum(a['metrics'].get('cpu_total',0) for a in agents)/num_agents,
+                'memory_usage': sum(a['metrics'].get('memory',0) for a in agents)/num_agents,
+                'connections': sum(a['metrics'].get('connections',0) for a in agents),
+                'traffic_rate': sum(a['metrics'].get('traffic_rate',0) for a in agents),
+                'scenario': scenario,
+                'strategy': load_balancer.get_group_strategy(group_id) or "Round Robin"
+            }
 
-        # Load the model
-        models_folder = os.path.join(os.getcwd(), 'Models')
-        model_path = os.path.join(models_folder, model_filename)
-        if not os.path.exists(model_path):
-            api_logger.info("Predictive model file not found. Returning empty predictions.")
-            return jsonify([]), 200
+            # Get group-specific model
+            group = ServerGroup.query.filter_by(group_id=group_id).first()
+            model_filename = group.active_model if group else "lightgbm_model.pkl"
+            model_path = os.path.join('Models', model_filename)
+            
+            if not os.path.exists(model_path):
+                api_logger.warning(f"Model not found for group {group_id}: {model_filename}")
+                continue
 
-        model = joblib.load(model_path)
+            try:
+                model = joblib.load(model_path)
+                
+                # Prepare features
+                feature_df = pd.DataFrame([aggregated])
+                feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'])
+                feature_df = feature_df.reindex(columns=model.feature_names_in_, fill_value=0)
 
-        # Prepare features for prediction
-        feature_df = pd.DataFrame([aggregated_metrics])
-        feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'], dummy_na=False)
-        expected_features = model.feature_names_in_
-        feature_df = feature_df.reindex(columns=expected_features, fill_value=0)
+                # Generate predictions
+                current_time = datetime.now()
+                predictions = [{
+                    'timestamp': (current_time + timedelta(seconds=i)).timestamp(),
+                    'value': model.predict(feature_df)[0],
+                    'group_id': group_id,
+                    'strategy': aggregated['strategy']
+                } for i in range(60)]
+                
+                all_predictions.extend(predictions)
 
-        # Generate predictions for the next 60 seconds
-        predictions = []
-        current_time = datetime.now()
-        for i in range(60):
-            prediction = model.predict(feature_df)[0]
-            future_timestamp = (current_time + timedelta(seconds=i)).timestamp()
-            predictions.append({'timestamp': future_timestamp, 'value': prediction})
+            except Exception as model_error:
+                api_logger.error(f"Prediction error for group {group_id}: {model_error}")
+                continue
 
-        return jsonify(predictions), 200
+        return jsonify(all_predictions), 200
 
     except Exception as e:
-        api_logger.error(f"Error in traffic prediction: {e}")
+        api_logger.error(f"Global prediction error: {e}")
         return jsonify([]), 200
-
-
-
 
 # Route to link a server
 @api_blueprint.route('/servers/link', methods=['POST'])
@@ -1015,8 +1023,6 @@ def get_active_connections():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
-
 @api_blueprint.route('/list_data_files', methods=['GET'])
 def list_data_files():
     try:
@@ -1085,11 +1091,11 @@ def clean_data():
         if not os.path.exists(input_path):
             return jsonify({'message': 'File not found'}), 404
 
-        # --- Cleaning logic (example based on clean_data.py) ---
+        # --- Cleaning logic ---
         data = pd.read_csv(input_path)
         data['timestamp'] = pd.to_datetime(data['timestamp'])
         data = data.sort_values('timestamp')
-        # Example: calculate rolling averages (you can replace this with your actual logic)
+        # calculate rolling averages 
         data['cpu_usage_avg'] = data['cpu_usage'].rolling(window=5).mean()
         data = data.dropna()
 
@@ -1130,8 +1136,9 @@ def train_model():
         data['traffic_rate_sum_10s'] = data['traffic_rate'].shift(-10)
         data = data.dropna()
 
-        # Define features and target
-        X = data[['cpu_usage', 'memory_usage', 'connections', 'traffic_rate']]
+        features = data[['cpu_usage', 'memory_usage', 'connections', 'traffic_rate', 'scenario','strategy']]
+        features_encoded = pd.get_dummies(features, columns=['scenario', 'strategy'])
+        X = features_encoded
         y = data['traffic_rate_sum_10s']
 
         # Split data into training and testing sets
@@ -1175,7 +1182,8 @@ def train_model():
             'r2': r2,
             'model_filename': model_filename,
             'model_download_url': f'/download_model/{model_filename}',
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'features_used': list(X.columns)
         }
         # Save training result for history
         save_training_result(result)
