@@ -51,7 +51,7 @@ class StrategyManager:
 
         if ai_enabled:
             StrategyManager.dynamic_algorithms.ai_enabled = True
-
+            StrategyManager.static_algorithms.ai_enabled = True
         load_balancer = LoadBalancer()
         load_balancer.set_active_strategy(strategy_name, group_id)
         return f"{strategy_name} strategy activated successfully with AI enhancement: {ai_enabled}."

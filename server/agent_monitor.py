@@ -364,7 +364,7 @@ class LoadBalancer:
                 return {"status": "error", "message": f"Missing key '{key}' in traffic_config"}
 
         scenario = traffic_config.get("scenario", "default_scenario")
-
+        self.current_scenario = scenario
         if not self.known_agents:
             traffic_logger.warning("No known agents available for traffic simulation.")
             return {"status": "error", "message": "No agents available for traffic simulation"}
@@ -577,6 +577,10 @@ class LoadBalancer:
     def fetch_all_metrics(self, scenario=None, group_id=None):
         main_logger.info("Fetching metrics from all agents")
         metrics = []
+        
+        # Get the current global scenario from load_balancer state
+        global_scenario = getattr(self, 'current_scenario', 'baseline_low')
+        
         for agent in self.known_agents:
             try:
                 start_time = time.time()
@@ -584,6 +588,10 @@ class LoadBalancer:
                 round_trip_ms = (time.time() - start_time) * 1000
                 if response.get("status") == "success":
                     system_metrics = response.get("metrics", {})
+                    
+                    # Add the scenario to the metrics
+                    system_metrics['scenario'] = scenario or global_scenario
+                    
                     main_logger.debug(f"System metrics from {agent}: {system_metrics}")
                     metrics.append({"ip": agent, "metrics": system_metrics})
                 else:

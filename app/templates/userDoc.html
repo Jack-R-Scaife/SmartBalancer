@@ -1,0 +1,453 @@
+<!-- templates/user_docs.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid vh-100">
+    <div class="row h-100">
+        <!-- Left Context Menu Column (scrollable) -->
+        <div class="col-2 border-end" style="overflow-y: auto; height: 100vh;">
+            <nav class="sticky-top pt-3">
+              <h4 class="ps-3 mb-3">Navigation</h4>
+              <div class="list-group list-group-flush">
+                <a href="#overview" class="list-group-item">Overview</a>
+                <a href="#setup" class="list-group-item">Setup &amp; Configuration</a>
+                <a href="#linking-your-servers" class="list-group-item sub-heading">Linking Your Servers</a>
+                <a href="#group-management" class="list-group-item sub-heading">Group Management</a>
+                <a href="#strategies" class="list-group-item">Load Balancing Strategies</a>
+                <a href="#advanced" class="list-group-item">Advanced Configuration</a>
+                <a href="#applying-strategies-to-groups" class="list-group-item sub-heading">Applying Strategies to Groups</a>
+                <a href="#managing-rules" class="list-group-item sub-heading">Managing Rules</a>
+                <a href="#predictive-model-training" class="list-group-item sub-heading">Predictive Model Training</a>
+                <a href="#predictive-model-training-step1" class="list-group-item sub-sub-heading">Collect Traffic Data</a>
+                <a href="#predictive-model-training-step2" class="list-group-item sub-sub-heading">Export &amp; Clean Data</a>
+                <a href="#predictive-model-training-step3" class="list-group-item sub-sub-heading">Configure Model</a>
+                <a href="#predictive-model-training-step4" class="list-group-item sub-sub-heading">Set Training Parameters</a>
+                <a href="#predictive-model-training-step5" class="list-group-item sub-sub-heading">Train &amp; Activate Model</a>
+              </div>
+            </nav>
+        </div>
+
+        <!-- Right Content Column -->
+        <div class="col-10 p-4 dark-main" style="overflow-y: auto; height: 100vh;">
+            <!-- Overview Section -->
+            <section id="overview">
+                <h1 class="display-4 mb-4">Predictive Load Balancing</h1>
+                <p class="lead">
+                    Integrating machine learning predictions with classic load balancing strategies to deliver intelligent traffic routing and optimized server performance.
+                </p>
+                <p>
+                    Our system not only directs traffic using traditional algorithms but also leverages AI to forecast server conditions—ensuring that each request is handled by the best performing server at any given moment. This guide explains every step, from server setup to advanced predictive configuration.
+                </p>
+            </section>
+
+            <!-- Setup & Configuration Section -->
+            <section id="setup" class="mb-5">
+                <h2 class="mb-4">Setup &amp; Configuration</h2>
+                <h3 id="linking-your-servers">Linking Your Servers</h3>
+                <p>
+                    Start by linking your servers to the management dashboard. This step is critical for enabling all subsequent configurations.
+                </p>
+                <ol>
+                    <li>
+                        <strong>Navigate to the Servers Page:</strong>  
+                        From the sidebar, select the <em>Servers</em> option. This page lists all currently connected servers.
+                    </li>
+                    <li>
+                        <strong>Add a New Device:</strong>  
+                        Click the <strong>"Add New Device"</strong> button. A form will appear for adding your server details.
+                    </li>
+                    <li>
+                        <strong>Enter Server Details:</strong>  
+                        Input the IP address of the server. Ensure that the server has the required agent service installed to communicate with the load balancer.
+                    </li>
+                    <li>
+                        <strong>Link the Server:</strong>  
+                        Click <strong>"Link"</strong>. Once linked, the server will be available for grouping and strategy assignment.
+                    </li>
+                </ol>
+                <p>
+                    <em>Tip:</em> Verify that the agent service is running on your server before linking to avoid connection issues.
+                </p>
+
+                <h3 id="group-management">Group Management</h3>
+                <p>
+                    Organize your servers into groups so you can apply specific load balancing strategies tailored to different clusters or functions.
+                </p>
+                <ol>
+                    <li>
+                        <strong>Select Manage Group:</strong>  
+                        On the servers page, click the dropdown next to a server and choose <strong>"Manage Group"</strong>.
+                    </li>
+                    <li>
+                        <strong>Create a New Group:</strong>  
+                        In the modal window that appears, click <strong>"Create New Group"</strong>. Fill in the group name and a brief description.
+                    </li>
+                    <li>
+                        <strong>Add Servers to the Group:</strong>  
+                        Select one or more servers to include in this group.
+                    </li>
+                    <li>
+                        <strong>Confirm Group Creation:</strong>  
+                        Click <strong>"Confirm"</strong>. If the group is not automatically selected, use the dropdown to activate it.
+                    </li>
+                </ol>
+                <p>
+                    <em>Note:</em> Each group is independent—strategies applied later will only affect the selected group.
+                </p>
+            </section>
+
+            <!-- Load Balancing Strategies Section -->
+            <section id="strategies" class="mb-5">
+                <h2 class="mb-4">Load Balancing Strategies</h2>
+                <p>
+                    The load balancing strategies available combine standard routing techniques with AI enhancements. Each strategy is designed to optimize performance by predicting future server states.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Strategy Name</th>
+                                <th>Standard Behavior</th>
+                                <th>AI Enhancements</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>AI-Enhanced Round Robin</td>
+                                <td>
+                                    <p>
+                                        Sequentially distributes incoming requests among servers in a fixed order.
+                                    </p>
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled">
+                                        <li>Filters servers to select only the top 30% based on predicted performance.</li>
+                                        <li>Adjusts routing dynamically depending on current traffic load.</li>
+                                        <li>Monitors and predicts CPU and memory trends to bypass servers that might underperform soon.</li>
+                                    </ul>
+                                    <p><em>Best for environments with fluctuating server performance.</em></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>AI-Enhanced Weighted Round Robin</td>
+                                <td>
+                                    <p>
+                                        Routes requests based on preset weights assigned to each server.
+                                    </p>
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled">
+                                        <li>Automatically adjusts server weights in real time based on predicted capacity.</li>
+                                        <li>Enhances load distribution by favoring servers that are forecasted to handle more traffic efficiently.</li>
+                                        <li>Reduces weights for servers predicted to become resource-constrained.</li>
+                                    </ul>
+                                    <p><em>Ideal for heterogeneous environments where server performance varies.</em></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>AI-Enhanced Least Connections</td>
+                                <td>
+                                    <p>
+                                        Directs traffic to the server with the fewest active connections.
+                                    </p>
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled">
+                                        <li>Forecasts connection growth to prevent sudden overloads.</li>
+                                        <li>Integrates historical data and current trends to predict future load.</li>
+                                        <li>Modifies the server selection process during high-traffic periods to maintain stability.</li>
+                                    </ul>
+                                    <p><em>Useful when connection duration and intensity vary widely.</em></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>AI-Enhanced Least Response Time</td>
+                                <td>
+                                    <p>
+                                        Selects the server currently reporting the lowest response time.
+                                    </p>
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled">
+                                        <li>Predicts upcoming response times using CPU and traffic trend analysis.</li>
+                                        <li>Identifies servers likely to face latency issues before they occur.</li>
+                                        <li>Employs threshold controls to ensure a minimum performance level is always met.</li>
+                                    </ul>
+                                    <p><em>Critical for applications where low latency is a must.</em></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>AI-Enhanced Resource-Based</td>
+                                <td>
+                                    <p>
+                                        Routes traffic based on real-time server resource usage (CPU, memory, disk).
+                                    </p>
+                                </td>
+                                <td>
+                                    <ul class="list-unstyled">
+                                        <li>Forecasts each server’s future resource availability and efficiency.</li>
+                                        <li>Balances current resource loads with anticipated demands.</li>
+                                        <li>Adapts dynamically to workloads that are heavy on specific resources.</li>
+                                    </ul>
+                                    <p><em>Optimal for complex environments with diverse resource needs.</em></p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Advanced Configuration Section -->
+            <section id="advanced" class="mb-5">
+                <h2 class="mb-4">Advanced Configuration</h2>
+                <h3 id="applying-strategies-to-groups">Applying Strategies to Groups</h3>
+                <p>
+                    After organizing your servers into groups, assign specific load balancing strategies to each group. This allows you to tailor the behavior of your system based on the characteristics of each server cluster.
+                </p>
+                <ol>
+                    <li>
+                        <strong>Access Rules:</strong>  
+                        Click the <strong>"Rules"</strong> link in the sidebar to open the advanced configuration panel.
+                    </li>
+                    <li>
+                        <strong>Configure Device:</strong>  
+                        Select <strong>"Configure Device"</strong> and then navigate to the <strong>"Methods"</strong> sublink.
+                    </li>
+                    <li>
+                        <strong>Enable Strategies:</strong>  
+                        Choose between static strategies (e.g., Round Robin, Weighted Round Robin) and dynamic strategies (e.g., Least Connections, Least Response Time, Resource-Based). Check the corresponding boxes.
+                    </li>
+                    <li>
+                        <strong>Assign Weights and Priorities:</strong>  
+                        For weighted methods, assign appropriate server weights. Set the primary and fallback strategies using the dropdown filter.
+                    </li>
+                    <li>
+                        <strong>AI Enhancement:</strong>  
+                        When predictive AI is enabled, these strategies automatically incorporate forecasted server performance data.
+                    </li>
+                </ol>
+                <p>
+                    <em>Note:</em> The chosen strategy will only apply to the selected server group, allowing you to customize configurations for different clusters.
+                </p>
+
+                <h3 id="managing-rules">Managing Rules</h3>
+                <p>
+                    Traffic control rules are essential for directing and restricting incoming traffic. There are two primary types:
+                </p>
+                <h4>Traffic-Based Rules</h4>
+                <ul>
+                    <li>
+                        <strong>Source IP Range:</strong> Specify the range of IP addresses affected.
+                    </li>
+                    <li>
+                        <strong>Traffic Type &amp; Port:</strong> Define which protocols (e.g., HTTP) and ports are covered.
+                    </li>
+                    <li>
+                        <strong>Traffic Limit:</strong> Set thresholds to prevent server overload.
+                    </li>
+                    <li>
+                        <strong>Redirect Target:</strong> Choose whether to redirect traffic to another group or a specific server.
+                    </li>
+                    <li>
+                        <strong>Schedule &amp; Priority:</strong> Define active days, start and end times, and set a rule’s priority.
+                    </li>
+                    <li>
+                        <strong>Action &amp; Status:</strong> Choose the action (allow, block, or redirect) and mark the rule as active or disabled.
+                    </li>
+                </ul>
+                <h4>Geo-Based Rules</h4>
+                <ul>
+                    <li>
+                        <strong>Geographic Criteria:</strong> Set rules based on regions and countries.
+                    </li>
+                    <li>
+                        <strong>Traffic Direction:</strong> Define whether the rule applies to inbound or outbound traffic.
+                    </li>
+                    <li>
+                        <strong>Schedule &amp; Priority:</strong> Similar to traffic-based rules, with settings for active periods and rule order.
+                    </li>
+                    <li>
+                        <strong>Action &amp; Status:</strong> Choose allow, block, or redirect and set the rule status.
+                    </li>
+                </ul>
+                <p>
+                    <em>Tip:</em> You can reorder rules by dragging and dropping them in the rules table. Use checkboxes to quickly enable or disable rules.
+                </p>
+            </section>
+
+            <!-- Predictive Model Training Section -->
+            <section id="predictive-model-training" class="mb-5">
+                <h2 class="mb-4">Predictive Model Training</h2>
+                <p>
+                    Training a predictive model is key to enabling AI enhancements. This process uses historical traffic data to forecast future server performance.
+                </p>
+                <ol>
+                    <li id="predictive-model-training-step1">
+                        <strong>Collect Traffic Data:</strong>
+                        <p>
+                            Ensure that you collect at least 2 hours of traffic data per strategy. This data is automatically gathered when traffic flows through the load balancer.
+                        </p>
+                    </li>
+                    <li id="predictive-model-training-step2">
+                        <strong>Export &amp; Clean Data:</strong>
+                        <p>
+                            Export the traffic data and use the provided tool to clean the dataset. This step removes incomplete rows and ensures your training data is accurate and reliable.
+                        </p>
+                    </li>
+                    <li id="predictive-model-training-step3">
+                        <strong>Configure the Predictive Model:</strong>
+                        <p>
+                            Open the model configurator. Provide a descriptive model name, select <code>LightGBM</code> as your model, and choose the cleaned dataset from the dropdown list.
+                        </p>
+                    </li>
+                    <li id="predictive-model-training-step4">
+                        <strong>Set Training Parameters:</strong>
+                        <p>
+                            Configure parameters including:
+                        </p>
+                        <ul>
+                            <li><strong>Estimators:</strong> The number of trees to build (more trees can mean higher accuracy but longer training times).</li>
+                            <li><strong>Learning Rate:</strong> Controls how much each tree contributes. A lower learning rate offers more precise learning.</li>
+                            <li><strong>Max Depth:</strong> Sets the maximum depth of each tree, influencing model complexity.</li>
+                            <li><strong>Random State:</strong> A fixed number for reproducibility across different training sessions.</li>
+                        </ul>
+                    </li>
+                    <li id="predictive-model-training-step5">
+                        <strong>Train &amp; Activate the Model:</strong>
+                        <p>
+                            Click the <em>Train Model</em> button and monitor the training progress. Evaluate the Mean Squared Error (MSE) and R² metrics—lower MSE and higher R² indicate a better fit. Once satisfied, set the model as active. The system will use this model for all predictive enhancements.
+                        </p>
+                    </li>
+                </ol>
+                <p>
+                    <em>Note:</em> After activation, your dashboard will display a prediction line (forecasting 60 seconds or more into the future) even if there is no current traffic. This real-time insight helps preempt performance issues.
+                </p>
+            </section>
+        </div>
+    </div>
+</div>
+
+<style>
+body {
+    background-color: #111 !important;
+    color: white !important;
+}
+.dark-main {
+    background-color: #111;
+    color: #fff;
+}
+.dark-sidebar {
+    background-color: #111;
+    border-right: 1px solid #444 !important;
+}
+.list-group-item {
+    background-color: #111;
+    color: white;
+    border: none;
+    transition: background-color 0.2s ease;
+}
+.list-group-item:hover {
+    background-color: #222;
+    color: #fff;
+}
+.list-group-item.active {
+    background-color: #333 !important;
+    border-color: #333 !important;
+    color: #fff !important;
+}
+.sub-heading {
+    margin-left: 15px;
+    font-size: 0.9em;
+}
+.sub-sub-heading {
+    margin-left: 30px;
+    font-size: 0.8em;
+}
+.dark-card {
+    background-color: #222 !important;
+    border: 1px solid #444 !important;
+    color: #fff;
+}
+.dark-card .card-body {
+    background-color: #222 !important;
+}
+.dark-box {
+    background-color: #222 !important;
+    border: 1px solid #444;
+    color: #fff;
+}
+.dark-box-alt {
+    background-color: #333 !important;
+    border: 1px solid #444;
+    color: #fff;
+}
+.badge.bg-secondary {
+    background-color: #555 !important;
+    color: #fff !important;
+}
+.dark-table {
+    color: #fff;
+    border-color: #444;
+}
+.dark-table thead {
+    background-color: #333 !important;
+    color: #fff;
+}
+.dark-table tbody tr {
+    background-color: #222;
+    border-top: 1px solid #444;
+}
+.dark-table tbody tr:nth-of-type(even) {
+    background-color: #2a2a2a;
+}
+pre, code {
+    background-color: #222 !important;
+    color: #fff !important;
+}
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #222;
+}
+::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+.sticky-top {
+    top: 1rem;
+}
+</style>
+
+<script>
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if(target) {
+            target.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+});
+
+window.addEventListener('scroll', () => {
+    const sections = document.querySelectorAll('section, li[id^="predictive-model-training-step"]');
+    const navLinks = document.querySelectorAll('.list-group-item');
+    
+    sections.forEach(section => {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= 100 && rect.bottom >= 100) {
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${section.id}`) {
+                    link.classList.add('active');
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -271,9 +271,12 @@ function fetchAndUpdateTrafficChart() {
         });
 
         const realTimePoints = Object.keys(aggregated)
-            .map(ts => ({ x: new Date(parseInt(ts, 10) * 1000), y: aggregated[ts] }))
-            .sort((a, b) => a.x - b.x)
-            .filter(pt => pt.x >= new Date(now.getTime() - REALTIME_WINDOW));
+  .map(ts => ({
+    x: new Date(parseInt(ts, 10) * 1000), // Convert seconds to milliseconds
+    y: aggregated[ts]
+  }))
+  .sort((a, b) => a.x - b.x)
+  .filter(pt => pt.x >= new Date(now.getTime() - REALTIME_WINDOW));
 
         // Process Predicted Traffic by Group
         const groupPredictions = {};
@@ -287,11 +290,12 @@ function fetchAndUpdateTrafficChart() {
                     borderDash: [5, 5],
                     borderWidth: 1,
                     pointRadius: 2,
-                    fill: false
+                    fill: false,
+                    tension: 0.4 // Add tension for smoother lines
                 };
             }
             groupPredictions[groupKey].data.push({
-                x: new Date(pt.timestamp * 1000),
+                x: new Date(pt.timestamp * 1000), // Ensure correct timestamp conversion
                 y: pt.value
             });
         });
@@ -299,7 +303,7 @@ function fetchAndUpdateTrafficChart() {
         // Update Chart Datasets
         const existingDatasets = trafficChart.data.datasets;
         
-        // Keep real-time dataset (index 0) and remove old predictions
+        // Keep only the real-time dataset and remove any old prediction datasets
         trafficChart.data.datasets = [existingDatasets[0]];
         
         // Add/Update group prediction datasets
@@ -307,16 +311,16 @@ function fetchAndUpdateTrafficChart() {
             const existingIndex = trafficChart.data.datasets.findIndex(d => d.label === newDataset.label);
             
             if (existingIndex > -1) {
-                // Update existing dataset
+                // Update existing dataset data
                 trafficChart.data.datasets[existingIndex].data = newDataset.data;
             } else {
-                // Add new dataset
+                // Add new dataset with correct properties
                 trafficChart.data.datasets.push({
                     ...newDataset,
-                    // Maintain other styling properties
                     backgroundColor: `${newDataset.borderColor}33`,
                     pointBackgroundColor: newDataset.borderColor,
-                    pointBorderColor: '#ffffff'
+                    pointBorderColor: '#ffffff',
+                    tension: 0.4 // Ensure smooth line
                 });
             }
         });
@@ -325,7 +329,7 @@ function fetchAndUpdateTrafficChart() {
         if (realTimePoints.length > 0) {
             const lastRealTime = realTimePoints[realTimePoints.length - 1].x;
             trafficChart.data.datasets.forEach(ds => {
-                if (ds.label.includes('Prediction')) {
+                if (ds.label.startsWith('Group')) {
                     ds.data = ds.data.filter(pt => 
                         (pt.x - lastRealTime) > GAP_THRESHOLD
                     );
@@ -444,9 +448,6 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   });
 
-</script>
-
-<script>
 document.addEventListener("DOMContentLoaded", function () {
     const alertCache = new Set(); // Cache to track unique alerts
     const tableBody = document.querySelector("#alertTable tbody");
@@ -651,7 +652,10 @@ document.addEventListener("DOMContentLoaded", function () {
     updateStrategyInfo(); // Initial call
     fetchGroups();
 });
-
+setInterval(fetchAndUpdateTrafficChart, 2500);  // Call every second
+document.getElementById('resetTrafficZoomButton').addEventListener('click', () => {
+    trafficChart.resetZoom();
+});
   </script>
 
 <style>

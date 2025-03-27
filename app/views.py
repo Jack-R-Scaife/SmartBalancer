@@ -12,6 +12,10 @@ def index():
     session['sub_links_open'] = False
     return render_template('dashboard.html')
 
+@main_blueprint.route('/userDoc')
+def userDoc():
+    session['sub_links_open'] = False
+    return render_template('userDoc.html')
 
 # Web UI route for the server details page
 @main_blueprint.route('/server')

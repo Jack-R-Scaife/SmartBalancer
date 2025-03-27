@@ -746,7 +746,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (data.status === "success") {
           let strategyText = `Strategy: <b>${data.strategy_name}</b>`;
           if (data.ai_enabled) {
-            strategyText += "<br><span style='color:#67FF77;'>AI Enabled</span>";
+            strategyTextd;
           }
           document.getElementById("strategyInfo").innerHTML = strategyText;
         } else {
