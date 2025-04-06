@@ -1211,9 +1211,10 @@ def train_model():
             'cpu_usage', 'memory_usage', 'connections', 'traffic_rate', 
             'scenario', 'strategy'
         ]]
-        
+        features.columns = [col.replace(' ', '_') for col in features.columns]
         # One-hot encode categorical variables
         features_encoded = pd.get_dummies(features, columns=['scenario', 'strategy'])
+        features_encoded.columns = [col.replace(' ', '_') for col in features_encoded.columns]
         X = features_encoded
         y = data['future_traffic']
 
@@ -1226,7 +1227,10 @@ def train_model():
             learning_rate=learning_rate,
             max_depth=max_depth,
             random_state=random_state,
-            subsample=subsample
+            subsample=subsample,
+            force_row_wise=True, 
+            verbose=-1,  # Suppress LightGBM's info messages
+            deterministic=True  # Ensure reproducible results
         )
         model.fit(X_train, y_train)
 
@@ -1236,7 +1240,7 @@ def train_model():
         r2 = r2_score(y_test, y_pred)
         
         # Store feature importances to understand which ones matter most
-        feature_importances = dict(zip(X.columns, model.feature_importances_))
+        feature_importances = {k: float(v) for k, v in zip(X.columns, model.feature_importances_)}
         
         # Calculate scenario-specific accuracy
         scenario_mses = {}
@@ -1247,7 +1251,8 @@ def train_model():
                 if mask.any():
                     scenario_y_test = y_test[mask]
                     scenario_y_pred = y_pred[mask]
-                    scenario_mses[scenario] = mean_squared_error(scenario_y_test, scenario_y_pred)
+                    scenario_mse = mean_squared_error(scenario_y_test, scenario_y_pred)
+                    scenario_mses[scenario] = float(scenario_mse)
 
         # Save the model
         models_folder = os.path.join(os.getcwd(), 'Models')
@@ -1358,15 +1363,49 @@ def set_active_model_for_all():
 def save_training_result(result):
     import json
     import os
+    from datetime import datetime
+    import numpy as np
+    
+    # Create a clean copy that's safe for JSON
+    clean_result = {}
+    for key, value in result.items():
+        # Handle numpy values
+        if isinstance(value, np.ndarray):
+            clean_result[key] = value.tolist()
+        elif isinstance(value, (np.integer, np.floating)):
+            clean_result[key] = float(value)
+        elif isinstance(value, dict):
+            # For nested dictionaries (like feature_importances)
+            clean_dict = {}
+            for k, v in value.items():
+                if isinstance(v, (np.integer, np.floating)):
+                    clean_dict[k] = float(v)
+                else:
+                    clean_dict[k] = v
+            clean_result[key] = clean_dict
+        else:
+            clean_result[key] = value
+    
     history_file = os.path.join(os.getcwd(), 'training_history.json')
     try:
         with open(history_file, 'r') as f:
             history = json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         history = []
-    history.append(result)
-    with open(history_file, 'w') as f:
-        json.dump(history, f)
+    
+    # Add the cleaned result
+    history.append(clean_result)
+    
+    # Verify it's serializable before writing
+    try:
+        json.dumps(history)  # Test if it can be serialized
+        with open(history_file, 'w') as f:
+            json.dump(history, f)
+    except Exception as e:
+        print(f"Error saving training history: {e}")
+        # If there's an error, just save an empty array
+        with open(history_file, 'w') as f:
+            f.write('[]')
 
 
 @api_blueprint.route('/training_history', methods=['GET'])
@@ -1374,8 +1413,22 @@ def get_training_history():
     try:
         import json, os
         history_file = os.path.join(os.getcwd(), 'training_history.json')
+        
+        # Check if the file exists
+        if not os.path.exists(history_file):
+            return jsonify({'status': 'success', 'history': []}), 200
+
+        # Read and parse the file
         with open(history_file, 'r') as f:
-            history = json.load(f)
-        return jsonify({'status': 'success', 'history': history}), 200
+            content = f.read()
+            if not content.strip():
+                return jsonify({'status': 'success', 'history': []}), 200
+            history = json.loads(content)
+            return jsonify({'status': 'success', 'history': history}), 200
+
+    except json.JSONDecodeError as e:
+        # Handle JSON parsing errors
+        return jsonify({'status': 'error', 'message': f'Invalid JSON in history file: {str(e)}'}), 500
     except Exception as e:
+        # Handle all other errors
         return jsonify({'status': 'error', 'message': str(e)}), 500
