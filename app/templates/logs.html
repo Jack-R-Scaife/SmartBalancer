@@ -59,62 +59,72 @@
     }
 
     // Display logs in the container
-    function displayLogs(logs) {
-        logsContainer.innerHTML = ""; // Clear existing logs
-
-        // We'll gather distinct "dates" if you want to populate date dropdown
+    function displayLogs(logStructure) {
+        logsContainer.innerHTML = "";
         const uniqueDates = new Set();
 
-        logs.forEach(log => {
-            const logItem = document.createElement("div");
-            logItem.className = "customlistgroup";
-
-            // For example, we can guess the group name from the log name,
-            // or we can keep them all in "group1" for now:
-            const groupName = "group1"; // or "group2" or something dynamic
-
-            // We'll pretend the date is derived from the 'modified' field,
-            // converting to YYYY-MM-DD format:
-            const modifiedDate = new Date(log.modified * 1000);
-            const dateStr = modifiedDate.toISOString().split("T")[0]; // "YYYY-MM-DD"
-
-            // Attach data attributes for filtering
-            logItem.setAttribute("data-group", groupName);
-            logItem.setAttribute("data-date", dateStr);
-
-            logItem.innerHTML = `
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="mb-0">Log: ${log.name}</h6>
-                        <small>
-                            Size: ${log.size} bytes | 
-                            Modified: ${modifiedDate.toLocaleString()}
-                        </small>
-                    </div>
-                    <button class="cstmbutton" data-name="${log.name}">
-                        View
-                    </button>
-                </div>
-            `;
-
-            logItem.querySelector("button").addEventListener("click", function () {
-                const logName = this.getAttribute("data-name");
-                // The route in your code is "/api/logs/view?name=..."
-                window.location.href = `/api/logs/view?name=${encodeURIComponent(logName)}`;
-            });
-
-            logsContainer.appendChild(logItem);
-
-            // Track the date so we can add it to the date dropdown
-            uniqueDates.add(dateStr);
+        // Clear and populate server filter
+        serverFilter.innerHTML = '<option value="all">All Servers</option>';
+        Object.keys(logStructure).forEach(ip => {
+            const option = document.createElement("option");
+            option.value = ip;
+            option.textContent = ip === "load_balancer" ? "Load Balancer" : ip;
+            serverFilter.appendChild(option);
         });
 
-        // 3b) Populate your date dropdown with actual dates
-        populateDateDropdown([...uniqueDates]);
+        // Iterate through each server's logs
+        Object.entries(logStructure).forEach(([ip, serverLogs]) => {
+            const serverSection = document.createElement("div");
+            serverSection.className = "server-section mb-4";
+            serverSection.setAttribute("data-server", ip);
+            serverSection.innerHTML = `<h5 class="text-white mb-3">${ip === "load_balancer" ? "Load Balancer" : ip}</h5>`;
 
-        // 3c) Finally, apply filters so the logs appear or not
+            serverLogs.forEach(log => {
+                const logItem = document.createElement("div");
+                logItem.className = "customlistgroup";
+                
+                // Parse UK date properly
+                const [datePart, timePart] = log.modified.split(' ');
+                const [day, month, year] = datePart.split('/');
+                const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                
+                logItem.dataset.date = isoDate;
+                logItem.dataset.server = ip;
+
+                logItem.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">${log.name}</h6>
+                            <small class="text-muted">
+                                ${(log.size/1024).toFixed(2)}KB - 
+                                ${log.modified} <!-- UK formatted date display -->
+                            </small>
+                        </div>
+                        <button class="cstmbutton" 
+                                data-name="${log.name}">
+                            View
+                        </button>
+                    </div>
+                `;
+
+                logItem.querySelector("button").addEventListener("click", function() {
+                    // Use just the log name as required by the API
+                    const logName = this.dataset.name;
+                    window.location.href = `/api/logs/view?name=${encodeURIComponent(logName)}`;
+                });
+
+                serverSection.appendChild(logItem);
+                uniqueDates.add(isoDate);
+            });
+
+            logsContainer.appendChild(serverSection);
+        });
+
+        // Populate date filter with ISO dates
+        populateDateDropdown([...uniqueDates].sort().reverse());
         applyFilters();
     }
+
 
     /**
      * 4) Populate the date dropdown with the distinct dates from the logs
@@ -140,28 +150,27 @@
      *    - Filter by search text (from input)
      */
      function applyFilters() {
-    const groupValue = serverFilter.value; // Use the existing serverFilter variable
-    const dateValue = dateFilter.value;
+    const selectedServer = serverFilter.value;
+    const selectedDate = dateFilter.value;
     const searchQuery = searchBar.value.toLowerCase().trim();
 
-    document.querySelectorAll("#logs-container .customlistgroup").forEach(logItem => {
-        const itemGroup = logItem.getAttribute("data-group");
-        const itemDate = logItem.getAttribute("data-date");
-        const logTitle = logItem.querySelector("h6").textContent.toLowerCase();
+    document.querySelectorAll(".server-section").forEach(serverSection => {
+        const serverIP = serverSection.getAttribute("data-server");
+        let visibleLogs = 0;
 
-        // Group check
-        const matchesGroup = (groupValue === "all" || itemGroup === groupValue);
-        // Date check
-        const matchesDate = (dateValue === "all" || itemDate === dateValue);
-        // Search check
-        const matchesSearch = !searchQuery || logTitle.includes(searchQuery);
+        serverSection.querySelectorAll(".customlistgroup").forEach(logItem => {
+            const matchesServer = selectedServer === "all" || serverIP === selectedServer;
+            const matchesDate = selectedDate === "all" || logItem.dataset.date === selectedDate;
+            const matchesSearch = logItem.querySelector("h6").textContent.toLowerCase().includes(searchQuery);
+            
+            const shouldShow = matchesServer && matchesDate && matchesSearch;
+            logItem.style.display = shouldShow ? "block" : "none";
+            if (shouldShow) visibleLogs++;
+        });
 
-        // All conditions must be true to show
-        const isVisible = (matchesGroup && matchesDate && matchesSearch);
-        logItem.style.display = isVisible ? "block" : "none";
+        serverSection.style.display = visibleLogs > 0 ? "block" : "none";
     });
 }
-
     // 6) Listen to changes on group, date, and search
     serverFilter.addEventListener("change", applyFilters);
     dateFilter.addEventListener("change", applyFilters);

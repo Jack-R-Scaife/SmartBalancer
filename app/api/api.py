@@ -6,7 +6,7 @@ from app import db
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers,get_servers_by_group
 from app.models import Server,LoadBalancerSetting,Strategy,Rule,ServerGroup
-import json,os
+import json,os,gzip
 import random,logging
 from server.traffic_store import TrafficStore
 from server.strategy_manager import StrategyManager
@@ -19,6 +19,7 @@ from flask import make_response
 from server.logging_config import api_logger
 from server.logging_config import main_logger, traffic_logger
 from server.rules_manager import create_rule
+from server.logs_manager import store_agent_logs
 import time,os
 from datetime import datetime, timezone, timedelta
 from server.dynamic_algorithms import DynamicAlgorithms
@@ -508,100 +509,74 @@ def scan_logs(directory=LOGS_DIR):
 
 @api_blueprint.route('/logs', methods=['GET'])
 def get_logs():
-    """
-    List all log files from the local logs folder.
-    """
-    logs_dir = "./logs"
-    logs = []
-
-    if not os.path.exists(logs_dir):
-        os.makedirs(logs_dir)
-
-    for root, _, files in os.walk(logs_dir):
-        for file in files:
-            if file.endswith('.log'):
-                full_path = os.path.join(root, file)
-                logs.append({
-                    "name": file,
-                    "size": os.path.getsize(full_path),
-                    "modified": os.path.getmtime(full_path),
-                })
-
-    return jsonify({"status": "success", "logs": logs}), 200
+    """List all log files organized by server"""
+    try:
+        from server.logs_manager import scan_logs
+        log_structure = scan_logs()
+        return jsonify({"status": "success", "logs": log_structure}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 
 @api_blueprint.route('/logs/content', methods=['GET'])
 def get_log_content():
-    """
-    API endpoint to fetch the content of a specific log file or its metadata.
-    """
-    raw_path = request.args.get("path")
-    if not raw_path:
-        return jsonify({"status": "error", "message": "Log path is required."}), 400
-
-    # Force absolute path
-    logs_dir = os.path.abspath("./logs")
-    full_path = os.path.abspath(raw_path)
-
-    # Ensure we're still inside ./logs
-    if not full_path.startswith(logs_dir):
-        return jsonify({"status": "error", "message": "Invalid log path."}), 400
-
+    path = request.args.get("path")
     try:
-        # If the user requested something ending in .meta, load the metadata file directly
-        if full_path.endswith(".meta"):
-            api_logger.info(f"Fetching metadata for: {full_path}")
-
-            if not os.path.exists(full_path):
-                # Create a new meta file if it doesn't exist
-                default_meta = {"system": {}, "user": {}}
-                with open(full_path, "w") as meta_file:
-                    json.dump(default_meta, meta_file)
-
-            with open(full_path, "r") as meta_file:
-                meta_data = json.load(meta_file)
-            return jsonify({"status": "success", "meta": meta_data}), 200
-
-        # Otherwise, it's a request for the log content
-        if not os.path.exists(full_path):
-            raise FileNotFoundError(f"Log file not found: {full_path}")
-
-        with open(full_path, "r") as file:
-            content = file.readlines()
-
-        return jsonify({"status": "success", "content": content}), 200
-
+        if path.endswith(".gz"):
+            with gzip.open(path, 'rt') as f:
+                content = f.read()
+            return jsonify({"status": "success", "content": content}), 200
+        else:
+            with open(path, 'r') as f:
+                content = f.read()
+            return jsonify({"status": "success", "content": content}), 200
     except Exception as e:
-        api_logger.error(f"Error in get_log_content: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_blueprint.route('/logs/view', methods=['GET'])
 def view_log_page():
-    """
-    Serve the content of a specific log file.
-    """
+    """Serve the content of a specific log file with proper path handling"""
     log_name = request.args.get('name', '')
-    logs_dir = "./logs"
-    log_path = os.path.join(logs_dir, log_name)
+    
+    if not log_name:
+        return "Log name parameter is required", 400
 
-    if not os.path.exists(log_path):
-        return f"Log file not found: {log_name}", 404
+    # Sanitize the log name
+    log_name = os.path.basename(log_name)  # Prevent directory traversal
+    if not log_name.endswith('.log'):
+        return "Invalid log file type", 400
+
+    # Create absolute path
+    logs_dir = os.path.abspath("./logs")
+    log_path = os.path.join(logs_dir, log_name)
+    
+    # Normalize and verify path
+    log_path = os.path.normpath(log_path)
+    if not log_path.startswith(logs_dir):
+        return "Invalid log path", 400
 
     try:
-        with open(log_path, 'r') as f:
+        # Create logs directory if it doesn't exist
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Check if file exists
+        if not os.path.exists(log_path):
+            return f"Log file not found: {log_name}", 404
+
+        with open(log_path, 'r', encoding='utf-8') as f:
             log_content = f.read()
 
-        # Pass log_path as well as log_content to the template
         return render_template(
             'log_view.html',
             log_content=log_content,
-            # maybe just store the relative path after ./logs
-            log_path=os.path.relpath(log_path, start=logs_dir)
+            log_path=log_name  # Only pass the filename, not full path
         )
+
     except Exception as e:
-        return f"Error reading log file: {e}", 500
+        api_logger.error(f"Error reading log file {log_path}: {str(e)}")
+        return f"Error reading log file: {str(e)}", 500
 
 @api_blueprint.route('/logs/custom_rules', methods=['GET', 'POST'])
 def custom_rules():
@@ -752,12 +727,16 @@ def download_agent_logs():
     try:
         load_balancer = LoadBalancer()
         agent_logs = load_balancer.fetch_logs_from_all_agents()
-        # At this point, logs are ALREADY unzipped in ./logs
+        
+        # Store logs per agent with compression
+        for agent in agent_logs:
+            if 'logs' in agent and 'ip' in agent:
+                store_agent_logs(agent['ip'], agent)
         
         return jsonify({
             "status": "success", 
-            "message": "Agent logs downloaded and extracted.", 
-            "results": agent_logs
+            "message": "Agent logs stored separately",
+            "received_logs": len(agent_logs)
         }), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
