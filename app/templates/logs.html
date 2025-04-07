@@ -96,23 +96,41 @@
                         <div>
                             <h6 class="mb-0">${log.name}</h6>
                             <small class="text-muted">
-                                ${(log.size/1024).toFixed(2)}KB - 
-                                ${log.modified} <!-- UK formatted date display -->
+                                ${(log.size/1024).toFixed(2)}KB - ${log.modified}
                             </small>
                         </div>
-                        <button class="cstmbutton" 
-                                data-name="${log.name}">
-                            View
-                        </button>
+                        <div class="button-group">
+                            <button class="cstmbutton" data-name="${log.name}">View</button>
+                            <button class="cstmbutton customRemove" data-name="${log.name}">Delete</button>
+                        </div>
                     </div>
                 `;
 
-                logItem.querySelector("button").addEventListener("click", function() {
-                    // Use just the log name as required by the API
+                const viewBtn = logItem.querySelector("button:not(.customRemove)");
+                const deleteBtn = logItem.querySelector("button.customRemove");
+
+                viewBtn.addEventListener("click", function() {
                     const logName = this.dataset.name;
                     window.location.href = `/api/logs/view?name=${encodeURIComponent(logName)}`;
                 });
 
+                deleteBtn.addEventListener("click", function() {
+                    const logName = this.dataset.name;
+                    // Get the server identifier from the parent server section's data attribute
+                    const server = serverSection.getAttribute("data-server");
+                    axios.delete(`/api/logs/delete?name=${encodeURIComponent(logName)}&server=${encodeURIComponent(server)}`)
+                        .then(response => {
+                            if(response.data.status === "success"){
+                                alert("Log deleted successfully");
+                                fetchLogs(); // Refresh logs list
+                            } else {
+                                alert("Error deleting log: " + response.data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Error deleting log:", error);
+                        });
+                });
                 serverSection.appendChild(logItem);
                 uniqueDates.add(isoDate);
             });
@@ -182,6 +200,7 @@
     </script>
     
 <style>
+
     .search-bar {
   width: 100%;
   padding: 10px;
@@ -222,14 +241,29 @@
   box-shadow: none;
 }
 
-.cstmbutton{
+.cstmbutton {
     background-color: #055858;
     border: solid 1px #2BB7DC;
     color: white;
-    width: 25%;
     height: 25px;
     border-radius: 5px;
     font-size: 16px;
+    padding: 0 10px;
+    margin-right: 5px;
+    width: auto;  /* Changed from 100% to auto */
+    display: inline-block; /* Ensure buttons sit inline */
+}
+
+/* Style for the custom remove (delete) button */
+.customRemove {
+    background-color: #681313;
+    border: solid 1px #FF7676;
+}
+
+/* Optional: ensure the container for the buttons is a flex container */
+.button-group {
+    display: flex;
+    gap: 5px;
 }
 .customlistgroup{
     background: transparent;

@@ -97,7 +97,7 @@ const deleteSelectedGroups = async () => {
         // Send a single request with all group IDs
         const response = await axios.post('/api/groups/delete', { group_ids: groupIds });
 
-        if (response.data.status === true) {
+        if (response.data.status === "success") {
             alert('Selected group(s) deleted successfully.');
         } else {
             alert(`Failed to delete groups: ${response.data.message}`);

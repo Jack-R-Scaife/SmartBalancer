@@ -1411,3 +1411,41 @@ def get_training_history():
     except Exception as e:
         # Handle all other errors
         return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+
+@api_blueprint.route('/logs/delete', methods=['DELETE'])
+def delete_log():
+    log_name = request.args.get('name')
+    server = request.args.get('server', 'load_balancer')
+    
+    if not log_name:
+        return jsonify({"status": "error", "message": "Log name is required"}), 400
+
+    # Sanitize and build the log file path
+    logs_dir = os.path.abspath("./logs")
+    log_path = os.path.normpath(os.path.join(logs_dir, log_name))
+    if not log_path.startswith(logs_dir):
+        return jsonify({"status": "error", "message": "Invalid log path"}), 400
+
+    # Delete the log file from the load balancer's logs folder
+    if os.path.exists(log_path):
+        try:
+            os.remove(log_path)
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+    else:
+        return jsonify({"status": "error", "message": "File not found"}), 404
+
+    # If the log is from an agent/server, send a TCP command to delete it there too.
+    if server != "load_balancer":
+        try:
+            from server.agent_monitor import LoadBalancer
+            load_balancer = LoadBalancer()
+            # Assume the agent is listening on port 9000.
+            response = load_balancer.send_tcp_request(server, 9000, "delete_log", payload={"log_name": log_name})
+            if response.get("status") != "success":
+                return jsonify({"status": "error", "message": "Log deleted on LB but failed on agent: " + response.get("message", "")}), 500
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    return jsonify({"status": "success", "message": "Log deleted successfully"}), 200

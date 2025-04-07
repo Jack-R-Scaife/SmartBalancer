@@ -24,7 +24,6 @@
         <table class="customtable">
             <thead>
                 <tr>
-                    <th> <input class="checkboxes" type="checkbox"></th>
                     <th>Group</th>
                     <th>Status</th>
                     <th>Name</th>
@@ -39,7 +38,6 @@
             <tbody>
                 {% for server in servers %}
                 <tr>
-                    <td><input class="checkboxes" type="checkbox"></td>
                     <td>
                         <div>
                             <select class="customselect" id="group_{{ server.server_id }}" aria-label="Group Select" onchange="changeGroup('{{ server.server_id }}')">                            {% if server.group %}

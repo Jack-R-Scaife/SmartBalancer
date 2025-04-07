@@ -26,15 +26,15 @@ def scan_logs(directory="./logs"):
     log_structure = {}
     
     try:
-        # Add load balancer logs first
+        # Process all files in the root of the logs directory as load balancer logs.
         lb_logs = []
-        for file in os.listdir(directory):
-            if file.endswith(".log") and not file.startswith("agent_"):
-                full_path = os.path.join(directory, file)
+        for entry in os.listdir(directory):
+            full_path = os.path.join(directory, entry)
+            if os.path.isfile(full_path) and entry.endswith(".log"):
                 stats = os.stat(full_path)
                 modified = datetime.fromtimestamp(stats.st_mtime).strftime("%d/%m/%Y %H:%M:%S")
                 lb_logs.append({
-                    "name": file,
+                    "name": entry,
                     "path": full_path,
                     "size": stats.st_size,
                     "modified": modified  # UK format
@@ -42,20 +42,20 @@ def scan_logs(directory="./logs"):
         if lb_logs:
             log_structure["load_balancer"] = lb_logs
 
-        # Add agent logs
-        for agent_dir in os.listdir(directory):
-            if agent_dir.startswith("agent_"):
-                ip = agent_dir[6:]
+        # Process directories that start with "agent_" as agent logs.
+        for entry in os.listdir(directory):
+            full_path = os.path.join(directory, entry)
+            if os.path.isdir(full_path) and entry.startswith("agent_"):
+                ip = entry[6:]
                 log_structure[ip] = []
-                agent_path = os.path.join(directory, agent_dir)
-                for log_file in os.listdir(agent_path):
+                for log_file in os.listdir(full_path):
                     if log_file.endswith(".log") or log_file.endswith(".gz"):
-                        full_path = os.path.join(agent_path, log_file)
-                        stats = os.stat(full_path)
+                        file_path = os.path.join(full_path, log_file)
+                        stats = os.stat(file_path)
                         modified = datetime.fromtimestamp(stats.st_mtime).strftime("%d/%m/%Y %H:%M:%S")
                         log_structure[ip].append({
                             "name": log_file,
-                            "path": full_path,
+                            "path": file_path,
                             "size": stats.st_size,
                             "modified": modified  # UK format
                         })

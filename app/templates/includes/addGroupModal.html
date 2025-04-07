@@ -110,135 +110,158 @@
 </div>
 <script>
     const steps = ['step1', 'step2', 'step3'];
-let currentStep = 0;
+    let currentStep = 0;
 
-// State to store data across steps
-const groupData = {
-    groupName: '',
-    groupDescription: '',
-    selectedServers: []
-};
+    // State to store data across steps
+    const groupData = {
+        groupName: '',
+        groupDescription: '',
+        selectedServers: []
+    };
 
-// Show steps on "Create a New Group"
-document.getElementById('startCreateGroup').addEventListener('click', () => {
-    document.getElementById('initialContent').classList.add('d-none');
-    document.getElementById('stepContent').classList.remove('d-none');
-    document.getElementById('footer').classList.remove('d-none');
+    // Show steps on "Create a New Group"
+    document.getElementById('startCreateGroup').addEventListener('click', () => {
+        document.getElementById('initialContent').classList.add('d-none');
+        document.getElementById('stepContent').classList.remove('d-none');
+        document.getElementById('footer').classList.remove('d-none');
 
-    document.getElementById('prevStep').disabled = true; // reset to first step
-    currentStep = 0;
-});
+        currentStep = 0;
+        // Enable and label the previous button as "Cancel" on the first step
+        const prevBtn = document.getElementById('prevStep');
+        prevBtn.disabled = false;
+        prevBtn.textContent = 'Cancel';
+    });
 
-// Next button functionality
-document.getElementById('nextStep').addEventListener('click', async () => {
-    if (currentStep < steps.length - 1) {
-        // Save data for the current step
-        if (currentStep === 0) {
-            // Step 1: Capture group name and description
-            const groupNameInput = document.querySelector('#step1 input');
-            const groupDescriptionInput = document.querySelector('#step1 textarea');
+    // Next button functionality
+    document.getElementById('nextStep').addEventListener('click', async () => {
+        if (currentStep < steps.length - 1) {
+            // Save data for the current step
+            if (currentStep === 0) {
+                // Step 1: Capture group name and description
+                const groupNameInput = document.querySelector('#step1 input');
+                const groupDescriptionInput = document.querySelector('#step1 textarea');
 
-            groupData.groupName = groupNameInput.value.trim();
-            groupData.groupDescription = groupDescriptionInput.value.trim();
+                groupData.groupName = groupNameInput.value.trim();
+                groupData.groupDescription = groupDescriptionInput.value.trim();
 
-            if (!groupData.groupName) {
-                alert('Please enter a group name.');
-                return;
+                if (!groupData.groupName) {
+                    alert('Please enter a group name.');
+                    return;
+                }
+
+                if (!groupData.groupDescription) {
+                    alert('Please enter a group description.');
+                    return;
+                }
+            } else if (currentStep === 1) {
+                // Step 2: Capture selected servers
+                const selectedCheckboxes = document.querySelectorAll('#serverList2 input[name="server"]:checked');
+                groupData.selectedServers = Array.from(selectedCheckboxes).map(cb => ({
+                    id: cb.value,
+                    label: cb.parentElement.textContent.trim()
+                }));
+
+                if (groupData.selectedServers.length === 0) {
+                    alert('Please select at least one server.');
+                    return;
+                }
             }
 
-            if (!groupData.groupDescription) {
-                alert('Please enter a group description.');
-                return;
-            }
-        } else if (currentStep === 1) {
-            // Step 2: Capture selected servers
-            const selectedCheckboxes = document.querySelectorAll('#serverList2 input[name="server"]:checked');
-            groupData.selectedServers = Array.from(selectedCheckboxes).map(cb => ({
-                id: cb.value,
-                label: cb.parentElement.textContent.trim()
-            }));
+            // Move to the next step
+            document.getElementById(steps[currentStep]).classList.add('d-none');
+            currentStep++;
+            document.getElementById(steps[currentStep]).classList.remove('d-none');
 
-            if (groupData.selectedServers.length === 0) {
-                alert('Please select at least one server.');
-                return;
+            // Once we move beyond the first step, change the previous button text back to "Previous"
+            if (currentStep > 0) {
+                document.getElementById('prevStep').textContent = 'Previous';
+            }
+
+            // Update button text for the final step
+            if (currentStep === steps.length - 1) {
+                document.getElementById('nextStep').textContent = 'Confirm';
+
+                // Display summary in the Confirm step
+                document.querySelector('#step3 p:nth-child(2)').innerHTML = `<strong>Group Name:</strong> ${groupData.groupName}`;
+                document.querySelector('#step3 p:nth-child(3)').innerHTML = `<strong>Description:</strong> ${groupData.groupDescription}`;
+                document.querySelector('#step3 p:nth-child(4)').innerHTML = `<strong>Selected Servers:</strong> ${groupData.selectedServers.map(server => server.label).join(', ')}`;
+            }
+        } else {
+            // Step 3: Confirm and submit the group data
+            try {
+                const response = await axios.post('/api/groups/create', {
+                    name: groupData.groupName,
+                    description: groupData.groupDescription,
+                    servers: groupData.selectedServers.map(server => server.id)
+                });
+
+                if (response.data.status === "success") {
+                    alert('Group created successfully!');
+                    // Reset modal and state
+                    resetModal();
+                } else {
+                    alert(`Failed to create group: ${response.data.message}`);
+                }
+            } catch (error) {
+                console.error('Error creating group:', error);
+                alert('An error occurred while creating the group.');
             }
         }
+    });
 
-        // Move to the next step
-        document.getElementById(steps[currentStep]).classList.add('d-none');
-        currentStep++;
-        document.getElementById(steps[currentStep]).classList.remove('d-none');
-        document.getElementById('prevStep').disabled = false;
-
-        // Update button text for the final step
-        if (currentStep === steps.length - 1) {
-            document.getElementById('nextStep').textContent = 'Confirm';
-
-            // Display summary in the Confirm step
-            document.querySelector('#step3 p:nth-child(2)').innerHTML = `<strong>Group Name:</strong> ${groupData.groupName}`;
-            document.querySelector('#step3 p:nth-child(3)').innerHTML = `<strong>Description:</strong> ${groupData.groupDescription}`;
-            document.querySelector('#step3 p:nth-child(4)').innerHTML = `<strong>Selected Servers:</strong> ${groupData.selectedServers.map(server => server.label).join(', ')}`;
-        }
-    } else {
-        // Step 3: Confirm and submit the group data
-        try {
-            const response = await axios.post('/api/groups/create', {
-                name: groupData.groupName,
-                description: groupData.groupDescription,
-                servers: groupData.selectedServers.map(server => server.id)
-            });
-
-            if (response.data.status === "success") {
-                alert('Group created successfully!');
-                // Reset modal and state
-                resetModal();
-            } else {
-                alert(`Failed to create group: ${response.data.message}`);
+    // Previous (or Cancel) button functionality
+    document.getElementById('prevStep').addEventListener('click', () => {
+        if (currentStep === 0) { 
+            // Exit out of the create group flow and return to the initial content
+            document.getElementById('stepContent').classList.add('d-none');
+            document.getElementById('footer').classList.add('d-none');
+            document.getElementById('initialContent').classList.remove('d-none');
+            // Reset step progress if needed (optional: decide if you want to clear groupData or not)
+            currentStep = 0;
+            document.getElementById('nextStep').textContent = 'Next';
+            return;
+        } else if (currentStep > 0) {
+            document.getElementById(steps[currentStep]).classList.add('d-none');
+            currentStep--;
+            document.getElementById(steps[currentStep]).classList.remove('d-none');
+            document.getElementById('nextStep').textContent = 'Next';
+            // If we've stepped back to the first step, update the button text to "Cancel"
+            if (currentStep === 0) {
+                document.getElementById('prevStep').textContent = 'Cancel';
             }
-        } catch (error) {
-            console.error('Error creating group:', error);
-            alert('An error occurred while creating the group.');
         }
-    }
-});
+    });
 
-// Previous button functionality
-document.getElementById('prevStep').addEventListener('click', () => {
-    if (currentStep > 0) {
-        document.getElementById(steps[currentStep]).classList.add('d-none');
-        currentStep--;
-        document.getElementById(steps[currentStep]).classList.remove('d-none');
+    document.getElementById('selectAllServers').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('#serverList2 input[name="server"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+    });
+
+    // Reset modal and state
+    function resetModal() {
+        currentStep = 0;
+        groupData.groupName = '';
+        groupData.groupDescription = '';
+        groupData.selectedServers = [];
+
+        // Reset step views
+        steps.forEach(step => document.getElementById(step).classList.add('d-none'));
+        document.getElementById('initialContent').classList.remove('d-none');
+        document.getElementById('footer').classList.add('d-none');
         document.getElementById('nextStep').textContent = 'Next';
+        
+        // Reset the previous button text to "Cancel" (if starting a new create group flow)
+        document.getElementById('prevStep').textContent = 'Cancel';
 
-        if (currentStep === 0) {
-            document.getElementById('prevStep').disabled = true;
-        }
+        // Clear inputs
+        document.querySelector('#step1 input').value = '';
+        document.querySelector('#step1 textarea').value = '';
+        document.querySelectorAll('#serverList input[name="server"]').forEach(cb => cb.checked = false);
     }
-});
-
-// Reset modal and state
-function resetModal() {
-    currentStep = 0;
-    groupData.groupName = '';
-    groupData.groupDescription = '';
-    groupData.selectedServers = [];
-
-    // Reset step views
-    steps.forEach(step => document.getElementById(step).classList.add('d-none'));
-    document.getElementById('initialContent').classList.remove('d-none');
-    document.getElementById('footer').classList.add('d-none');
-    document.getElementById('nextStep').textContent = 'Next';
-    document.getElementById('prevStep').disabled = true;
-
-    // Clear inputs
-    document.querySelector('#step1 input').value = '';
-    document.querySelector('#step1 textarea').value = '';
-    document.querySelectorAll('#serverList input[name="server"]').forEach(cb => cb.checked = false);
-}
-
-
-
 </script>
+
 <style>
 .prevbtn, .nextbtn {
     width: 350px;

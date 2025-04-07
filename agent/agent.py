@@ -247,7 +247,26 @@ class Agent:
             elif command == "alerts":
                 response = self.get_alerts()
                 client_socket.sendall(json.dumps(response).encode('utf-8'))
-
+            elif command == "delete_log":
+                # Expect payload to contain "log_name"
+                payload = request.get("payload", {})
+                log_name = payload.get("log_name")
+                if not log_name:
+                    response = {"status": "error", "message": "Missing log_name in payload"}
+                else:
+                    agent_log_path = os.path.normpath(os.path.join(os.getcwd(), log_name))
+                    # Ensure the computed path is within the current working directory
+                    if not agent_log_path.startswith(os.getcwd()):
+                        response = {"status": "error", "message": "Invalid log path"}
+                    elif os.path.exists(agent_log_path):
+                        try:
+                            os.remove(agent_log_path)
+                            response = {"status": "success", "message": "Log deleted on agent"}
+                        except Exception as e:
+                            response = {"status": "error", "message": str(e)}
+                    else:
+                        response = {"status": "error", "message": "Log file not found on agent"}
+                client_socket.sendall(json.dumps(response).encode('utf-8'))
             elif command == "simulate_traffic":
                 # Extract the traffic configuration
                 if "payload" in request:
