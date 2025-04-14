@@ -746,7 +746,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (data.status === "success") {
           let strategyText = `Strategy: <b>${data.strategy_name}</b>`;
           if (data.ai_enabled) {
-            strategyTextd;
+            strategyText += " (AI Enabled)";
           }
           document.getElementById("strategyInfo").innerHTML = strategyText;
         } else {

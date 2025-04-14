@@ -420,8 +420,6 @@ class LoadBalancer:
 
         return {"status": "success", "message": "Traffic simulation completed"}
 
-    
-
     def lookup_group_id_for_agent(self, ip_address):
         """
         Given an agent's IP address, return the group_id of the group this server belongs to.
@@ -481,7 +479,13 @@ class LoadBalancer:
         # Fetch settings for the target group
         with self.app.app_context():
             setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
+            ai_enabled = setting.predictive_enabled if setting else False
         
+        if ai_enabled:
+            main_logger.info(f"AI-based enhancements are enabled for group {group_id}.")
+        else:
+            main_logger.info(f"AI-based enhancements are disabled for group {group_id}.")
+            
         strategies = []
         if setting:
             # Parse failover_priority correctly
@@ -495,15 +499,16 @@ class LoadBalancer:
             main_logger.debug(f"Evaluating strategy: {strat}")
             try:
                 if strat == "Round Robin":
-                    return self.strategy_executor.round_robin()
+                    return self.strategy_executor.round_robin(ai_enabled=ai_enabled)
                 elif strat == "Weighted Round Robin":
-                    return self.strategy_executor.weighted_round_robin()
+                    return self.strategy_executor.weighted_round_robin(ai_enabled=ai_enabled)
                 elif strat == "Least Connections":
-                    return self.dynamic_executor.least_connections()
+                    return self.dynamic_executor.least_connections(ai_enabled=ai_enabled)
                 elif strat == "Least Response Time":
-                    return self.dynamic_executor.least_response_time()
-                elif strat.strip() == "Resource-Based":  # Handle whitespace
-                    return self.dynamic_executor.resource_based()
+                    return self.dynamic_executor.least_response_time(ai_enabled=ai_enabled)
+                elif strat.strip() == "Resource-Based":
+                    return self.dynamic_executor.resource_based(ai_enabled=ai_enabled)
+
                 else:
                     raise ValueError(f"Unsupported strategy: {strat}")
             except Exception as e:

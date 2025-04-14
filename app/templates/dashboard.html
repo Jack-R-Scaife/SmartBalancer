@@ -254,93 +254,100 @@ function getGroupColor(groupId) {
     return groupColors[groupId];
 }
 
+function aggregatePredictions(predictedData) {
+    const grouped = {};
+    predictedData.forEach(pt => {
+        // Round timestamp to the nearest second
+        const ts = Math.floor(pt.timestamp);
+        if (!grouped[ts]) {
+            grouped[ts] = { sum: 0, count: 0 };
+        }
+        grouped[ts].sum += pt.value;
+        grouped[ts].count++;
+    });
+    
+    // Build aggregated data points (using average)
+    const aggregatedData = [];
+    Object.keys(grouped).sort().forEach(ts => {
+        const avgValue = grouped[ts].sum / grouped[ts].count;
+        aggregatedData.push({ x: new Date(ts * 1000), y: avgValue });
+    });
+    
+    return aggregatedData;
+}
+
+// Main function for fetching real-time and predicted traffic data and updating the chart.
 function fetchAndUpdateTrafficChart() {
     const now = new Date();
-    const REALTIME_WINDOW = 30 * 1000;
-    const GAP_THRESHOLD = 1000;
-
+    const REALTIME_WINDOW = 30 * 1000; // Only include real-time points from the last 30 seconds.
+    const GAP_THRESHOLD = 1000; // Remove any predicted points that fall within 1 second of the last real-time point.
+    
     Promise.all([
         fetch('/api/traffic').then(r => r.json()),
         fetch('/api/predicted_traffic').then(r => r.json())
     ]).then(([realTimeData, predictedData]) => {
-        // Process Real-Time Traffic
-        const aggregated = {};
+        // Process real-time traffic data:
+        // Sum values per second.
+        const aggregatedRealTime = {};
         realTimeData.forEach(pt => {
             const ts = Math.floor(pt.timestamp);
-            aggregated[ts] = (aggregated[ts] || 0) + pt.value;
+            aggregatedRealTime[ts] = (aggregatedRealTime[ts] || 0) + pt.value;
         });
-
-        const realTimePoints = Object.keys(aggregated)
-  .map(ts => ({
-    x: new Date(parseInt(ts, 10) * 1000), // Convert seconds to milliseconds
-    y: aggregated[ts]
-  }))
-  .sort((a, b) => a.x - b.x)
-  .filter(pt => pt.x >= new Date(now.getTime() - REALTIME_WINDOW));
-
-        // Process Predicted Traffic by Group
-        const groupPredictions = {};
-        predictedData.forEach(pt => {
-            const groupKey = `group-${pt.group_id}`;
-            if (!groupPredictions[groupKey]) {
-                groupPredictions[groupKey] = {
-                    label: `Group ${pt.group_id} (${pt.strategy})`,
-                    data: [],
-                    borderColor: getGroupColor(pt.group_id),
-                    borderDash: [5, 5],
-                    borderWidth: 1,
-                    pointRadius: 2,
-                    fill: false,
-                    tension: 0.4 // Add tension for smoother lines
-                };
-            }
-            groupPredictions[groupKey].data.push({
-                x: new Date(pt.timestamp * 1000), // Ensure correct timestamp conversion
-                y: pt.value
-            });
-        });
-
-        // Update Chart Datasets
-        const existingDatasets = trafficChart.data.datasets;
         
-        // Keep only the real-time dataset and remove any old prediction datasets
+        const realTimePoints = Object.keys(aggregatedRealTime)
+            .map(ts => ({
+                x: new Date(parseInt(ts, 10) * 1000),
+                y: aggregatedRealTime[ts]
+            }))
+            .sort((a, b) => a.x - b.x)
+            .filter(pt => pt.x >= new Date(now.getTime() - REALTIME_WINDOW));
+        
+        // Process predicted traffic:
+        // Aggregate ALL predicted points (from every group/server) into one overall line.
+        const aggregatedPredictions = aggregatePredictions(predictedData);
+        
+        // Update chart datasets:
+        // Assume that the first dataset (index 0) is reserved for the real-time traffic data.
+        // Replace any existing prediction datasets with a single overall predicted dataset.
+        const existingDatasets = trafficChart.data.datasets;
+        // Keep only the real-time dataset.
         trafficChart.data.datasets = [existingDatasets[0]];
         
-        // Add/Update group prediction datasets
-        Object.values(groupPredictions).forEach(newDataset => {
-            const existingIndex = trafficChart.data.datasets.findIndex(d => d.label === newDataset.label);
-            
-            if (existingIndex > -1) {
-                // Update existing dataset data
-                trafficChart.data.datasets[existingIndex].data = newDataset.data;
-            } else {
-                // Add new dataset with correct properties
-                trafficChart.data.datasets.push({
-                    ...newDataset,
-                    backgroundColor: `${newDataset.borderColor}33`,
-                    pointBackgroundColor: newDataset.borderColor,
-                    pointBorderColor: '#ffffff',
-                    tension: 0.4 // Ensure smooth line
-                });
-            }
-        });
-
-        // Remove predictions that are too close to real-time data
+        // Either update or add the predicted traffic dataset:
+        if (existingDatasets.length >= 2) {
+            trafficChart.data.datasets[1].data = aggregatedPredictions;
+        } else {
+            trafficChart.data.datasets.push({
+                label: 'Predicted Traffic',
+                data: aggregatedPredictions,
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderDash: [5, 5],
+                fill: false,
+                tension: 0.4,
+                borderWidth: 1,
+                pointRadius: 2,
+                pointHoverRadius: 3,
+                pointBackgroundColor: 'rgba(255, 99, 132, 0.8)',
+                pointBorderColor: 'rgba(255, 99, 132, 1)'
+            });
+        }
+        
+        // Optionally, if you want to remove predicted points that are too close to your real-time data,
+        // remove any prediction point whose timestamp is within GAP_THRESHOLD of the last real-time point.
         if (realTimePoints.length > 0) {
             const lastRealTime = realTimePoints[realTimePoints.length - 1].x;
             trafficChart.data.datasets.forEach(ds => {
-                if (ds.label.startsWith('Group')) {
-                    ds.data = ds.data.filter(pt => 
-                        (pt.x - lastRealTime) > GAP_THRESHOLD
-                    );
+                if (ds.label === 'Predicted Traffic') {
+                    ds.data = ds.data.filter(pt => (pt.x - lastRealTime) > GAP_THRESHOLD);
                 }
             });
         }
-
-        // Update real-time dataset
+        
+        // Update the real-time dataset.
         trafficChart.data.datasets[0].data = realTimePoints;
         trafficChart.update();
-    }).catch(error => console.error('Error:', error));
+    }).catch(error => console.error('Error in fetchAndUpdateTrafficChart:', error));
 }
 
 

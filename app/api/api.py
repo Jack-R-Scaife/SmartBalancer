@@ -40,123 +40,68 @@ def get_predicted_traffic():
         if not agent_metrics:
             return jsonify([]), 200
 
-        # Get current scenario from metrics or global state
-        scenario = None
-        
-        # Look for scenario in metrics
-        for agent in agent_metrics:
-            if 'metrics' in agent and 'scenario' in agent['metrics']:
-                scenario = agent['metrics']['scenario']
-                break
-        
-        # If not found in metrics, try to get from load balancer state
-        if not scenario:
-            scenario = getattr(load_balancer, 'current_scenario', 'baseline_low')
-            
-        api_logger.info(f"Current scenario detected: {scenario}")
+        # Get current scenario from load balancer state
+        scenario = getattr(load_balancer, 'current_scenario', 'baseline_low')
         all_predictions = []
 
-        # Group agents by their group_id
-        groups = {}
+        # Load the global model (not group-specific)
+        model_path = os.path.join('Models', "lightgbm_model.pkl")
+        if not os.path.exists(model_path):
+            return jsonify({"error": "Model not found"}), 404
+
+        model = joblib.load(model_path)
+
         for agent in agent_metrics:
-            group_id = agent.get('group_id', 1)
-            if group_id not in groups:
-                groups[group_id] = []
-            groups[group_id].append(agent)
-
-        for group_id, agents in groups.items():
-            # Check if predictive is enabled for this group
-            setting = LoadBalancerSetting.query.filter_by(group_id=group_id).first()
-            if not setting or not setting.predictive_enabled:
+            if 'metrics' not in agent:
                 continue
-
-            # Get group-specific metrics (only agents in this group)
-            num_agents = max(1, len(agents))
+                
+            metrics = agent['metrics']
             
-            # Aggregate metrics across all agents in the group
-            aggregated = {
-                'cpu_usage': sum(a.get('metrics', {}).get('cpu_total', 0) for a in agents)/num_agents,
-                'memory_usage': sum(a.get('metrics', {}).get('memory', 0) for a in agents)/num_agents,
-                'connections': sum(a.get('metrics', {}).get('connections', 0) for a in agents),
-                'traffic_rate': sum(a.get('metrics', {}).get('traffic_rate', 0) for a in agents),
+            # Get group for this agent to determine strategy
+             # Get group id from the agent data; if missing, look it up by agent IP.
+            group_id = agent.get('group_id') or load_balancer.lookup_group_id_for_agent(agent['ip'])
+            # Now use that group_id to get the strategy.
+            strategy = load_balancer.get_group_strategy(group_id) or "Round Robin"
+            
+            # Use server-specific features
+            features = {
+                'cpu_usage': metrics.get('cpu_total', 0),
+                'memory_usage': metrics.get('memory', 0),
+                'connections': metrics.get('connections', 0),
+                'traffic_rate': metrics.get('traffic_rate', 0),
                 'scenario': scenario,
-                'strategy': load_balancer.get_group_strategy(group_id) or "Round Robin"
+                'strategy': strategy
             }
-
-            # Get group-specific model
-            group = ServerGroup.query.filter_by(group_id=group_id).first()
-            model_filename = group.active_model if group else "lightgbm_model.pkl"
-            model_path = os.path.join('Models', model_filename)
             
-            if not os.path.exists(model_path):
-                api_logger.warning(f"Model not found for group {group_id}: {model_filename}")
-                continue
-
-            try:
-                # Load the model
-                model = joblib.load(model_path)
-                
-                # Prepare features - the scenario will be encoded as part of the features
-                feature_df = pd.DataFrame([aggregated])
-                
-                # Get one-hot encoded features
-                scenario_dummies = pd.get_dummies(feature_df['scenario'], prefix='scenario')
-                strategy_dummies = pd.get_dummies(feature_df['strategy'], prefix='strategy')
-                
-                # Drop original categorical columns and add encoded ones
-                feature_df = feature_df.drop(['scenario', 'strategy'], axis=1)
-                feature_df = pd.concat([feature_df, scenario_dummies, strategy_dummies], axis=1)
-                
-                # Ensure all columns needed by the model are present
-                for col in model.feature_names_in_:
-                    if col not in feature_df.columns:
-                        feature_df[col] = 0
-                
-                # Keep only the columns used by the model in the right order
-                feature_df = feature_df[model.feature_names_in_]
-                
-                # Make the raw prediction
-                raw_prediction = model.predict(feature_df)[0]
-                
-                # Apply a modest scaling based on the scenario - more organic
-                # but still responsive to scenario changes
-                scaling_factors = {
-                    'baseline_low': 1.0,
-                    'baseline_medium': 5.0,
-                    'baseline_high': 10.0
-                }
-                scaling = scaling_factors.get(scenario, 1.0)
-                
-                # Scale the prediction by our factor
-                predicted_traffic = max(raw_prediction * scaling, aggregated['traffic_rate'])
-                
-                # Add some realistic variation (±10%) to make predictions look more natural
-                variations = [random.uniform(0.9, 1.1) for _ in range(60)]
-                
-                api_logger.info(f"Group {group_id} prediction: scenario={scenario}, " +
-                              f"raw={raw_prediction}, scaled={predicted_traffic}")
-                
-                # Generate predictions for the next 60 seconds with slight variations
-                current_time = datetime.now()
-                predictions = [{
-                    'timestamp': (current_time + timedelta(seconds=i)).timestamp(),
-                    'value': max(1, predicted_traffic * variations[i]),  # Ensure positive values
-                    'group_id': group_id,
-                    'strategy': aggregated['strategy'],
-                    'scenario': scenario
-                } for i in range(60)]
-                
-                all_predictions.extend(predictions)
-
-            except Exception as model_error:
-                api_logger.error(f"Prediction error for group {group_id}: {model_error}", exc_info=True)
-                continue
+            # Prepare feature DataFrame
+            feature_df = pd.DataFrame([features])
+            feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'])
+            
+            # Align features with model expectations
+            for col in model.feature_names_in_:
+                if col not in feature_df.columns:
+                    feature_df[col] = 0
+            feature_df = feature_df[model.feature_names_in_]
+            
+            # Predict for this server
+            prediction = model.predict(feature_df)[0]
+            
+            # Generate predictions for next 60s with variations
+            current_time = datetime.now()
+            predictions = [{
+                'timestamp': (current_time + timedelta(seconds=i)).timestamp(),
+                'value': max(1, prediction * random.uniform(0.9, 1.1)),
+                'agent_ip': agent['ip'],
+                'strategy': features['strategy'],
+                'scenario': scenario
+            } for i in range(60)]
+            
+            all_predictions.extend(predictions)
 
         return jsonify(all_predictions), 200
-
     except Exception as e:
-        api_logger.error(f"Global prediction error: {e}", exc_info=True)
-        return jsonify([]), 200
+        return jsonify({"error": str(e)}), 500
+
 
 
 # Route to link a server

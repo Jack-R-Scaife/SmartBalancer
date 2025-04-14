@@ -87,7 +87,7 @@ class StrategyManager:
             db.session.commit()
 
             load_balancer = LoadBalancer()
-            load_balancer.set_active_strategy(strategy_name, group_id)
+            load_balancer.set_active_strategy(strategy_name, group_id, ai_enabled=ai_enabled)
 
             return {"status": "success", "message": f"Strategy {strategy_name} applied to group {group_id} successfully."}
         except Exception as e:
@@ -147,7 +147,6 @@ class StrategyManager:
                 load_balancer_setting.updated_at = db.func.current_timestamp()
 
             db.session.commit()
-
             load_balancer = LoadBalancer()
             load_balancer.set_active_strategy(priority_1_strategy.name, group_id)
 
