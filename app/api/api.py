@@ -5,7 +5,7 @@ import pandas as pd
 from app import db
 from server.server_manager import ServerManager
 from server.servergroups import update_server_group,get_servers_and_groups,remove_groups,create_group_with_servers,get_servers_by_group
-from app.models import Server,LoadBalancerSetting,Strategy,Rule,ServerGroup
+from app.models import Server,LoadBalancerSetting,Strategy,Rule,ServerGroup,PredictiveLog
 import json,os,gzip
 import random,logging
 from server.traffic_store import TrafficStore
@@ -30,77 +30,103 @@ status_mapping = {
     "down": 4,
     "idle": 5
 }
-
 @api_blueprint.route('/predicted_traffic', methods=['GET'])
 def get_predicted_traffic():
     try:
-        load_balancer = LoadBalancer()
-        agent_metrics = load_balancer.fetch_all_metrics()
-        
-        if not agent_metrics:
+        # 1) Pull fresh start-of-window rows from the DB
+        from app.models import StartWindowMetrics
+        rows = StartWindowMetrics.query.order_by(StartWindowMetrics.timestamp).all()
+        if not rows:
+            api_logger.warning("No start-window metrics found")
             return jsonify([]), 200
 
-        # Get current scenario from load balancer state
-        scenario = getattr(load_balancer, 'current_scenario', 'baseline_low')
-        all_predictions = []
+        # 2) Build a DataFrame
+        df = pd.DataFrame([{
+            'timestamp':    r.timestamp,
+            'server_ip':    r.server_ip,
+            'traffic_rate': r.traffic_rate,
+            'cpu_usage':    r.cpu_usage,
+            'memory_usage': r.memory_usage,
+            'disk_usage':   r.disk_usage,
+            'connections':  r.connections,
+            'scenario':     r.scenario,
+            'strategy':     r.strategy
+        } for r in rows])
 
-        # Load the global model (not group-specific)
-        model_path = os.path.join('Models', "lightgbm_model.pkl")
+        # 3) Compute rolling & lag features
+        df['cpu_usage_avg'] = df['cpu_usage'].rolling(window=5).mean()
+        df['lag_1']   = df.groupby('server_ip')['traffic_rate'].shift(1)
+        df['lag_5']   = df.groupby('server_ip')['traffic_rate'].shift(5)
+        df['roll_10'] = (
+            df.groupby('server_ip')['traffic_rate']
+              .rolling(10).mean()
+              .reset_index(0, drop=True)
+        )
+        df = df.dropna(subset=[
+            'cpu_usage_avg','lag_1','lag_5','roll_10',
+            'cpu_usage','memory_usage','connections','traffic_rate'
+        ])
+
+        # 4) Take the last row per server as your “current” features
+        last_rows = (
+            df.sort_values('timestamp')
+              .groupby('server_ip', as_index=False)
+              .tail(1)
+        )
+        api_logger.debug(f"Forecasting for servers: {last_rows['server_ip'].tolist()}")
+
+        # 5) Load the model
+        grp = ServerGroup.query.order_by(ServerGroup.group_id).first()
+        model_name = grp.active_model or 'your_model.pkl'
+        model_path = os.path.join(os.getcwd(), 'Models', model_name)
         if not os.path.exists(model_path):
-            return jsonify({"error": "Model not found"}), 404
-
+            api_logger.error(f"Model not found: {model_path}")
+            return jsonify({'error': f'Model not found: {model_name}'}), 404
         model = joblib.load(model_path)
+        feature_cols = list(model.feature_names_in_)
 
-        for agent in agent_metrics:
-            if 'metrics' not in agent:
+        # 6) Build predictions
+        out, now = [], datetime.now(timezone.utc)
+        for _, row in last_rows.iterrows():
+            feat = pd.DataFrame([{
+                'response_time': row.get('response_time', 0),
+                'cpu_usage':     row['cpu_usage'],
+                'memory_usage':  row['memory_usage'],
+                'connections':   row['connections'],
+                'traffic_rate':  row['traffic_rate'],
+                'cpu_usage_avg': row['cpu_usage_avg'],
+                'lag_1':         row['lag_1'],
+                'lag_5':         row['lag_5'],
+                'roll_10':       row['roll_10'],
+                'scenario':      row['scenario'],
+                'strategy':      row['strategy']
+            }])
+            feat = pd.get_dummies(feat, columns=['scenario','strategy'])
+            # ensure all expected cols are present
+            for c in feature_cols:
+                if c not in feat.columns:
+                    feat[c] = 0
+            feat = feat[feature_cols]
+
+            if feat.isnull().any().any():
+                api_logger.error(f"Nulls in feature row for {row['server_ip']}")
                 continue
-                
-            metrics = agent['metrics']
-            
-            # Get group for this agent to determine strategy
-             # Get group id from the agent data; if missing, look it up by agent IP.
-            group_id = agent.get('group_id') or load_balancer.lookup_group_id_for_agent(agent['ip'])
-            # Now use that group_id to get the strategy.
-            strategy = load_balancer.get_group_strategy(group_id) or "Round Robin"
-            
-            # Use server-specific features
-            features = {
-                'cpu_usage': metrics.get('cpu_total', 0),
-                'memory_usage': metrics.get('memory', 0),
-                'connections': metrics.get('connections', 0),
-                'traffic_rate': metrics.get('traffic_rate', 0),
-                'scenario': scenario,
-                'strategy': strategy
-            }
-            
-            # Prepare feature DataFrame
-            feature_df = pd.DataFrame([features])
-            feature_df = pd.get_dummies(feature_df, columns=['scenario', 'strategy'])
-            
-            # Align features with model expectations
-            for col in model.feature_names_in_:
-                if col not in feature_df.columns:
-                    feature_df[col] = 0
-            feature_df = feature_df[model.feature_names_in_]
-            
-            # Predict for this server
-            prediction = model.predict(feature_df)[0]
-            
-            # Generate predictions for next 60s with variations
-            current_time = datetime.now()
-            predictions = [{
-                'timestamp': (current_time + timedelta(seconds=i)).timestamp(),
-                'value': max(1, prediction * random.uniform(0.9, 1.1)),
-                'agent_ip': agent['ip'],
-                'strategy': features['strategy'],
-                'scenario': scenario
-            } for i in range(60)]
-            
-            all_predictions.extend(predictions)
 
-        return jsonify(all_predictions), 200
+            pred = model.predict(feat)[0]
+            for i in range(60):
+                out.append({
+                    'timestamp': (now + timedelta(seconds=i)).timestamp(),
+                    'value': float(pred),
+                    'agent_ip':  row['server_ip']
+                })
+
+        api_logger.info(f"Emitting {len(out)} forecast points")
+        return jsonify(out), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        api_logger.error("Unhandled error in /predicted_traffic", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 
 
 
@@ -1049,164 +1075,176 @@ def export_data():
         return jsonify({'message': 'Data exported successfully', 'filename': filename}), 200
     except Exception as e:
         return jsonify({'message': str(e)}), 500
+    
+def clean_dataset(filename):
+    """
+    Load Data/<filename>, sort & rolling-average,
+    then write out Data/<base>_clean.csv and return its name.
+    """
+    import os, pandas as pd
 
+    data_folder = os.path.join(os.getcwd(), 'Data')
+    input_path  = os.path.join(data_folder, filename)
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"{input_path} not found for cleaning")
+
+    df = pd.read_csv(input_path, parse_dates=['timestamp'])
+    df = df.sort_values('timestamp')
+    # example rolling feature; adjust as needed
+    df['cpu_usage_avg'] = df['cpu_usage'].rolling(window=5).mean()
+    df = df.dropna()
+
+    base, ext    = os.path.splitext(filename)
+    clean_name   = f"{base}_clean{ext}"
+    output_path  = os.path.join(data_folder, clean_name)
+    df.to_csv(output_path, index=False)
+    return clean_name
 
 @api_blueprint.route('/clean_data', methods=['POST'])
 def clean_data():
     try:
-        from app import db
-        import pandas as pd
         import os
+        import pandas as pd
 
+        # 1) get filename
         filename = request.form.get('filename')
         if not filename:
             return jsonify({'message': 'Filename not provided'}), 400
-        
+
+        # 2) build paths
         data_folder = os.path.join(os.getcwd(), 'Data')
-        input_path = os.path.join(data_folder, filename)
+        input_path  = os.path.join(data_folder, filename)
         if not os.path.exists(input_path):
             return jsonify({'message': 'File not found'}), 404
 
-        # --- Cleaning logic ---
-        data = pd.read_csv(input_path)
-        data['timestamp'] = pd.to_datetime(data['timestamp'])
-        data = data.sort_values('timestamp')
-        # calculate rolling averages 
-        data['cpu_usage_avg'] = data['cpu_usage'].rolling(window=5).mean()
-        data = data.dropna()
+        # 3) load & sort
+        df = pd.read_csv(input_path, parse_dates=['timestamp'])
+        df = df.sort_values('timestamp')
 
-        base, ext = os.path.splitext(filename)
-        output_file = f"{base}_clean{ext}"
-        output_path = os.path.join(data_folder, output_file)
-        data.to_csv(output_path, index=False)
-        return jsonify({'message': 'Data cleaned successfully', 'output_file': output_file}), 200
+        # 4) create rolling & lag features
+        #  - 5-point CPU average (existing)
+        df['cpu_usage_avg'] = df['cpu_usage'].rolling(window=5).mean()
+        #  - lag features on traffic_rate
+        df['lag_1']   = df['traffic_rate'].shift(1)
+        df['lag_5']   = df['traffic_rate'].shift(5)
+        #  - 10-point rolling mean on traffic_rate
+        df['roll_10'] = df['traffic_rate'].rolling(window=10).mean()
+
+        # 5) drop any rows with missing values
+        df = df.dropna()
+
+        # 6) write out cleaned CSV
+        base, ext    = os.path.splitext(filename)
+        output_file  = f"{base}_clean{ext}"
+        output_path  = os.path.join(data_folder, output_file)
+        df.to_csv(output_path, index=False)
+
+        return jsonify({
+            'message':      'Data cleaned successfully',
+            'output_file':  output_file
+        }), 200
+
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
 @api_blueprint.route('/train_model', methods=['POST'])
 def train_model():
     try:
+        import os, pandas as pd, joblib, numpy as np
+        from datetime import datetime
         from lightgbm import LGBMRegressor
         from sklearn.model_selection import train_test_split
         from sklearn.metrics import mean_squared_error, r2_score
-        import pandas as pd, joblib, os, numpy as np
-        from datetime import datetime
+        from app import db
+        from app.models import ServerGroup
 
-        # Get training parameters from the form
-        filename = request.form.get('filename')
-        model_name = request.form.get('model_name')
-        estimators = int(request.form.get('estimators', 100))
-        learning_rate = float(request.form.get('learning_rate', 0.1))
-        max_depth = int(request.form.get('max_depth', 5))
+        # 1) pull params
+        filename     = request.form.get('filename')
+        model_name   = request.form.get('model_name') or "model"
+        n_estimators = int(request.form.get('estimators', 100))
+        learning_rate= float(request.form.get('learning_rate', 0.1))
+        max_depth    = int(request.form.get('max_depth', 5))
         random_state = int(request.form.get('random_state', 42))
-        subsample = float(request.form.get('subsample', 1))
+        subsample    = float(request.form.get('subsample', 1.0))
 
-        # Build the path to the training data file
+        # 2) auto-clean raw files
+        if not filename.endswith('_clean.csv'):
+            filename = clean_dataset(filename)
+
+        # 3) load cleaned CSV
         data_folder = os.path.join(os.getcwd(), 'Data')
-        input_path = os.path.join(data_folder, filename)
+        input_path  = os.path.join(data_folder, filename)
         if not os.path.exists(input_path):
             return jsonify({'message': 'Training data file not found'}), 404
+        df = pd.read_csv(input_path)
 
-        # Load and prepare the data
-        data = pd.read_csv(input_path)
-        
-        # Create target for prediction - this time we'll look at future traffic
-        # with a time gap appropriate to the scenario
-        data['future_traffic'] = data['traffic_rate'].shift(-10)  # Default 10-step look ahead
-        
-        # Because high traffic scenarios need to predict further ahead
-        # We'll aggregate based on scenario
-        for idx, row in data.iterrows():
+        # 4) build future_traffic target
+        df['future_traffic'] = df['traffic_rate'].shift(-10)
+        for idx, row in df.iterrows():
             if row['scenario'] == 'baseline_medium':
-                # For medium traffic, look 20 steps ahead (instead of 10)
-                ahead_idx = min(idx + 20, len(data) - 1)
-                data.at[idx, 'future_traffic'] = data.iloc[ahead_idx]['traffic_rate']
+                ahead = min(idx+20, len(df)-1)
+                df.at[idx, 'future_traffic'] = df.iloc[ahead]['traffic_rate']
             elif row['scenario'] == 'baseline_high':
-                # For high traffic, look 30 steps ahead
-                ahead_idx = min(idx + 30, len(data) - 1)
-                data.at[idx, 'future_traffic'] = data.iloc[ahead_idx]['traffic_rate']
-        
-        # Drop rows with NaN values
-        data = data.dropna()
+                ahead = min(idx+30, len(df)-1)
+                df.at[idx, 'future_traffic'] = df.iloc[ahead]['traffic_rate']
+        df = df.dropna()
 
-        # Select features and target - include scenario as a feature
-        # These will be automatically one-hot encoded
-        features = data[[
-            'cpu_usage', 'memory_usage', 'connections', 'traffic_rate', 
-            'scenario', 'strategy'
-        ]]
-        features.columns = [col.replace(' ', '_') for col in features.columns]
-        # One-hot encode categorical variables
-        features_encoded = pd.get_dummies(features, columns=['scenario', 'strategy'])
-        features_encoded.columns = [col.replace(' ', '_') for col in features_encoded.columns]
-        X = features_encoded
-        y = data['future_traffic']
+        # 5) one-hot encode
+        X = pd.get_dummies(
+            df[['cpu_usage','memory_usage','connections','traffic_rate','scenario','strategy']],
+            columns=['scenario','strategy']
+        )
+        y = df['future_traffic']
 
-        # Split data into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state)
+        # 6) split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=random_state
+        )
 
-        # Create and train a LightGBM model
+        # 7) train
         model = LGBMRegressor(
-            n_estimators=estimators,
+            n_estimators=n_estimators,
             learning_rate=learning_rate,
             max_depth=max_depth,
             random_state=random_state,
             subsample=subsample,
-            force_row_wise=True, 
-            verbose=-1,  # Suppress LightGBM's info messages
-            deterministic=True  # Ensure reproducible results
+            deterministic=True,
+            verbose=-1
         )
         model.fit(X_train, y_train)
 
-        # Evaluate the model's performance
+        # 8) eval & cast to Python floats
         y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-        
-        # Store feature importances to understand which ones matter most
-        feature_importances = {k: float(v) for k, v in zip(X.columns, model.feature_importances_)}
-        
-        # Calculate scenario-specific accuracy
-        scenario_mses = {}
-        for scenario in ['baseline_low', 'baseline_medium', 'baseline_high']:
-            scenario_cols = [col for col in X_test.columns if f'scenario_{scenario}' in col]
-            if scenario_cols:
-                mask = (X_test[scenario_cols] == 1).any(axis=1)
-                if mask.any():
-                    scenario_y_test = y_test[mask]
-                    scenario_y_pred = y_pred[mask]
-                    scenario_mse = mean_squared_error(scenario_y_test, scenario_y_pred)
-                    scenario_mses[scenario] = float(scenario_mse)
+        mse = float(mean_squared_error(y_test, y_pred))
+        r2  = float(r2_score(y_test, y_pred))
 
-        # Save the model
+        # 9) feature importances as Python ints
+        importances = {
+            col: int(val)
+            for col, val in zip(X.columns, model.feature_importances_)
+        }
+
+        # 10) persist model
         models_folder = os.path.join(os.getcwd(), 'Models')
-        if not os.path.exists(models_folder):
-            os.makedirs(models_folder)
+        os.makedirs(models_folder, exist_ok=True)
         model_filename = f"{model_name}.pkl"
-        model_output_path = os.path.join(models_folder, model_filename)
-        joblib.dump(model, model_output_path)
-        
-        # Update groups to use this model
-        from app.models import ServerGroup
-        groups = ServerGroup.query.all()
-        for group in groups:
-            group.active_model = model_filename
+        joblib.dump(model, os.path.join(models_folder, model_filename))
+
+        # 11) update each group's active_model
+        for g in ServerGroup.query.all():
+            g.active_model = model_filename
         db.session.commit()
 
-        # Save and return detailed result
+        # 12) build and return JSON-safe result
         result = {
-            'message': 'Model trained successfully!',
+            'message': 'Model trained successfully',
+            'model_filename': model_filename,
             'mse': mse,
             'r2': r2,
-            'model_filename': model_filename,
-            'model_download_url': f'/download_model/{model_filename}',
-            'timestamp': datetime.now().isoformat(),
-            'features_used': list(X.columns),
-            'feature_importances': feature_importances,
-            'scenario_specific_mse': scenario_mses
+            'feature_importances': importances,
+            'timestamp':datetime.now(timezone.utc).isoformat()
         }
         save_training_result(result)
-
         return jsonify(result), 200
 
     except Exception as e:

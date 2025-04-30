@@ -18,10 +18,10 @@ def store_agent_logs(agent_ip, logs):
     
     # keep only the latest 7 files per agent.
     existing_logs = sorted([
-        f for f in os.listdir(logs_dir)
-        if f.startswith(agent_ip + "_") and f.endswith(".gz")
+    f for f in os.listdir(logs_dir)
+    if f.startswith(agent_ip + "_") and f.endswith(".gz")
     ])
-    while len(existing_logs) > 7:
+    while len(existing_logs) > 3:
         os.remove(os.path.join(logs_dir, existing_logs.pop(0)))
     
     # Write the logs in compressed mode.

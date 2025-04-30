@@ -1,7 +1,7 @@
 import time
-from datetime import datetime
+from datetime import datetime,timezone
 from app import db, create_app
-from app.models import Server, LoadBalancerSetting,Strategy,PredictiveLog
+from app.models import Server, LoadBalancerSetting,Strategy,PredictiveLog,StartWindowMetrics
 import threading
 import socket, os
 import json
@@ -245,36 +245,65 @@ class LoadBalancer:
             db.session.commit()
         
 
-    def fetch_metrics_from_selected_agent(self, scenario=None, group_id=None):
+    def fetch_metrics_from_selected_agent(self,scenario=None,group_id=None,force_agent: str | None = None ):
         main_logger.info("Fetching metrics using active strategy")
         metrics = []
         traffic_store = TrafficStore.get_instance()
         window_size = 30
         now = time.time()
-
-        # Get the active strategy for the provided group_id, defaulting to "Round Robin" if not set.
-        active_strategy = self.get_group_strategy(group_id) if group_id else "Round Robin"
-        main_logger.info(f"Active strategy for group {group_id}: {active_strategy}")
-
-        # Select the next agent based on the active strategy.
-        if active_strategy == "Round Robin":
-            selected_agent = self.strategy_executor.round_robin()
-        elif active_strategy == "Weighted Round Robin":
-            selected_agent = self.strategy_executor.weighted_round_robin()
-        elif active_strategy == "Least Connections":
-            selected_agent = self.dynamic_executor.least_connections()
-        elif active_strategy == "Least Response Time":
-            selected_agent = self.dynamic_executor.least_response_time()
-        elif active_strategy == "Resource-Based":
-            selected_agent = self.dynamic_executor.resource_based()
+        if force_agent:
+            selected_agent = force_agent
+            active_strategy = self.get_group_strategy(group_id) or "Round Robin"
         else:
-            main_logger.warning(f"Unknown strategy '{active_strategy}', defaulting to Round Robin.")
-            selected_agent = self.strategy_executor.round_robin()
+            # Get the active strategy for the provided group_id, defaulting to "Round Robin" if not set.
+            active_strategy = self.get_group_strategy(group_id) if group_id else "Round Robin"
+            main_logger.info(f"Active strategy for group {group_id}: {active_strategy}")
+
+            # Select the next agent based on the active strategy.
+            if active_strategy == "Round Robin":
+                selected_agent = self.strategy_executor.round_robin()
+            elif active_strategy == "Weighted Round Robin":
+                selected_agent = self.strategy_executor.weighted_round_robin()
+            elif active_strategy == "Least Connections":
+                selected_agent = self.dynamic_executor.least_connections()
+            elif active_strategy == "Least Response Time":
+                selected_agent = self.dynamic_executor.least_response_time()
+            elif active_strategy == "Resource-Based":
+                selected_agent = self.dynamic_executor.resource_based()
+            else:
+                main_logger.warning(f"Unknown strategy '{active_strategy}', defaulting to Round Robin.")
+                selected_agent = self.strategy_executor.round_robin()
 
         if not selected_agent:
             main_logger.warning("No agent selected by active strategy!")
             return metrics
+        
+        start_ts = datetime.now(timezone.utc)
 
+        # 2) Instant traffic rate so far
+        raw = traffic_store.get_traffic_data(agent_ip=selected_agent)
+        recent = [e for e in raw if (now - e["timestamp"]) <= window_size]
+        traffic_rate   = sum(e["value"] for e in recent)  # true rps * window_size
+
+            # 3) Peek at current system metrics
+        peek_resp = self.send_tcp_request(selected_agent, 9000, "metrics")
+        peek_sys  = peek_resp.get("metrics", {})
+
+            # 4) Persist into StartWindowMetrics
+        with self.app.app_context():
+            db.session.add(StartWindowMetrics(
+                timestamp    = start_ts,
+                server_ip    = selected_agent,
+                traffic_rate = traffic_rate,
+                cpu_usage    = peek_sys.get("cpu_total", 0),
+                memory_usage = peek_sys.get("memory",    0),
+                disk_usage   = peek_sys.get("disk",      0),
+                connections  = peek_sys.get("connections", 0),
+                scenario     = scenario,
+                strategy     = active_strategy,
+                group_id     = group_id
+            ))
+            db.session.commit()
         try:
             # Determine the group for the selected agent.
             group_id = self.lookup_group_id_for_agent(selected_agent)
@@ -309,7 +338,7 @@ class LoadBalancer:
                     connections_count = system_metrics.get("connections", 0)
                     with db_lock:
                         log_entry = PredictiveLog(
-                            timestamp=datetime.utcnow(),  # Ensure millisecond precision
+                            timestamp=datetime.now(timezone.utc),  # Ensure millisecond precision
                             server_ip=selected_agent,
                             response_time=round_trip_ms,
                             cpu_usage=system_metrics.get("cpu_total", 0),
@@ -410,7 +439,7 @@ class LoadBalancer:
 
                     # Store traffic data with high precision timestamp
                     traffic_store.append_traffic_data(target_agent, current_time, 1)
-                    self.fetch_metrics_from_selected_agent(scenario=scenario, group_id=group_id)
+                    self.fetch_metrics_from_selected_agent(scenario=scenario,group_id=group_id,force_agent=target_agent)
 
                 except Exception as e:
                     traffic_logger.error(f"Error sending traffic simulation command: {str(e)}")
@@ -419,6 +448,8 @@ class LoadBalancer:
             time.sleep(1)
 
         return {"status": "success", "message": "Traffic simulation completed"}
+
+    
 
     def lookup_group_id_for_agent(self, ip_address):
         """

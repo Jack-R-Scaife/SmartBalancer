@@ -43,9 +43,6 @@ class StrategyManager:
             StrategyManager.dynamic_algorithms.least_response_time()
         elif strategy_name == "Resource-Based":
             StrategyManager.dynamic_algorithms.resource_based()
-        elif strategy_name == "Custom":
-            # Insert custom strategy logic here as needed.
-            return "Custom strategy setup required"
         else:
             raise ValueError(f"Unsupported strategy: {strategy_name}")
 

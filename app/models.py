@@ -228,7 +228,24 @@ class PredictiveLog(db.Model):
     #link to the ServerGroup table
     group_id = db.Column(db.Integer, db.ForeignKey('Server_Groups.group_id'), nullable=True)
     server_group = db.relationship('ServerGroup', backref='predictive_logs')
+class StartWindowMetrics(db.Model):
+    __tablename__ = 'start_window_metrics'
 
+    metric_id   = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    timestamp   = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    server_ip   = db.Column(db.String(45), db.ForeignKey('Servers.ip_address'), nullable=False)
+    traffic_rate= db.Column(db.Float, nullable=False)
+    cpu_usage   = db.Column(db.Float, nullable=True)
+    memory_usage= db.Column(db.Float, nullable=True)
+    disk_usage  = db.Column(db.Float, nullable=True)
+    connections = db.Column(db.Integer, nullable=True)
+    scenario    = db.Column(db.String(50), nullable=True)
+    strategy    = db.Column(db.String(100), nullable=True)
+    group_id    = db.Column(db.Integer, db.ForeignKey('Server_Groups.group_id'), nullable=True)
+
+    # Relationships (optional)
+    server      = db.relationship('Server', backref='start_window_metrics')
+    group       = db.relationship('ServerGroup', backref='start_window_metrics')
 
 def initialize_strategies():
     from app import db
