@@ -340,7 +340,6 @@
 
         // Function to handle actions for each row
         function handleTemplateActions(row) {
-            // Apply button logic
             row.querySelector(".applyTemplateBtn").addEventListener("click", function () {
                 const applyRow = document.createElement("tr");
                 applyRow.classList.add("bg-dark");
@@ -396,18 +395,18 @@
  .chart-container {
     perspective: 1000px;
     width: 100%;
-    height: 350px; /* Set to match desired height */
+    height: 350px; 
 }
 
 .chart-wrapper {
     position: relative;
     width: 100%;
-    height: 100%; /* Match container height */
+    height: 100%; 
     transform-style: preserve-3d;
     transition: transform 0.6s ease-in-out;
 }
 .chart-canvas {
-    width: 100%; /* Fit canvas within its column */
+    width: 100%; 
     max-height: 300px; /* Ensure no overflow */
 }
 .col-lg-4, .col-lg-6 {
@@ -415,7 +414,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: auto; /* Flexible height */
+    height: auto; 
 }
 .customcol {
     height: 300px;
@@ -424,10 +423,10 @@
     width: 100%;
     height: 100%;
     backface-visibility: hidden;
-    position: absolute; /* Ensure both front and back occupy the same space */
+    position: absolute;
     top: 0;
     left: 0;
-    display: flex; /* Center the content inside */
+    display: flex; 
     justify-content: center;
     align-items: center;
     transition: transform 0.6s ease-in-out;

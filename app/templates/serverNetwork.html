@@ -4,9 +4,7 @@
 {% block title %}Server Overview{% endblock %}
 
 {% block content %}
-<!-- Slider Styling , Checkbox Styling-->
 <link href="{{ url_for('static', filename='CSS/serverStyle.css') }}" rel="stylesheet">
-<!-- Button Styling and Background -->
 <link href="{{ url_for('static', filename='CSS/serverOverview.css') }}" rel="stylesheet">
 
 <div class="container customContainer mt-2"> 
@@ -61,8 +59,6 @@
 
   <!-- Second Row of Inputs with Sliders -->
     <div class="row ctmbm">
-       
-
         <div class="col-lg-3">
                 <div class="customh2">Primary DNS:</div>
                 <small class="customSmall">Enter the primary DNS server IP.</small>
@@ -72,7 +68,6 @@
         </div>
     
         <!-- Base Frequency Slider -->
-        
         <div class="col-lg-3">
                 <div class="customh2">Secondary DNS:</div>
                 <small class="customSmall">Enter the secondary DNS server IP.</small>

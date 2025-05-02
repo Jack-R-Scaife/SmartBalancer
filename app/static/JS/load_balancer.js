@@ -1,7 +1,4 @@
 document.addEventListener("DOMContentLoaded", async function () {
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
-  // Get all the UI elements
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
   const staticMethodCheckbox   = document.getElementById("staticMethod");
   const dynamicMethodCheckbox  = document.getElementById("dynamicMethod");
   const customCheckbox         = document.getElementById("Custom");
@@ -39,7 +36,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     ResourceBased
   ];
 
-  // A corrections map for pretty names
   const nameCorrections = {
     "RoundRobin": "Round Robin",
     "WeightedRoundRobin": "Weighted Round Robin",
@@ -51,17 +47,11 @@ document.addEventListener("DOMContentLoaded", async function () {
   const applyBtn = document.getElementById("tab2button");
   let loadingFromStorage = false; // flag to prevent unwanted resets
 
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
-  // Initialization: disable everything and load config
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
   disableAll();
   if (!loadFromLocalStorage()) {
     await loadCurrentConfiguration();
   }
 
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
-  // Functions for UI state management
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
   function disableAll() {
     // Disable and uncheck strategies
     allStrategies.forEach(chk => {
@@ -111,8 +101,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     failoverPriority2.innerHTML = `<option>No strategies selected</option>`;
   }
   function onDropdownChange() {
-    // Update the stored ordering based on the dropdowns.
-    // Assume the dropdowns are now the source of truth.
+    // Update the stored ordering based on the dropdowns.   
     userStrategyOrder = [];
     if (failoverPriority1.value && failoverPriority1.value !== "No strategies selected") {
       userStrategyOrder.push(failoverPriority1.value);
@@ -185,7 +174,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // This function toggles which strategy checkboxes are enabled based on method selections.
   function handleMethodChange() {
-    if (loadingFromStorage) return; // Skip during load
+    if (loadingFromStorage) return; 
   
     if (customCheckbox.checked) {
       toggleCheckboxes(allStrategies, true);
@@ -228,7 +217,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   function updateServerWeightsEnabled() {
     const serverWeightsDiv = document.getElementById("serverWeights");
     if (!serverWeightsDiv) return;
-    // Find all <select> elements with class "customselect" within the serverWeights div.
     const selects = serverWeightsDiv.querySelectorAll("select.customselect");
     // Enable only if both Static Method and Weighted Round Robin are active.
     const staticMethodCheckbox = document.getElementById("staticMethod");
@@ -238,9 +226,7 @@ document.addEventListener("DOMContentLoaded", async function () {
        sel.disabled = !enable;
     });
   }
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
-  // Local Storage & Server Sync Functions
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
   async function loadCurrentConfiguration() {
     try {
       const groupId = getGroupId();
@@ -358,7 +344,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
       });
       
-      // ── NEW: Restore server weights if they exist ──
       if (stored.server_weights) {
         const serverWeightsDiv = document.getElementById("serverWeights");
         if (serverWeightsDiv) {
@@ -388,13 +373,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
   
-
-
-  
-
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
-  // Build payload from UI to send/save changes.
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
   function buildPayloadFromUI() {
     const groupId = getGroupId();
     const methods = [];
@@ -440,7 +418,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
   
-    // ── NEW: Capture server weights if Weighted Round Robin is active ──
+    //  Capture server weights if Weighted Round Robin is active 
     let serverWeights = {};
     if (document.getElementById("staticMethod").checked && document.getElementById("WeightedRoundRobin").checked) {
       const serverWeightsDiv = document.getElementById("serverWeights");
@@ -471,15 +449,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     return urlParams.get("group_id") || "1";
   }
 
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
-  // Event listeners and final initialization
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
   applyBtn.addEventListener("click", () => {
     if (!validateWeights()) return;
     const payload = buildPayloadFromUI();
     if (!payload) return;
   
-    // Fix: Initialize as Set instead of array
+    // Initialize as Set instead of array
     const requiredMethods = new Set();
     
     // Check strategy types and add required methods
@@ -537,9 +512,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Final UI update
   handleMethodChange();
   
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
-  // Validate resource weights before applying changes.
-  // ––––––––––––––––––––––––––––––––––––––––––––––––––––––
   function validateWeights() {
     if (!ResourceBased.checked) return true;
     let total = 0;

@@ -13,7 +13,6 @@ function createServerSquares() {
     }
 }
 
-
 // Function to map numeric status codes to CSS classes
 function getStatusClass(statusCode) {
     switch (statusCode) {
@@ -40,7 +39,6 @@ function fetchServerStatus() {
     axios.get('/api/server_status')
         .then(response => {
             const servers = response.data; // Expecting an array of servers with { ip, s }
-
             // Initialize counters for each status
             const statusCounts = {
                 healthy: 0,

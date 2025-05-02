@@ -1,4 +1,3 @@
-<!-- templates/dashboard.html -->
 {% extends "base.html" %}
 {% block title %}Logs{% endblock %}
 {% block content %}
@@ -11,7 +10,6 @@
     <div class="d-flex mb-3">
         <select class="customselect" id="server-filter">
             <option value="all" selected>All Servers</option>
-            <!-- We'll dynamically add IP addresses + "Load Balancer" later -->
         </select>
         <select class="customselect" id="date-filter">
             <option value="all" selected>All Dates</option>
@@ -143,10 +141,6 @@
         applyFilters();
     }
 
-
-    /**
-     * 4) Populate the date dropdown with the distinct dates from the logs
-     */
     function populateDateDropdown(dateArray) {
         // Clear out existing <option>s except the first "All Dates"
         while (dateFilter.options.length > 1) {
@@ -162,7 +156,6 @@
     }
 
     /**
-     * 5) The filtering logic
      *    - Filter by group (from dropdown)
      *    - Filter by date (from dropdown)
      *    - Filter by search text (from input)
@@ -250,17 +243,15 @@
     font-size: 16px;
     padding: 0 10px;
     margin-right: 5px;
-    width: auto;  /* Changed from 100% to auto */
-    display: inline-block; /* Ensure buttons sit inline */
+    width: auto;  
+    display: inline-block; 
 }
 
-/* Style for the custom remove (delete) button */
 .customRemove {
     background-color: #681313;
     border: solid 1px #FF7676;
 }
 
-/* Optional: ensure the container for the buttons is a flex container */
 .button-group {
     display: flex;
     gap: 5px;

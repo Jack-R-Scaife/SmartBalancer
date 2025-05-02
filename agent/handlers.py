@@ -43,7 +43,7 @@ class LinkHandler:
             if isinstance(public_key, bytes):
                 public_key = public_key.decode('utf-8')  # Decode if in bytes
             if isinstance(challenge_message, bytes):
-                challenge_message = challenge_message.decode('utf-8')  # Decode if in bytes
+                challenge_message = challenge_message.decode('utf-8') 
 
             # Prepare payload
             payload = {

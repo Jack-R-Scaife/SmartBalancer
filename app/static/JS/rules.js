@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const ruleTypeSelect = document.getElementById("ruleType");
   const ruleInputsContainer = document.getElementById("ruleInputsContainer");
 
-  // Create Rule Button Handler remains unchanged…
+  // Create Rule Button Handler remains unchanged
   if (createRuleButton) {
     createRuleButton.addEventListener("click", () => {
       const ruleData = {

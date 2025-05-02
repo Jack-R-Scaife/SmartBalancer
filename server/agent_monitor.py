@@ -36,7 +36,7 @@ class LoadBalancer:
             self.strategy_executor = StrategyManager.static_algorithms
             self.dynamic_executor = DynamicAlgorithms()
             self.load_agents_from_db()
-            self.load_saved_strategies()  # New step to load strategies
+            self.load_saved_strategies()  #load strategies
             self.initialized = True
 
     def load_agents_from_db(self):
@@ -569,7 +569,7 @@ class LoadBalancer:
         then extract it into /logs (or ./logs).
         Return a list describing success/error for each agent.
         """
-        logs_dir = "./logs"  # or "/logs" if you prefer absolute
+        logs_dir = "./logs" 
         os.makedirs(logs_dir, exist_ok=True)
 
         results = []

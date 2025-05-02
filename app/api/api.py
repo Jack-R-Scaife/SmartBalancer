@@ -30,17 +30,17 @@ status_mapping = {
     "down": 4,
     "idle": 5
 }
+
 @api_blueprint.route('/predicted_traffic', methods=['GET'])
 def get_predicted_traffic():
     try:
-        # 1) Pull fresh start-of-window rows from the DB
+        # Fetch all start-of-window metrics from the database
         from app.models import StartWindowMetrics
         rows = StartWindowMetrics.query.order_by(StartWindowMetrics.timestamp).all()
         if not rows:
-            api_logger.warning("No start-window metrics found")
             return jsonify([]), 200
 
-        # 2) Build a DataFrame
+        # Convert database rows into a pandas DataFrame
         df = pd.DataFrame([{
             'timestamp':    r.timestamp,
             'server_ip':    r.server_ip,
@@ -53,39 +53,37 @@ def get_predicted_traffic():
             'strategy':     r.strategy
         } for r in rows])
 
-        # 3) Compute rolling & lag features
+        # Compute additional features like rolling averages and lag values
         df['cpu_usage_avg'] = df['cpu_usage'].rolling(window=5).mean()
-        df['lag_1']   = df.groupby('server_ip')['traffic_rate'].shift(1)
-        df['lag_5']   = df.groupby('server_ip')['traffic_rate'].shift(5)
+        df['lag_1'] = df.groupby('server_ip')['traffic_rate'].shift(1)
+        df['lag_5'] = df.groupby('server_ip')['traffic_rate'].shift(5)
         df['roll_10'] = (
             df.groupby('server_ip')['traffic_rate']
               .rolling(10).mean()
               .reset_index(0, drop=True)
         )
+
+        # Remove incomplete rows with missing values
         df = df.dropna(subset=[
-            'cpu_usage_avg','lag_1','lag_5','roll_10',
-            'cpu_usage','memory_usage','connections','traffic_rate'
+            'cpu_usage_avg', 'lag_1', 'lag_5', 'roll_10',
+            'cpu_usage', 'memory_usage', 'connections', 'traffic_rate'
         ])
 
-        # 4) Take the last row per server as your “current” features
+        # Select the latest metrics for each server
         last_rows = (
             df.sort_values('timestamp')
               .groupby('server_ip', as_index=False)
               .tail(1)
         )
-        api_logger.debug(f"Forecasting for servers: {last_rows['server_ip'].tolist()}")
 
-        # 5) Load the model
+        # Load the active prediction model
         grp = ServerGroup.query.order_by(ServerGroup.group_id).first()
         model_name = grp.active_model or 'your_model.pkl'
         model_path = os.path.join(os.getcwd(), 'Models', model_name)
-        if not os.path.exists(model_path):
-            api_logger.error(f"Model not found: {model_path}")
-            return jsonify({'error': f'Model not found: {model_name}'}), 404
         model = joblib.load(model_path)
         feature_cols = list(model.feature_names_in_)
 
-        # 6) Build predictions
+        # Generate predictions for each server using the model
         out, now = [], datetime.now(timezone.utc)
         for _, row in last_rows.iterrows():
             feat = pd.DataFrame([{
@@ -101,30 +99,26 @@ def get_predicted_traffic():
                 'scenario':      row['scenario'],
                 'strategy':      row['strategy']
             }])
-            feat = pd.get_dummies(feat, columns=['scenario','strategy'])
-            # ensure all expected cols are present
+            feat = pd.get_dummies(feat, columns=['scenario', 'strategy'])
+
+            # Ensure model-required features are present
             for c in feature_cols:
                 if c not in feat.columns:
                     feat[c] = 0
             feat = feat[feature_cols]
 
-            if feat.isnull().any().any():
-                api_logger.error(f"Nulls in feature row for {row['server_ip']}")
-                continue
-
+            # Predict future traffic
             pred = model.predict(feat)[0]
             for i in range(60):
                 out.append({
                     'timestamp': (now + timedelta(seconds=i)).timestamp(),
                     'value': float(pred),
-                    'agent_ip':  row['server_ip']
+                    'agent_ip': row['server_ip']
                 })
 
-        api_logger.info(f"Emitting {len(out)} forecast points")
         return jsonify(out), 200
 
     except Exception as e:
-        api_logger.error("Unhandled error in /predicted_traffic", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -418,7 +412,7 @@ def set_load_balancer_strategy():
         if not strategies:
             return jsonify({"status": "error", "message": "At least one strategy is required."}), 400
 
-        # FIX: Pass Correct Strategy Order
+        # Pass Correct Strategy Order
         result = StrategyManager.apply_multiple_strategies_to_group(strategies, group_id, ai_enabled)
 
         # Apply weights only if Resource-Based is in Priority 1
@@ -591,9 +585,7 @@ def save_highlight():
             raise ValueError("Log path is required.")
 
         logs_dir = os.path.abspath("./logs")
-        
-        # --- Force the log_path to be under logs_dir ---
-        # 1. If user gave a relative path like "somefile.log", 
+     
         #    build the absolute path in logs_dir:
         full_log_path = os.path.join(logs_dir, log_path)
         
@@ -1337,7 +1329,6 @@ def save_training_result(result):
         elif isinstance(value, (np.integer, np.floating)):
             clean_result[key] = float(value)
         elif isinstance(value, dict):
-            # For nested dictionaries (like feature_importances)
             clean_dict = {}
             for k, v in value.items():
                 if isinstance(v, (np.integer, np.floating)):

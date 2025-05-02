@@ -93,17 +93,10 @@ document.addEventListener("DOMContentLoaded", function () {
     colorMapping["Overall"] = "#FFFFFF";
   }
   
-  
-
   // Retrieve an assigned color based on the label.
   function getAssignedColor(label) {
     return colorMapping[label] || "#cccccc"; // fallback to light gray
   }
-
-  // ---------------------------
-  // Chart Initialization Functions
-  // ---------------------------
-  
   function initializeCharts() {
     const ctxCpu = document.getElementById("cpuUsageChart");
     const ctxMemory = document.getElementById("memoryUsageChart");
@@ -219,10 +212,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
   
-  // ---------------------------
-  // Dropdown Population Functions
-  // ---------------------------
-  
+
   function populateGroupDropdowns(groups) {
     groupsData = groups;
     const cpuGroupDropdown = document.getElementById("cpuUsageGroup");
@@ -340,10 +330,7 @@ document.addEventListener("DOMContentLoaded", function () {
     fetchResponseTimeMetrics();
   }
   
-  // ---------------------------
-  // Chart Data Update Functions
-  // ---------------------------
-  
+
   function getCpuFilter() {
     return {
       group: document.getElementById("cpuUsageGroup").value,
@@ -383,9 +370,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   
   // This function aggregates metrics.
-  // For "all/all": overall average.
-  // For a specific group with "all servers": average of that group's servers.
-  // For a specific server: that server's metric.
   function processMetrics(metrics, selectedGroupId, selectedServerIp, metricKey) {
     const currentTime = new Date();
     
@@ -510,14 +494,12 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(response => response.json())
       .then(data => {
         const filter = getResponseTimeFilter();
-        // Process using a specialized function
         const rtData = processResponseTimeMetrics(data, filter.group, filter.server);
         updateChart(responseTimeChart, responseTimeDatasets, rtData);
       })
       .catch(error => console.error("Error fetching response time metrics:", error));
   }
   
-  // Specialized function for response time.
   function processResponseTimeMetrics(data, selectedGroupId, selectedServerIp) {
     const currentTime = new Date();
     const groupName = groupsLookup[selectedGroupId] || "Unknown";
@@ -548,11 +530,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return [];
   }
-  
-  // ---------------------------
-  // Initialization and Polling
-  // ---------------------------
-  
   // Initialize CPU and Memory charts.
   initializeCharts();
   // Fetch groups, assign colors, and populate dropdowns.
@@ -591,9 +568,9 @@ document.addEventListener("DOMContentLoaded", function () {
   fetchResponseTimeMetrics();
   
   // Polling intervals.
-  setInterval(fetchCpuMetrics, 2000);
-  setInterval(fetchMemoryMetrics, 2000);
-  setInterval(fetchResponseTimeMetrics, 2000);
+  setInterval(fetchCpuMetrics, 2500);
+  setInterval(fetchMemoryMetrics, 2500);
+  setInterval(fetchResponseTimeMetrics, 2500);
   
   // Reset zoom event listeners.
   document.getElementById("resetCpuZoomButton").addEventListener("click", () => {
@@ -605,10 +582,6 @@ document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("resetResponseZoomButton").addEventListener("click", () => {
     if (responseTimeChart) responseTimeChart.resetZoom();
   });
-  
-  // ---------------------------
-  // Other Charts (Traffic, Prediction Efficiency, Active Connections, Strategy)
-  // ---------------------------
   
   // Traffic Chart
   const t24C = document.getElementById("traffic24Chart").getContext("2d");

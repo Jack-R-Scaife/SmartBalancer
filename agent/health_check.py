@@ -17,7 +17,7 @@ class HealthCheck:
 
     def __init__(self, cpu_thresholds=None, memory_thresholds=None, disk_thresholds=None):
         self.resource_monitor = ResourceMonitor()  # Initialize the ResourceMonitor
-        self.maintenance_mode = False  # This could be toggled by user commands
+        self.maintenance_mode = False
         
         # Revised thresholds for determining health status
         self.cpu_thresholds = cpu_thresholds or {'overloaded': 85, 'idle': 20}

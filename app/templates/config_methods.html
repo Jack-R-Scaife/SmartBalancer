@@ -166,7 +166,7 @@ border:solid 1px #FFAA7B;
           
             <div class="indent">
                 <div id="serverWeights">
-                    <!-- JavaScript will populate this section dynamically -->
+                    <!-- populate this section dynamically -->
                 </div>
             </div>
         </div>
@@ -262,7 +262,7 @@ border:solid 1px #FFAA7B;
         <p class="red-text">Predictive enhances static and dynamic methods to make smarter decisions based on future traffic patterns.</p>
       </div>
   
-      <!-- Column 2: Load Balancing Strategies (Additional Options) -->
+      <!-- Column 2: Load Balancing Strategies -->
       <div class="col-md-4">
         <h4>Load Balancing Strategies</h4>
         <div class="checkbox-group">
@@ -304,7 +304,7 @@ border:solid 1px #FFAA7B;
               <option>Least Connections</option>
               <option>Weighted Round Robin</option>
               <option>Least Response Time</option>
-              <option>Resource-Based</option>  <!-- ensure this is present -->
+              <option>Resource-Based</option>  
             </select>
           </div>
         </div>
@@ -316,7 +316,7 @@ border:solid 1px #FFAA7B;
               <option>Least Connections</option>
               <option>Weighted Round Robin</option>
               <option>Least Response Time</option>
-              <option>Resource-Based</option>  <!-- ensure this is present -->
+              <option>Resource-Based</option> 
             </select>
           </div>
         </div>
@@ -337,7 +337,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     console.log("Raw extracted group_id:", groupId); // Debugging
 
-    // Fix any formatting issues (removing curly brackets)
+    // any formatting issues (removing curly brackets)
     if (groupId) {
         groupId = groupId.replace(/[{}]/g, ""); // Remove { and }
     }

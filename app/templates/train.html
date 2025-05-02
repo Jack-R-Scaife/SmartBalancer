@@ -127,20 +127,17 @@ margin: 2px;
         <label class="form-label">Select Model</label>
         <select id="predictive_model_select" class="customselect">
           <option value="">Choose a model</option>
-          <!-- Add dynamic options here -->
         </select>
       </div>
       <div class="col-md-4">
         <label class="form-label">Training Data</label>
         <select id="predictive_data_select" class="customselect">
             <option value="">Choose Training File</option>
-            <!-- Add dynamic options here -->
           </select>      </div>
     </div>
     
  
     
-    <!-- Parameter Labels with Tooltips -->
     <div class="row mb-2">
         <div class="col-md-3">
           <label>Estimators 
@@ -164,7 +161,6 @@ margin: 2px;
         </div>
       </div>
       
-    <!-- Parameter Inputs (underline-only style) -->
     <div class="row mb-3">
       <div class="col-md-3">
         <input type="number" id="estimators" class="customselect" value="100">
@@ -179,10 +175,8 @@ margin: 2px;
         <input type="number" id="random_state" class="customselect" value="42">
       </div>
     </div>
-    <!-- Train Model Button (full width) -->
     <button class="buttonstyle exportdata w-100 mb-3" onclick="trainModel()">Train Model</button>
     
-    <!-- Model Assignment Section -->
     <h2 class="fw-bold">Model Assignment</h2>
     <hr>
     <div class="row mb-3">
@@ -194,13 +188,11 @@ margin: 2px;
         <button class="buttonstyle exportdata w-100" onclick="setGlobalActiveModel()">Set Active Model</button>
       </div>
     </div>
-       <!-- Display existing predictive models in a 2x2 grid -->
        <div id="model_list" class="row mb-3">
        
       </div>
     <hr>
     
-    <!-- Training Results Section with Chart.js -->
     <h2 class="fw-bold">Training Results</h2>
     <div class="row">
         <div class="col-md-6">
@@ -224,7 +216,7 @@ margin: 2px;
   document.addEventListener("DOMContentLoaded", function(){
     loadTrainingHistory();
   refreshDataList();
-  loadGlobalModels(); // load previously trained models for assignment
+  loadGlobalModels(); 
 
   // Force the training model type select (in the configurator) to only have "lightgbm"
   let trainModelSelect = document.getElementById('predictive_model_select');
@@ -262,7 +254,6 @@ function refreshDataList() {
 }
 
 document.addEventListener("DOMContentLoaded", refreshDataList);
-  
     // Export Data from Database
     function exportData() {
       axios.get('/api/export_data')
@@ -298,7 +289,6 @@ document.addEventListener("DOMContentLoaded", refreshDataList);
   
     // Train Model Function (global)
     function trainModel() {
-      // Assume a training data file is selected from an external mechanism or a hidden input.
         const filename = document.getElementById('predictive_data_select') ? document.getElementById('predictive_data_select').value : '';
         if (!filename) {
         alert("Please select a training data file.");
@@ -422,7 +412,7 @@ function loadTrainingHistory() {
           mseDatasets.push({
             label: entry.model_filename,
             data: [{
-              x: index + 1,  // training order (1, 2, 3, …)
+              x: index + 1, 
               y: entry.mse,
               timestamp: entry.timestamp  // stored for tooltip reference if needed
             }],
@@ -489,7 +479,6 @@ function updateScatterChart(canvasId, datasets, metricLabel, thresholdValue, thr
             }
           }
         },
-        // Optional: Draw a horizontal threshold line.
         annotation: {
           annotations: {
             thresholdLine: {

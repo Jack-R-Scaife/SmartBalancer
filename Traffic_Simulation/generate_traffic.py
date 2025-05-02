@@ -140,12 +140,10 @@ def simulate_traffic(start_time):
     """
     global traffic_running, traffic_metrics, events, current_baseline_rate, current_scenario
 
-    # Optionally: Filter and combine active events here (see previous examples).
     while traffic_running:
         current_time = time.time() - start_time
         rate = current_baseline_rate
 
-        # Example: combine active events multiplicatively
         active_events = [event for event in events 
                          if event["start_time"] <= current_time < event["start_time"] + event["duration"]]
         if active_events:
@@ -154,7 +152,6 @@ def simulate_traffic(start_time):
                 effective_scale *= event["scale"]
             rate = int(current_baseline_rate * effective_scale)
 
-        # (Optional) Remove expired events to prevent buildup.
         events[:] = [event for event in events if current_time < event["start_time"] + event["duration"]]
 
         # Send "rate" traffic requests with a richer payload
@@ -174,15 +171,15 @@ def simulate_traffic(start_time):
 
             # Build the payload
             payload = {
-                "url": url,                        # the endpoint (or target URL) for the simulated traffic
-                "type": protocol.upper(),          # e.g., "HTTP", "HTTPS", "TCP", "UDP"
+                "url": url,                       
+                "type": protocol.upper(),         
                 "rate": rate,
                 "duration": 1,
                 "scenario": current_scenario,
-                "protocol": protocol,              # added field: protocol
-                "port": port,                      # added field: port number
-                "country": country,                # added field: country (of origin)
-                "traffic_direction": traffic_direction  # added field: incoming or outgoing
+                "protocol": protocol,              
+                "port": port,                     
+                "country": country,               
+                "traffic_direction": traffic_direction  
             }
             try:
                 response = requests.post(url, json=payload)

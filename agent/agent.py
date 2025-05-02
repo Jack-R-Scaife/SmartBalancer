@@ -12,7 +12,7 @@ import json,requests,traceback,logging
 from response_factory import ResponseFactory
 import zipfile
 import io,binascii
-# Initialize Flask app
+# Flask app Setup
 app = Flask(__name__)
 resource_monitor = ResourceMonitor()
 health_check_instance = HealthCheck()
@@ -24,7 +24,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
-
+# ---- Agent Class ----
 class Agent:
     def __init__(self, server_id):
         self.server_id = server_id

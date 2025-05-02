@@ -11,62 +11,46 @@ class StaticAlgorithms:
         self.lock = threading.Lock()  # Protect shared state
 
     def round_robin(self, ai_enabled=False):
-        """Select the next server using round-robin with thread safety."""
+        """Round-robin load balancing, optionally enhanced with AI predictions."""
         with self.lock:
             if not self.known_agents:
                 return None
 
             if ai_enabled:
                 try:
-                    # Fetch per-server metrics and predictions
+                    # Fetch current metrics and predicted traffic from API
                     import requests
                     metrics = requests.get("http://127.0.0.1:5000/api/metrics/all").json()
                     predictions = requests.get("http://127.0.0.1:5000/api/predicted_traffic").json()
 
-                    # Create a map of predictions by server IP
+                    # Map predicted values to each server IP
                     prediction_map = {}
                     for pred in predictions:
-                        if 'agent_ip' in pred and 'value' in pred:
-                            ip = pred['agent_ip']
-                            prediction_map.setdefault(ip, []).append(pred['value'])
+                        prediction_map.setdefault(pred['agent_ip'], []).append(pred['value'])
 
-                    # Process each server individually
+                    # Score servers based on CPU usage and predicted load
                     scored_servers = []
                     for server in metrics:
-                        if 'ip' in server and 'metrics' in server:
-                            ip = server['ip']
-                            cpu = server['metrics'].get('cpu_total', 0)
+                        ip = server['ip']
+                        cpu = server['metrics'].get('cpu_total', 0)
+                        avg_pred = sum(prediction_map.get(ip, [0])) / len(prediction_map.get(ip, [0]))
+                        score = (100 - cpu) * 0.7 + (100 - avg_pred) * 0.3
+                        scored_servers.append((ip, score))
 
-                            # Get prediction or use 0 if none exists
-                            pred_values = prediction_map.get(ip, [0])
-                            avg_prediction = sum(pred_values) / len(pred_values) if pred_values else 0
-
-                            # Calculate server score
-                            score = (100 - cpu) * 0.7 + (100 - avg_prediction) * 0.3
-                            scored_servers.append((ip, score))
-
-                    if not scored_servers:
-                        raise ValueError("No servers available after scoring")
-
-                    # Sort servers by score (best first)
+                    # Select the highest scoring server (AI-based ordering)
                     scored_servers.sort(key=lambda x: x[1], reverse=True)
-                    ordered_servers = [s[0] for s in scored_servers]
-
-                    # Use a temporary index for AI ordering to avoid affecting the standard index
-                    ai_current_index = self.current_index % len(ordered_servers)
-                    selected = ordered_servers[ai_current_index]
-                    self.current_index += 1  # Update the main index for consistency
-
-                    round_robin_logger.info(f"AI-enhanced round-robin chose: {selected}")
+                    ordered = [s[0] for s in scored_servers]
+                    selected = ordered[self.current_index % len(ordered)]
+                    self.current_index += 1
                     return selected
-                except Exception as e:
-                    round_robin_logger.error(f"AI-enhanced RR failed: {e}. Using standard.")
-                    round_robin_logger.warning("Falling back to standard round-robin algorithm")
-            else:
-                # Standard round-robin
-                selected = self.known_agents[self.current_index % len(self.known_agents)]
-                self.current_index += 1
-                return selected
+                except:
+                    # On failure, fall back to standard round-robin
+                    pass
+
+            # Standard round-robin: return server in sequential order
+            selected = self.known_agents[self.current_index % len(self.known_agents)]
+            self.current_index += 1
+            return selected
 
     def set_weights(self, weights):
         """Set weights for weighted round-robin; resets index for consistency."""

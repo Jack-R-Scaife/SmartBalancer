@@ -11,7 +11,6 @@
 </style>
 <div class="container customContainer mt-2">
   <div class="row g-4" id="groupContainer">
-    <!-- Dynamic content will be added here -->
   </div>
 </div>
 <script>
@@ -28,7 +27,7 @@ function updateGroups(groups, servers) {
     }
     groupedServers[groupId].push({
       ip_address: server.server_ip,
-      status: "Unknown" // Add status handling if available
+      status: "Unknown" 
     });
   });
 
@@ -102,7 +101,7 @@ function updateGroups(groups, servers) {
     groupContainer.appendChild(card);
   });
 
-  // Add "Groups Remaining" card if there are fewer than 6 groups
+  // Add "Groups Remaining" card 
   const maxGroups = 6;
   const remainingGroups = maxGroups - groups.length;
 
@@ -149,7 +148,7 @@ function getStatusText(statusCode) {
         case 1:
             return 'Healthy';
         case 2:
-        case 3: // Treat 2 and 3 as "Overloaded"
+        case 3: 
             return 'Overloaded';
         case 4:
             return 'Down';
@@ -166,7 +165,7 @@ function getStatusText(statusCode) {
 function fetchAndUpdateServerStatus() {
     axios.get('/api/server_status')
         .then(response => {
-            const serverStatuses = response.data; // Array of { ip, s }
+            const serverStatuses = response.data; 
 
             // Update the server statuses in the group cards
             const serverItems = document.querySelectorAll('.server-status li');
