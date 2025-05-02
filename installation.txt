@@ -1,0 +1,85 @@
+SmartBalancer - Installation Guide
+==================================
+
+This document provides detailed instructions on how to install and run the SmartBalancer predictive load balancer system.
+
+------------------------------------
+1. Clone the Repository
+------------------------------------
+
+On the load balancer VM (e.g., Ubuntu):
+----------------------------------------
+$ git clone https://github.com/Jack-R-Scaife/SmartBalancer.git
+$ cd SmartBalancer
+$ chmod +x uni_deploy.sh
+
+------------------------------------
+2. Automatic Deployment (Recommended)
+------------------------------------
+
+To deploy the entire system (agents + load balancer) from the load balancer terminal:
+
+$ ./uni_deploy.sh
+
+This script will:
+- Copy and install the agent on all backend servers
+- Set up systemd services on backend VMs
+- Prepare the load balancer with all dependencies
+
+Prerequisites:
+- SSH access to all VMs from the load balancer
+- Passwords matching usernames on remote VMs (e.g., user `ubs1` with password `ubs1`)
+- `sshpass`, `rsync`, `scp`, `python3`, `pip`, and `git` installed on all VMs
+
+------------------------------------
+3. Manual Installation (If Needed)
+------------------------------------
+
+-- Backend Agent Installation --
+(Repeat on each backend VM: ubs1 - ubs5)
+
+$ git clone https://github.com/Jack-R-Scaife/SmartBalancer.git
+$ cd SmartBalancer/agent
+$ python3 -m venv venv
+$ source venv/bin/activate
+$ pip install -r requirements.txt
+$ python3 agent.py
+
+Optional: Setup as a systemd service (see deploy.sh for template).
+
+-- Load Balancer Setup --
+
+1. Install MySQL Server and Create Database:
+$ sudo apt update && sudo apt install mysql-server
+$ sudo mysql -u root -p
+> CREATE DATABASE loadbalancer;
+
+2. Update database connection info in:
+SmartBalancer/app/config.py
+
+3. Set up virtual environment and run Flask backend:
+$ cd SmartBalancer
+$ python3 -m venv venv
+$ source venv/bin/activate
+$ pip install -r requirements.txt
+$ python3 run.py
+
+------------------------------------
+4. Running the System
+------------------------------------
+
+After installation, access the dashboard in your browser:
+
+http://<loadbalancer-ip>:5000
+
+You should see real-time metrics once backend agents begin pushing data.
+
+------------------------------------
+5. Additional Notes
+------------------------------------
+
+- The TCP port 9000 must be open on all agents for socket communication.
+- The deployment script includes security assumptions (no TLS, static key auth). Production environments should upgrade these.
+
+For support and documentation, visit:
+https://github.com/Jack-R-Scaife/SmartBalancer
