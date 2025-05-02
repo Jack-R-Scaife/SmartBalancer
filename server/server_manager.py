@@ -20,7 +20,7 @@ class ServerManager:
         # Debugging: Log the incoming IP address
         print(f"[DEBUG] link_server called with IP: {ip_address}")
 
-        # First, check if the server is already linked by querying the database using the server's IP address.
+        #  check if the server is already linked by querying the database using the server's IP address.
         existing_server = Server.query.filter_by(ip_address=ip_address).first()
         if existing_server:
             print(f"[DEBUG] Server with IP {ip_address} already exists in the database.")
